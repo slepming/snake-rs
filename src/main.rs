@@ -59,6 +59,7 @@ use winit::{
 
 use crate::shaders::cube_shader::{cube_fs, cube_vs};
 
+pub mod mv;
 pub mod shaders;
 
 fn main() -> Result<(), impl Error> {
@@ -561,6 +562,15 @@ impl ApplicationHandler for App {
         match event {
             WindowEvent::CloseRequested => {
                 event_loop.exit();
+            }
+            WindowEvent::KeyboardInput { event, .. } => {
+                if event.repeat {
+                    return;
+                }
+                match event.physical_key {
+                    winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::KeyW) => {}
+                    _ => {}
+                }
             }
             WindowEvent::Resized(_) => {
                 rcx.recreate_swapchain = true;
