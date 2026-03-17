@@ -1,13 +1,6 @@
-// Welcome to the triangle example!
-//
-// This is the only example that is entirely detailed. All the other examples avoid code
-// duplication by using helper functions.
-//
-// This example assumes that you are already more or less familiar with graphics programming and
-// that you want to learn Vulkan. This means that for example it won't go into details about what a
-// vertex or a shader is.
+// How I can change code for better readability
 
-use log::debug;
+use rapier2d::prelude::{ColliderSet, RigidBodySet};
 use std::{
     error::Error,
     ops::{Deref, RangeInclusive},
@@ -57,7 +50,10 @@ use winit::{
     window::{Window, WindowId},
 };
 
-use crate::shaders::cube_shader::{cube_fs, cube_vs};
+use crate::{
+    mv::transform::{Children, DynamicObject, Objects, PhysicsContext, PhysicsDrawable, PhysicsSpace},
+    shaders::cube_shader::{cube_fs, cube_vs},
+};
 
 pub mod mv;
 pub mod shaders;
@@ -77,6 +73,8 @@ struct App {
     memory_allocator: Arc<StandardMemoryAllocator>,
     rcx: Option<RenderContext>,
     ci: CubeInformation,
+    physics_context: PhysicsContext,
+    children: Children,
 }
 
 struct CubeInformation {
@@ -266,7 +264,13 @@ impl App {
             ],
         };
 
-        let rcx = None;
+        // Create physics
+        let rbs = RigidBodySet::new();
+        let cds = ColliderSet::new();
+
+        let space = PhysicsSpace::new();
+
+        let ph_context = PhysicsContext::new(rbs, cds, space);
 
         App {
             instance,
@@ -274,17 +278,21 @@ impl App {
             device,
             queue,
             command_buffer_allocator,
-            rcx,
+            rcx: None,
             ci: CubeInformation {
                 cube: Arc::new(cube),
                 transform,
             },
+            physics_context: ph_context,
+            children: Children::new(),
         }
     }
 }
 
 impl ApplicationHandler for App {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
+        // Create physical object
+        self.children.physics_drawables.push(self.physics_context.create_phys_object(None));
         // The objective of this example is to draw a triangle on a window. To do so, we first need
         // to create the window. We use the `WindowBuilder` from the `winit` crate to do that here.
         //
@@ -295,7 +303,7 @@ impl ApplicationHandler for App {
             event_loop
                 .create_window(
                     Window::default_attributes()
-                        .with_title("image viewer")
+                        .with_title("triangle")
                         .with_name("triangle", "triangle")
                         .with_min_inner_size(Size::Physical(PhysicalSize {
                             width: 800,
@@ -584,7 +592,9 @@ impl ApplicationHandler for App {
                     return;
                 }
 
-                self.ci.transform.transform[3][0] += 0.0005;
+                let obj =  &self.physics_context.rigid_body_set[self.children.physics_drawables[0].get_rb_handle()]
+                self.ci.transform.transform[3][0] += obj.translation();
+
                 dbg!(self.ci.transform.transform);
 
                 // It is important to call this function from time to time, otherwise resources
@@ -764,6 +774,7 @@ impl ApplicationHandler for App {
                         // previous_frame_end = Some(sync::now(&device).boxed());
                     }
                 }
+                self.physics_context.step();
             }
             _ => {}
         }

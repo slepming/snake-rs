@@ -10,15 +10,42 @@ use vulkano::buffer::BufferContents;
 
 const GRAVITY: Vector = Vector::new(0.0, -9.81);
 
-/// Структура не относится к объекту, относится только к базовой среде,
-/// где ведется разработка самого приложения(в структуре App)
-pub struct PhysicsContext {
-    rigid_body_set: RigidBodySet,
-    collider_set: ColliderSet,
-    pub space: PhysicSpace,
+pub struct Children {
+    pub physics_drawables: Vec<PhysicsDrawable>,
+    pub drawables: Vec<Drawable>,
 }
 
-pub struct PhysicSpace {
+impl Children {
+    pub fn new() -> Self {
+        Children {
+            physics_drawables: Vec::new(),
+            drawables: Vec::new(),
+        }
+    }
+}
+
+/// Basic context for use physics.
+/// # Example
+/// ```
+/// // We need to create rigidbody and collider sets for move their to the structure
+/// let rbs = RigidBodySet::new();
+/// let cds = ColliderSet::new();
+///
+/// // For physics we need to create space
+/// let space = PhysicsSpace::new();
+///
+/// // We need to create Physics Context
+/// let ph_context = PhysicsContext::new(rbs, cds, space);
+///
+/// ph.step();
+/// ```
+pub struct PhysicsContext {
+    pub rigid_body_set: RigidBodySet,
+    pub collider_set: ColliderSet,
+    pub space: PhysicsSpace,
+}
+
+pub struct PhysicsSpace {
     integration_parameters: IntegrationParameters,
     pipeline: PhysicsPipeline,
     island_manager: IslandManager,
@@ -37,21 +64,21 @@ pub struct PhysicSpace {
 pub struct Drawable {}
 
 pub struct PhysicsDrawable {
-    rb: Option<RigidBody>,
-    collider: Option<Collider>,
-    rb_h: Option<RigidBodyHandle>,
-    collider_h: Option<ColliderHandle>,
+    rb: RigidBody,
+    collider: Collider,
+    rb_h: RigidBodyHandle,
     drawable: Drawable,
 }
 
 /// Реализация этого трейта доступна для всех объектов, но использовать ее могут только если RigidBody или Collider имеются.
-trait DynamicObject {
+pub trait DynamicObject {
     fn change_position(&self, pos: Vector) -> &Self;
     fn set_translation(&self, vec: Vector) -> &Self;
+    fn get_rb_handle(&self) -> RigidBodyHandle;
 }
 
 /// Бесполезный трейт. По идее должен создавать объекты на экран, но это можно организовать в чем-либо другом.
-trait Objects {
+pub trait Objects {
     fn create_phys_object(&mut self, position: Option<Vector>) -> PhysicsDrawable;
 }
 
@@ -62,18 +89,12 @@ impl Drawable {
 }
 
 impl PhysicsDrawable {
-    pub fn new(
-        rb: Option<RigidBody>,
-        col: Option<Collider>,
-        rb_h: Option<RigidBodyHandle>,
-        collider_h: Option<ColliderHandle>,
-    ) -> Self {
+    pub fn new(rb: RigidBody, col: Collider, rb_h: RigidBodyHandle) -> Self {
         PhysicsDrawable {
             drawable: Drawable::new(),
             rb,
             collider: col,
             rb_h,
-            collider_h,
         }
     }
 }
@@ -83,8 +104,11 @@ impl DynamicObject for PhysicsDrawable {
         todo!()
     }
     fn set_translation(&self, vec: Vector) -> &Self {
-        self.rb.clone().unwrap().set_translation(vec, false);
+        self.rb.clone().set_translation(vec, false);
         self
+    }
+    fn get_rb_handle(&self) -> RigidBodyHandle {
+        self.rb_h
     }
 }
 
@@ -92,7 +116,7 @@ impl PhysicsContext {
     pub fn new(
         rigid_body_set: RigidBodySet,
         collider_set: ColliderSet,
-        space: PhysicSpace,
+        space: PhysicsSpace,
     ) -> Self {
         PhysicsContext {
             rigid_body_set,
@@ -133,13 +157,13 @@ impl Objects for PhysicsContext {
             rb_h.clone(),
             &mut self.rigid_body_set,
         );
-        PhysicsDrawable::new(Some(rigid_body), Some(collider), Some(rb_h), None)
+        PhysicsDrawable::new(rigid_body, collider, rb_h)
     }
 }
 
-impl PhysicSpace {
+impl PhysicsSpace {
     pub fn new() -> Self {
-        PhysicSpace {
+        PhysicsSpace {
             integration_parameters: IntegrationParameters::default(),
             pipeline: PhysicsPipeline::new(),
             island_manager: IslandManager::new(),
@@ -163,4 +187,13 @@ pub trait Position {
 #[derive(BufferContents, Clone, Copy)]
 pub struct Transform {
     transform: [[f32; 4]; 4],
+}
+
+impl Position for Transform {
+    fn get_matrix_mut(&mut self) -> &mut [[f32; 4]; 4] {
+        &mut self.transform
+    }
+    fn get_matrix(&self) -> &[[f32; 4]; 4] {
+        &self.transform
+    }
 }
