@@ -64,8 +64,6 @@ pub struct PhysicsSpace {
 pub struct Drawable {}
 
 pub struct PhysicsDrawable {
-    rb: RigidBody,
-    collider: Collider,
     rb_h: RigidBodyHandle,
     drawable: Drawable,
 }
@@ -73,7 +71,7 @@ pub struct PhysicsDrawable {
 /// Реализация этого трейта доступна для всех объектов, но использовать ее могут только если RigidBody или Collider имеются.
 pub trait DynamicObject {
     fn change_position(&self, pos: Vector) -> &Self;
-    fn set_translation(&self, vec: Vector) -> &Self;
+    fn set_translation(&mut self, ctx: &mut PhysicsContext, vec: Vector);
     fn get_rb_handle(&self) -> RigidBodyHandle;
 }
 
@@ -89,13 +87,14 @@ impl Drawable {
 }
 
 impl PhysicsDrawable {
-    pub fn new(rb: RigidBody, col: Collider, rb_h: RigidBodyHandle) -> Self {
+    pub fn new(rb_h: RigidBodyHandle) -> Self {
         PhysicsDrawable {
             drawable: Drawable::new(),
-            rb,
-            collider: col,
             rb_h,
         }
+    }
+    fn get_rb<'a>(&self, ctx: &'a mut PhysicsContext) -> &'a mut RigidBody {
+        ctx.rigid_body_set.get_mut(self.rb_h).unwrap()
     }
 }
 
@@ -103,9 +102,9 @@ impl DynamicObject for PhysicsDrawable {
     fn change_position(&self, pos: Vector) -> &Self {
         todo!()
     }
-    fn set_translation(&self, vec: Vector) -> &Self {
-        self.rb.clone().set_translation(vec, false);
-        self
+    fn set_translation(&mut self, ctx: &mut PhysicsContext, vec: Vector) {
+        let rb = self.get_rb(ctx);
+        rb.set_translation(vec, false);
     }
     fn get_rb_handle(&self) -> RigidBodyHandle {
         self.rb_h
@@ -151,13 +150,10 @@ impl Objects for PhysicsContext {
         }
         let rigid_body = rigid_body_builder.build();
         let collider = ColliderBuilder::ball(0.5).restitution(0.7).build();
-        let rb_h = self.rigid_body_set.insert(rigid_body.clone());
-        self.collider_set.insert_with_parent(
-            collider.clone(),
-            rb_h.clone(),
-            &mut self.rigid_body_set,
-        );
-        PhysicsDrawable::new(rigid_body, collider, rb_h)
+        let rb_h = self.rigid_body_set.insert(rigid_body);
+        self.collider_set
+            .insert_with_parent(collider, rb_h.clone(), &mut self.rigid_body_set);
+        PhysicsDrawable::new(rb_h)
     }
 }
 

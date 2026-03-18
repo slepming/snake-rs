@@ -1,10 +1,17 @@
 // How I can change code for better readability
 
-use rapier2d::prelude::{ColliderSet, RigidBodySet};
+use log::debug;
+use rapier2d::{
+    math::Vector,
+    prelude::{ColliderSet, RigidBodySet},
+};
 use std::{
     error::Error,
     ops::{Deref, RangeInclusive},
+    process::exit,
     sync::Arc,
+    thread,
+    time::Duration,
 };
 use vulkano::{
     Validated, VulkanError, VulkanLibrary,
@@ -44,14 +51,19 @@ use vulkano::{
 use winit::{
     application::ApplicationHandler,
     dpi::{PhysicalSize, Size},
-    event::WindowEvent,
+    event::{ElementState, WindowEvent},
     event_loop::{ActiveEventLoop, EventLoop},
-    platform::wayland::WindowAttributesExtWayland,
+    keyboard::{Key, NamedKey},
+    platform::{
+        modifier_supplement::KeyEventExtModifierSupplement, wayland::WindowAttributesExtWayland,
+    },
     window::{Window, WindowId},
 };
 
 use crate::{
-    mv::transform::{Children, DynamicObject, Objects, PhysicsContext, PhysicsDrawable, PhysicsSpace},
+    mv::transform::{
+        Children, DynamicObject, Objects, PhysicsContext, PhysicsDrawable, PhysicsSpace,
+    },
     shaders::cube_shader::{cube_fs, cube_vs},
 };
 
@@ -59,6 +71,7 @@ pub mod mv;
 pub mod shaders;
 
 fn main() -> Result<(), impl Error> {
+    pretty_env_logger::init();
     let event_loop = EventLoop::new().unwrap();
     let mut app = App::new(&event_loop);
 
@@ -95,8 +108,10 @@ struct RenderContext {
 
 impl App {
     fn new(event_loop: &EventLoop<()>) -> Self {
+        debug!("initialization vulkan");
         let library = unsafe { VulkanLibrary::new() }.unwrap();
 
+        debug!("creating extensions");
         // The first step of any Vulkan program is to create an instance.
         //
         // When we create an instance, we have to pass a list of extensions that we want to enable.
@@ -106,6 +121,7 @@ impl App {
         // to a window.
         let required_extensions = Surface::required_extensions(event_loop).unwrap();
 
+        debug!("creating vulkan instance");
         // Now creating the instance.
         let instance = Instance::new(
             library.clone(),
@@ -129,6 +145,7 @@ impl App {
             ..DeviceExtensions::empty()
         };
 
+        debug!("choosing gpu for vulkan");
         // We then choose which physical device to use. First, we enumerate all the available
         // physical devices, then apply filters to narrow them down to those that can support our
         // needs.
@@ -193,7 +210,7 @@ impl App {
             .expect("no suitable physical device found");
 
         // Some little debug infos.
-        println!(
+        debug!(
             "Using device: {} (type: {:?})",
             physical_device.properties().device_name,
             physical_device.properties().device_type,
@@ -242,16 +259,16 @@ impl App {
         // We now create a buffer that will store the shape of our triangle.
         let cube = [
             MyVertex {
-                position: [-0.4, -0.4],
+                position: [-0.1, -0.1],
             },
             MyVertex {
-                position: [-0.4, 0.4],
+                position: [-0.1, 0.1],
             },
             MyVertex {
-                position: [0.4, -0.4],
+                position: [0.1, -0.1],
             },
             MyVertex {
-                position: [0.4, 0.4],
+                position: [0.1, 0.1],
             },
         ];
 
@@ -260,10 +277,11 @@ impl App {
                 [1.0, 0.0, 0.0, 0.0],
                 [0.0, 1.0, 0.0, 0.0],
                 [0.0, 0.0, 1.0, 0.0],
-                [0.2, 0.3, 0.0, 1.0],
+                [0.0, 0.0, 0.0, 1.0],
             ],
         };
 
+        debug!("initializing physics");
         // Create physics
         let rbs = RigidBodySet::new();
         let cds = ColliderSet::new();
@@ -292,7 +310,11 @@ impl App {
 impl ApplicationHandler for App {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         // Create physical object
-        self.children.physics_drawables.push(self.physics_context.create_phys_object(None));
+        self.children.physics_drawables.push(
+            self.physics_context
+                .create_phys_object(Some(Vector::new(0.0, 0.0))),
+        );
+        debug!("creating window");
         // The objective of this example is to draw a triangle on a window. To do so, we first need
         // to create the window. We use the `WindowBuilder` from the `winit` crate to do that here.
         //
@@ -572,18 +594,26 @@ impl ApplicationHandler for App {
                 event_loop.exit();
             }
             WindowEvent::KeyboardInput { event, .. } => {
-                if event.repeat {
-                    return;
-                }
-                match event.physical_key {
-                    winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::KeyW) => {}
-                    _ => {}
+                if event.state == ElementState::Pressed && !event.repeat {
+                    match event.key_without_modifiers().as_ref() {
+                        Key::Named(NamedKey::Escape) => {
+                            debug!("change position");
+                            self.children.physics_drawables.iter_mut().for_each(|r| {
+                                r.set_translation(
+                                    &mut self.physics_context,
+                                    Vector::new(0.0, -1.0),
+                                );
+                            });
+                        }
+                        _ => {}
+                    }
                 }
             }
             WindowEvent::Resized(_) => {
                 rcx.recreate_swapchain = true;
             }
             WindowEvent::RedrawRequested => {
+                thread::sleep(Duration::from_millis(1000 / 60));
                 let window_size = rcx.window.inner_size();
 
                 // Do not draw the frame when the screen size is zero. On Windows, this can occur
@@ -592,9 +622,10 @@ impl ApplicationHandler for App {
                     return;
                 }
 
-                let obj =  &self.physics_context.rigid_body_set[self.children.physics_drawables[0].get_rb_handle()]
-                self.ci.transform.transform[3][0] += obj.translation();
-
+                let obj = &self.physics_context.rigid_body_set
+                    [self.children.physics_drawables[0].get_rb_handle()];
+                self.ci.transform.transform[3][1] = (obj.translation().y * -1.0) / 10.0;
+                dbg!(obj.translation());
                 dbg!(self.ci.transform.transform);
 
                 // It is important to call this function from time to time, otherwise resources
