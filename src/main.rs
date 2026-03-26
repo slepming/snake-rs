@@ -3,19 +3,13 @@
 use log::debug;
 use rapier2d::{
     math::Vector,
+    parry::either::IntoEither,
     prelude::{ColliderSet, RigidBodySet},
 };
-use std::{
-    error::Error,
-    ops::{Deref, RangeInclusive},
-    process::exit,
-    sync::Arc,
-    thread,
-    time::Duration,
-};
+use std::{error::Error, ops::RangeInclusive, sync::Arc};
 use vulkano::{
     Validated, VulkanError, VulkanLibrary,
-    buffer::{Buffer, BufferContents, BufferCreateFlags, BufferCreateInfo, BufferUsage, Subbuffer},
+    buffer::{Buffer, BufferContents, BufferCreateInfo, BufferUsage},
     command_buffer::{
         AutoCommandBufferBuilder, CommandBufferUsage, RenderPassBeginInfo, SubpassBeginInfo,
         SubpassContents, allocator::StandardCommandBufferAllocator,
@@ -26,14 +20,12 @@ use vulkano::{
     },
     image::{Image, ImageUsage, view::ImageView},
     instance::{Instance, InstanceCreateFlags, InstanceCreateInfo, InstanceExtensions},
-    memory::allocator::{
-        AllocationCreateInfo, MemoryAllocator, MemoryTypeFilter, StandardMemoryAllocator,
-    },
+    memory::allocator::{AllocationCreateInfo, MemoryTypeFilter, StandardMemoryAllocator},
     pipeline::{
         DynamicState, GraphicsPipeline, Pipeline, PipelineLayout, PipelineShaderStageCreateInfo,
         graphics::{
             GraphicsPipelineCreateInfo,
-            color_blend::{AttachmentBlend, ColorBlendAttachmentState, ColorBlendState},
+            color_blend::{ColorBlendAttachmentState, ColorBlendState},
             input_assembly::InputAssemblyState,
             multisample::MultisampleState,
             rasterization::RasterizationState,
@@ -61,12 +53,11 @@ use winit::{
 };
 
 use crate::{
-    mv::transform::{
-        Children, DynamicObject, Objects, PhysicsContext, PhysicsDrawable, PhysicsSpace,
-    },
+    mv::transform::{Children, DynamicObject, Objects, PhysicsContext, PhysicsSpace, Position},
     shaders::cube_shader::{cube_fs, cube_vs},
 };
 
+pub mod geometry;
 pub mod mv;
 pub mod shaders;
 
@@ -85,14 +76,8 @@ struct App {
     command_buffer_allocator: Arc<StandardCommandBufferAllocator>,
     memory_allocator: Arc<StandardMemoryAllocator>,
     rcx: Option<RenderContext>,
-    ci: CubeInformation,
     physics_context: PhysicsContext,
     children: Children,
-}
-
-struct CubeInformation {
-    cube: Arc<[MyVertex; 4]>,
-    transform: Transform,
 }
 
 struct RenderContext {
@@ -108,8 +93,9 @@ struct RenderContext {
 
 impl App {
     fn new(event_loop: &EventLoop<()>) -> Self {
+        let _span = tracy_client::span!("App::new");
         debug!("initialization vulkan");
-        let library = unsafe { VulkanLibrary::new() }.unwrap();
+        let library = VulkanLibrary::new().unwrap();
 
         debug!("creating extensions");
         // The first step of any Vulkan program is to create an instance.
@@ -256,31 +242,6 @@ impl App {
             Default::default(),
         ));
 
-        // We now create a buffer that will store the shape of our triangle.
-        let cube = [
-            MyVertex {
-                position: [-0.1, -0.1],
-            },
-            MyVertex {
-                position: [-0.1, 0.1],
-            },
-            MyVertex {
-                position: [0.1, -0.1],
-            },
-            MyVertex {
-                position: [0.1, 0.1],
-            },
-        ];
-
-        let transform = Transform {
-            transform: [
-                [1.0, 0.0, 0.0, 0.0],
-                [0.0, 1.0, 0.0, 0.0],
-                [0.0, 0.0, 1.0, 0.0],
-                [0.0, 0.0, 0.0, 1.0],
-            ],
-        };
-
         debug!("initializing physics");
         // Create physics
         let rbs = RigidBodySet::new();
@@ -297,10 +258,6 @@ impl App {
             queue,
             command_buffer_allocator,
             rcx: None,
-            ci: CubeInformation {
-                cube: Arc::new(cube),
-                transform,
-            },
             physics_context: ph_context,
             children: Children::new(),
         }
@@ -312,7 +269,7 @@ impl ApplicationHandler for App {
         // Create physical object
         self.children.physics_drawables.push(
             self.physics_context
-                .create_phys_object(Some(Vector::new(0.0, 0.0))),
+                .create_phys_object(Some(Vector::new(0.0, 0.0)), geometry::shapes::Shapes::Cube),
         );
         debug!("creating window");
         // The objective of this example is to draw a triangle on a window. To do so, we first need
@@ -599,10 +556,7 @@ impl ApplicationHandler for App {
                         Key::Named(NamedKey::Escape) => {
                             debug!("change position");
                             self.children.physics_drawables.iter_mut().for_each(|r| {
-                                r.set_translation(
-                                    &mut self.physics_context,
-                                    Vector::new(0.0, -1.0),
-                                );
+                                r.teleport(&mut self.physics_context, Vector::new(0.0, -1.0));
                             });
                         }
                         _ => {}
@@ -613,7 +567,7 @@ impl ApplicationHandler for App {
                 rcx.recreate_swapchain = true;
             }
             WindowEvent::RedrawRequested => {
-                thread::sleep(Duration::from_millis(1000 / 60));
+                tracy_client::Client::running().unwrap().frame_mark();
                 let window_size = rcx.window.inner_size();
 
                 // Do not draw the frame when the screen size is zero. On Windows, this can occur
@@ -624,9 +578,22 @@ impl ApplicationHandler for App {
 
                 let obj = &self.physics_context.rigid_body_set
                     [self.children.physics_drawables[0].get_rb_handle()];
-                self.ci.transform.transform[3][1] = (obj.translation().y * -1.0) / 10.0;
+                let mut transform: mv::transform::Transform = self.children.physics_drawables[0]
+                    .get_drawable()
+                    .get_transform_copy();
+                transform.get_matrix_mut()[3][1] = (obj.translation().y * -1.0) / 10.0; // TODO: надо тут менять transform
+                self.children.physics_drawables[0]
+                    .get_mut_drawable()
+                    .set_trasnform(transform);
+                self.children.physics_drawables[0]
+                    .get_mut_drawable()
+                    .set_trasnform(transform);
                 dbg!(obj.translation());
-                dbg!(self.ci.transform.transform);
+                dbg!(
+                    self.children.physics_drawables[0]
+                        .get_drawable()
+                        .get_transform()
+                );
 
                 // It is important to call this function from time to time, otherwise resources
                 // will keep accumulating and you will eventually reach an out of memory error.
@@ -670,7 +637,11 @@ impl ApplicationHandler for App {
                             | MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
                         ..Default::default()
                     },
-                    self.ci.cube.clone().to_vec(),
+                    self.children.physics_drawables[0]
+                        .get_drawable()
+                        .get_transform_copy()
+                        .get_matrix()
+                        .clone(),
                 )
                 .unwrap();
 
@@ -720,7 +691,13 @@ impl ApplicationHandler for App {
                 .unwrap();
 
                 builder
-                    .push_constants(rcx.pipeline.layout().clone(), 0, self.ci.transform)
+                    .push_constants(
+                        rcx.pipeline.layout().clone(),
+                        0,
+                        self.children.physics_drawables[0]
+                            .get_drawable()
+                            .get_transform_copy(),
+                    )
                     .unwrap()
                     // Before we can draw, we have to *enter a render pass*.
                     .begin_render_pass(
@@ -821,15 +798,9 @@ impl ApplicationHandler for App {
 // representation has *no guarantees*.
 #[derive(BufferContents, Vertex, Clone, Copy)]
 #[repr(C)]
-struct MyVertex {
+pub struct MyVertex {
     #[format(R32G32_SFLOAT)]
     position: [f32; 2],
-}
-
-#[repr(C)]
-#[derive(BufferContents, Clone, Copy)]
-struct Transform {
-    transform: [[f32; 4]; 4],
 }
 
 fn window_size_dependent_setup(

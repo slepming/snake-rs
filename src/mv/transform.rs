@@ -1,12 +1,14 @@
 use rapier2d::{
     math::Vector,
     prelude::{
-        CCDSolver, Collider, ColliderBuilder, ColliderHandle, ColliderSet, DefaultBroadPhase,
-        ImpulseJointSet, IntegrationParameters, IslandManager, MultibodyJointSet, NarrowPhase,
-        PhysicsPipeline, RigidBody, RigidBodyBuilder, RigidBodyHandle, RigidBodySet,
+        CCDSolver, ColliderBuilder, ColliderSet, DefaultBroadPhase, ImpulseJointSet,
+        IntegrationParameters, IslandManager, MultibodyJointSet, NarrowPhase, PhysicsPipeline,
+        RigidBody, RigidBodyBuilder, RigidBodyHandle, RigidBodySet,
     },
 };
 use vulkano::buffer::BufferContents;
+
+use crate::{MyVertex, geometry::shapes::Shapes};
 
 const GRAVITY: Vector = Vector::new(0.0, -9.81);
 
@@ -58,56 +60,105 @@ pub struct PhysicsSpace {
     event_handler: (),
 }
 
-// TODO: Дальше надо создать структуру PhysicsDrawable, которая является оберткой над Drawable(имеет Drawable как переменную)
-// Далее переносим все RigidBody и другие физ. свойства в PhysicsDrawable и делаем реализацию DynamicObject только для нее.
-/// Базовая структура для объектов, может иметь RigidBody, Collider и их обработчики, но их значение опционально.
-pub struct Drawable {}
+pub struct Drawable {
+    vertex: Vec<MyVertex>,
+    transform: Transform,
+}
 
 pub struct PhysicsDrawable {
     rb_h: RigidBodyHandle,
     drawable: Drawable,
 }
 
-/// Реализация этого трейта доступна для всех объектов, но использовать ее могут только если RigidBody или Collider имеются.
-pub trait DynamicObject {
-    fn change_position(&self, pos: Vector) -> &Self;
-    fn set_translation(&mut self, ctx: &mut PhysicsContext, vec: Vector);
-    fn get_rb_handle(&self) -> RigidBodyHandle;
-}
-
 /// Бесполезный трейт. По идее должен создавать объекты на экран, но это можно организовать в чем-либо другом.
 pub trait Objects {
-    fn create_phys_object(&mut self, position: Option<Vector>) -> PhysicsDrawable;
+    fn create_phys_object(&mut self, position: Option<Vector>, shape: Shapes) -> PhysicsDrawable;
+}
+
+pub trait DrawableGPU {
+    fn set_vertex(&mut self, vertex: Vec<MyVertex>);
 }
 
 impl Drawable {
-    pub fn new() -> Self {
-        Drawable {}
+    pub fn new(vertex: Vec<MyVertex>) -> Self {
+        let transform = Transform {
+            transform: [
+                [1.0, 0.0, 0.0, 0.0],
+                [0.0, 1.0, 0.0, 0.0],
+                [0.0, 0.0, 1.0, 0.0],
+                [0.0, 0.0, 0.0, 1.0],
+            ],
+        };
+
+        Drawable { vertex, transform }
+    }
+
+    pub fn get_transform_copy(&self) -> Transform {
+        self.transform.clone() // TODO: This method not the best, but idk what function I need instead of this 
+    }
+
+    pub fn get_transform(&self) -> &Transform {
+        &self.transform
+    }
+
+    pub fn set_trasnform(&mut self, transform: Transform) {
+        self.transform = transform;
+    }
+}
+
+impl DrawableGPU for Drawable {
+    fn set_vertex(&mut self, vertex: Vec<MyVertex>) {
+        self.vertex = vertex;
+    }
+}
+
+impl DrawableGPU for PhysicsDrawable {
+    fn set_vertex(&mut self, vertex: Vec<MyVertex>) {
+        self.drawable.set_vertex(vertex);
     }
 }
 
 impl PhysicsDrawable {
-    pub fn new(rb_h: RigidBodyHandle) -> Self {
+    pub fn new(rb_h: RigidBodyHandle, vertex: Vec<MyVertex>) -> Self {
         PhysicsDrawable {
-            drawable: Drawable::new(),
+            drawable: Drawable::new(vertex),
             rb_h,
         }
     }
-    fn get_rb<'a>(&self, ctx: &'a mut PhysicsContext) -> &'a mut RigidBody {
+    pub fn get_rb<'a>(&self, ctx: &'a mut PhysicsContext) -> &'a mut RigidBody {
         ctx.rigid_body_set.get_mut(self.rb_h).unwrap()
+    }
+
+    pub fn get_rb_handle(&self) -> RigidBodyHandle {
+        self.rb_h
+    }
+    pub fn get_drawable(&self) -> &Drawable {
+        &self.drawable
+    }
+    pub fn get_mut_drawable(&mut self) -> &mut Drawable {
+        &mut self.drawable
     }
 }
 
+/// Используется для перемещения объекта в пространстве
+pub trait DynamicObject {
+    /// Teleports this rigid body to a new position (world coordinates).
+    ///
+    /// ⚠️ **Warning**: This instantly moves the body, ignoring physics! The body will "teleport"
+    /// without checking for collisions in between. Use this for:
+    /// - Respawning objects
+    /// - Level transitions
+    /// - Resetting positions
+    ///
+    /// For smooth physics-based movement, use velocities or forces instead.
+    ///
+    fn teleport(&mut self, ctx: &mut PhysicsContext, vec: Vector);
+}
+
 impl DynamicObject for PhysicsDrawable {
-    fn change_position(&self, pos: Vector) -> &Self {
-        todo!()
-    }
-    fn set_translation(&mut self, ctx: &mut PhysicsContext, vec: Vector) {
+    fn teleport(&mut self, ctx: &mut PhysicsContext, vec: Vector) {
         let rb = self.get_rb(ctx);
         rb.set_translation(vec, false);
-    }
-    fn get_rb_handle(&self) -> RigidBodyHandle {
-        self.rb_h
     }
 }
 
@@ -143,7 +194,27 @@ impl PhysicsContext {
 }
 
 impl Objects for PhysicsContext {
-    fn create_phys_object(&mut self, position: Option<Vector>) -> PhysicsDrawable {
+    fn create_phys_object(&mut self, position: Option<Vector>, shape: Shapes) -> PhysicsDrawable {
+        let vertex: Vec<MyVertex>;
+        match shape {
+            Shapes::Cube => {
+                vertex = vec![
+                    MyVertex {
+                        position: [-0.1, -0.1],
+                    },
+                    MyVertex {
+                        position: [-0.1, 0.1],
+                    },
+                    MyVertex {
+                        position: [0.1, -0.1],
+                    },
+                    MyVertex {
+                        position: [0.1, 0.1],
+                    },
+                ];
+            }
+            Shapes::Circle => todo!(),
+        }
         let mut rigid_body_builder = RigidBodyBuilder::dynamic();
         if let Some(pos) = position {
             rigid_body_builder = rigid_body_builder.translation(pos);
@@ -153,7 +224,7 @@ impl Objects for PhysicsContext {
         let rb_h = self.rigid_body_set.insert(rigid_body);
         self.collider_set
             .insert_with_parent(collider, rb_h.clone(), &mut self.rigid_body_set);
-        PhysicsDrawable::new(rb_h)
+        PhysicsDrawable::new(rb_h, vertex)
     }
 }
 
@@ -180,7 +251,7 @@ pub trait Position {
 }
 
 #[repr(C)]
-#[derive(BufferContents, Clone, Copy)]
+#[derive(BufferContents, Clone, Copy, Debug)]
 pub struct Transform {
     transform: [[f32; 4]; 4],
 }
