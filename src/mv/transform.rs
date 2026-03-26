@@ -113,6 +113,10 @@ impl Drawable {
         self.vertex.clone()
     }
 
+    pub fn get_vertex(&self) -> &Vec<MyVertex> {
+        &self.vertex
+    }
+
     pub fn get_transform(&self) -> &Transform {
         &self.transform
     }

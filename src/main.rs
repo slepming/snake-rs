@@ -53,7 +53,9 @@ use winit::{
 };
 
 use crate::{
-    mv::transform::{Children, DynamicObject, Objects, PhysicsContext, PhysicsSpace, Position},
+    mv::transform::{
+        Children, DynamicObject, Objects, PhysicsContext, PhysicsSpace, Position, Transform,
+    },
     shaders::cube_shader::{cube_fs, cube_vs},
 };
 
@@ -622,6 +624,23 @@ impl ApplicationHandler for App {
                     rcx.recreate_swapchain = false;
                 }
 
+                let mut vertices: Vec<MyVertex> = Vec::new();
+                let mut matrices: Vec<Transform> = Vec::new();
+                let mut offsets: Vec<u64> = Vec::new();
+
+                let vertex_size = size_of::<MyVertex>() as u64;
+
+                for drawable in self.children.physics_drawables.iter() {
+                    let drawable = drawable.get_drawable();
+                    let verts = drawable.get_vertex();
+                    let matrics = drawable.get_transform_copy();
+                    let offset = (vertices.len() as u64) * vertex_size;
+
+                    offsets.push(offset);
+                    vertices.extend_from_slice(verts);
+                    matrices.push(matrics);
+                }
+
                 let vertex_buffer = Buffer::from_iter(
                     self.memory_allocator.clone(),
                     BufferCreateInfo {
@@ -633,9 +652,7 @@ impl ApplicationHandler for App {
                             | MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
                         ..Default::default()
                     },
-                    self.children.physics_drawables[0]
-                        .get_drawable()
-                        .get_vertex_clone(),
+                    vertices,
                 )
                 .unwrap();
 
