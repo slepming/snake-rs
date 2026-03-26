@@ -94,7 +94,7 @@ struct RenderContext {
 impl App {
     fn new(event_loop: &EventLoop<()>) -> Self {
         let _span = tracy_client::span!("App::new");
-        debug!("initialization vulkan");
+        debug!("vulkan init");
         let library = VulkanLibrary::new().unwrap();
 
         debug!("creating extensions");
@@ -284,16 +284,15 @@ impl ApplicationHandler for App {
             event_loop
                 .create_window(
                     Window::default_attributes()
-                        .with_title("triangle")
-                        .with_name("triangle", "triangle")
+                        .with_title("snake")
+                        .with_name("snake-engine", "snake-engine")
                         .with_min_inner_size(Size::Physical(PhysicalSize {
                             width: 800,
                             height: 600,
                         }))
-                        .with_max_inner_size(Size::Physical(PhysicalSize {
-                            width: 1920,
-                            height: 1080,
-                        })),
+                        .with_max_inner_size(
+                            event_loop.available_monitors().next().unwrap().size(),
+                        ),
                 )
                 .unwrap(),
         );
@@ -589,12 +588,6 @@ impl ApplicationHandler for App {
                 self.children.physics_drawables[0]
                     .get_mut_drawable()
                     .set_trasnform(transform);
-                dbg!(obj.translation());
-                dbg!(
-                    self.children.physics_drawables[0]
-                        .get_drawable()
-                        .get_transform()
-                );
 
                 // It is important to call this function from time to time, otherwise resources
                 // will keep accumulating and you will eventually reach an out of memory error.
