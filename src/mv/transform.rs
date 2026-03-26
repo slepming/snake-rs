@@ -8,7 +8,10 @@ use rapier2d::{
 };
 use vulkano::buffer::BufferContents;
 
-use crate::{MyVertex, geometry::shapes::Shapes};
+use crate::{
+    MyVertex,
+    geometry::shapes::{Shapes, get_vertex_from_shapes},
+};
 
 const GRAVITY: Vector = Vector::new(0.0, -9.81);
 
@@ -72,7 +75,16 @@ pub struct PhysicsDrawable {
 
 /// Бесполезный трейт. По идее должен создавать объекты на экран, но это можно организовать в чем-либо другом.
 pub trait Objects {
-    fn create_phys_object(&mut self, position: Option<Vector>, shape: Shapes) -> PhysicsDrawable;
+    fn create_phys_object_from_shape(
+        &mut self,
+        position: Option<Vector>,
+        shape: Shapes,
+    ) -> PhysicsDrawable;
+    fn create_phys_object(
+        &mut self,
+        position: Option<Vector>,
+        shape: Vec<MyVertex>,
+    ) -> PhysicsDrawable;
 }
 
 pub trait DrawableGPU {
@@ -194,27 +206,28 @@ impl PhysicsContext {
 }
 
 impl Objects for PhysicsContext {
-    fn create_phys_object(&mut self, position: Option<Vector>, shape: Shapes) -> PhysicsDrawable {
-        let vertex: Vec<MyVertex>;
-        match shape {
-            Shapes::Cube => {
-                vertex = vec![
-                    MyVertex {
-                        position: [-0.1, -0.1],
-                    },
-                    MyVertex {
-                        position: [-0.1, 0.1],
-                    },
-                    MyVertex {
-                        position: [0.1, -0.1],
-                    },
-                    MyVertex {
-                        position: [0.1, 0.1],
-                    },
-                ];
-            }
-            Shapes::Circle => todo!(),
+    fn create_phys_object(
+        &mut self,
+        position: Option<Vector>,
+        vertex: Vec<MyVertex>,
+    ) -> PhysicsDrawable {
+        let mut rigid_body_builder = RigidBodyBuilder::dynamic();
+        if let Some(pos) = position {
+            rigid_body_builder = rigid_body_builder.translation(pos);
         }
+        let rigid_body = rigid_body_builder.build();
+        let collider = ColliderBuilder::ball(0.5).restitution(0.7).build();
+        let rb_h = self.rigid_body_set.insert(rigid_body);
+        self.collider_set
+            .insert_with_parent(collider, rb_h.clone(), &mut self.rigid_body_set);
+        PhysicsDrawable::new(rb_h, vertex)
+    }
+    fn create_phys_object_from_shape(
+        &mut self,
+        position: Option<Vector>,
+        shape: Shapes,
+    ) -> PhysicsDrawable {
+        let vertex: Vec<MyVertex> = get_vertex_from_shapes(shape);
         let mut rigid_body_builder = RigidBodyBuilder::dynamic();
         if let Some(pos) = position {
             rigid_body_builder = rigid_body_builder.translation(pos);

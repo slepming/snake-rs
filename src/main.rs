@@ -267,10 +267,12 @@ impl App {
 impl ApplicationHandler for App {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         // Create physical object
-        self.children.physics_drawables.push(
-            self.physics_context
-                .create_phys_object(Some(Vector::new(0.0, 0.0)), geometry::shapes::Shapes::Cube),
-        );
+        self.children
+            .physics_drawables
+            .push(self.physics_context.create_phys_object_from_shape(
+                Some(Vector::new(0.0, 0.0)),
+                geometry::shapes::Shapes::Cube,
+            ));
         debug!("creating window");
         // The objective of this example is to draw a triangle on a window. To do so, we first need
         // to create the window. We use the `WindowBuilder` from the `winit` crate to do that here.
@@ -567,7 +569,6 @@ impl ApplicationHandler for App {
                 rcx.recreate_swapchain = true;
             }
             WindowEvent::RedrawRequested => {
-                tracy_client::Client::running().unwrap().frame_mark();
                 let window_size = rcx.window.inner_size();
 
                 // Do not draw the frame when the screen size is zero. On Windows, this can occur
@@ -783,6 +784,7 @@ impl ApplicationHandler for App {
                     }
                 }
                 self.physics_context.step();
+                tracy_client::Client::running().unwrap().frame_mark();
             }
             _ => {}
         }
