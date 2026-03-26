@@ -109,6 +109,10 @@ impl Drawable {
         self.transform.clone() // TODO: This method not the best, but idk what function I need instead of this 
     }
 
+    pub fn get_vertex_clone(&self) -> Vec<MyVertex> {
+        self.vertex.clone()
+    }
+
     pub fn get_transform(&self) -> &Transform {
         &self.transform
     }

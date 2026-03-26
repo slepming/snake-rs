@@ -266,6 +266,7 @@ impl App {
 
 impl ApplicationHandler for App {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
+        let _span = tracy_client::span!("App::resumed");
         // Create physical object
         self.children
             .physics_drawables
@@ -287,8 +288,8 @@ impl ApplicationHandler for App {
                         .with_title("snake")
                         .with_name("snake-engine", "snake-engine")
                         .with_min_inner_size(Size::Physical(PhysicalSize {
-                            width: 800,
-                            height: 600,
+                            width: 640,
+                            height: 480,
                         }))
                         .with_max_inner_size(
                             event_loop.available_monitors().next().unwrap().size(),
@@ -568,6 +569,7 @@ impl ApplicationHandler for App {
                 rcx.recreate_swapchain = true;
             }
             WindowEvent::RedrawRequested => {
+                let _span = tracy_client::span!("App::update");
                 let window_size = rcx.window.inner_size();
 
                 // Do not draw the frame when the screen size is zero. On Windows, this can occur
@@ -633,9 +635,7 @@ impl ApplicationHandler for App {
                     },
                     self.children.physics_drawables[0]
                         .get_drawable()
-                        .get_transform_copy()
-                        .get_matrix()
-                        .clone(),
+                        .get_vertex_clone(),
                 )
                 .unwrap();
 
