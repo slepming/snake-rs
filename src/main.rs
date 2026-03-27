@@ -6,7 +6,7 @@ use rapier2d::{
     parry::either::IntoEither,
     prelude::{ColliderSet, RigidBodySet},
 };
-use std::{clone, error::Error, ops::RangeInclusive, sync::Arc};
+use std::{clone, error::Error, ops::RangeInclusive, sync::Arc, thread, time::Duration};
 use vulkano::{
     Validated, VulkanError, VulkanLibrary,
     buffer::{Buffer, BufferContents, BufferCreateInfo, BufferUsage},
@@ -273,14 +273,21 @@ impl ApplicationHandler for App {
         self.children
             .physics_drawables
             .push(self.physics_context.create_phys_object_from_shape(
-                Some(Vector::new(-500.0, 0.0)),
+                Some(Vector::new(-0.3, 0.0)),
                 geometry::shapes::Shapes::Cube,
                 self.children.physics_drawables.len() as u32 + 1,
             ));
         self.children
             .physics_drawables
             .push(self.physics_context.create_phys_object_from_shape(
-                Some(Vector::new(500.0, 0.0)),
+                Some(Vector::new(0.0, 0.0)),
+                geometry::shapes::Shapes::Cube,
+                self.children.physics_drawables.len() as u32 + 1,
+            ));
+        self.children
+            .physics_drawables
+            .push(self.physics_context.create_phys_object_from_shape(
+                Some(Vector::new(0.3, 0.0)),
                 geometry::shapes::Shapes::Cube,
                 self.children.physics_drawables.len() as u32 + 1,
             ));
@@ -568,7 +575,13 @@ impl ApplicationHandler for App {
                         Key::Named(NamedKey::Escape) => {
                             debug!("change position");
                             self.children.physics_drawables.iter_mut().for_each(|r| {
-                                r.teleport(&mut self.physics_context, Vector::new(0.0, -1.0));
+                                r.teleport(
+                                    &mut self.physics_context,
+                                    Vector::new(
+                                        r.get_drawable().get_transform().get_matrix()[3][0],
+                                        -1.0,
+                                    ),
+                                );
                             });
                         }
                         _ => {}
@@ -580,6 +593,7 @@ impl ApplicationHandler for App {
             }
             WindowEvent::RedrawRequested => {
                 let _span = tracy_client::span!("App::update");
+                thread::sleep(Duration::from_millis(1000 / 20));
                 let window_size = rcx.window.inner_size();
 
                 // Do not draw the frame when the screen size is zero. On Windows, this can occur
@@ -587,19 +601,6 @@ impl ApplicationHandler for App {
                 if window_size.width == 0 || window_size.height == 0 {
                     return;
                 }
-
-                let obj = &self.physics_context.rigid_body_set
-                    [self.children.physics_drawables[0].get_rb_handle()];
-                let mut transform: mv::transform::Transform = self.children.physics_drawables[0]
-                    .get_drawable()
-                    .get_transform_copy();
-                transform.get_matrix_mut()[3][1] = (obj.translation().y * -1.0) / 10.0; // TODO: надо тут менять transform
-                self.children.physics_drawables[0]
-                    .get_mut_drawable()
-                    .set_trasnform(transform);
-                self.children.physics_drawables[0]
-                    .get_mut_drawable()
-                    .set_trasnform(transform);
 
                 // It is important to call this function from time to time, otherwise resources
                 // will keep accumulating and you will eventually reach an out of memory error.
@@ -634,15 +635,31 @@ impl ApplicationHandler for App {
 
                 let mut vertices: Vec<MyVertex> = Vec::new();
                 let mut matrices: Vec<Transform> = Vec::new();
-                let mut offsets: Vec<u64> = Vec::new();
+                let mut offsets: Vec<u32> = Vec::new();
 
-                let vertex_size = size_of::<MyVertex>() as u64;
+                for (i, drawable) in self.children.physics_drawables.iter_mut().enumerate() {
+                    debug!(
+                        "drawable {} x: {} y: {}",
+                        i,
+                        drawable.get_drawable().get_transform().get_matrix()[3][0],
+                        drawable.get_drawable().get_transform().get_matrix()[3][1],
+                    );
+                    let object = &self.physics_context.rigid_body_set[drawable.get_rb_handle()];
+                    let mut transformation_matrix_before =
+                        drawable.get_drawable().get_transform_copy();
+                    transformation_matrix_before.get_matrix_mut()[3][1] =
+                        (object.translation().y * -1.0) / 100.0;
+                    transformation_matrix_before.get_matrix_mut()[3][0] =
+                        object.translation().x / 100.0;
 
-                for drawable in self.children.physics_drawables.iter() {
+                    drawable
+                        .get_mut_drawable()
+                        .set_trasnform(transformation_matrix_before);
+
                     let drawable = drawable.get_drawable();
                     let verts = drawable.get_vertex();
                     let matrics = drawable.get_transform_copy();
-                    let offset = (vertices.len() as u64) * vertex_size;
+                    let offset = vertices.len() as u32;
 
                     offsets.push(offset);
                     vertices.extend_from_slice(verts);
@@ -709,16 +726,6 @@ impl ApplicationHandler for App {
                 )
                 .unwrap();
 
-                for offset in offsets.iter() {
-                    builder
-                        .push_constants(
-                            rcx.pipeline.layout().clone(),
-                            offset.clone() as u32,
-                            matrices.iter().next().unwrap().clone(),
-                        )
-                        .unwrap();
-                }
-
                 builder
                     // Before we can draw, we have to *enter a render pass*.
                     .begin_render_pass(
@@ -754,9 +761,21 @@ impl ApplicationHandler for App {
                     .bind_vertex_buffers(0, vertex_buffer.clone())
                     .unwrap();
 
-                // We add a draw command.
-                unsafe { builder.draw(vertex_buffer.len() as u32, 1, 0, 0) }.unwrap();
+                for i in 0..offsets.len() {
+                    builder
+                        .push_constants(rcx.pipeline.layout().clone(), 0, matrices[i].clone())
+                        .unwrap();
 
+                    let vertex_offset = offsets[i] as u32;
+                    let vertex_count = self.children.physics_drawables[i]
+                        .get_drawable()
+                        .get_vertex()
+                        .len() as u32;
+
+                    unsafe {
+                        builder.draw(vertex_count, 1, vertex_offset, 0).unwrap();
+                    }
+                }
                 builder
                     // We leave the render pass. Note that if we had multiple subpasses we could
                     // have called `next_subpass` to jump to the next subpass.
