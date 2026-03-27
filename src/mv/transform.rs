@@ -50,6 +50,7 @@ pub struct PhysicsContext {
     pub space: PhysicsSpace,
 }
 
+/// Contains all files for using physics.
 pub struct PhysicsSpace {
     integration_parameters: IntegrationParameters,
     pipeline: PhysicsPipeline,
@@ -64,8 +65,14 @@ pub struct PhysicsSpace {
 }
 
 pub struct Drawable {
-    vertex: Vec<MyVertex>,
     transform: Transform,
+    mesh: Mesh,
+}
+
+pub struct Mesh {
+    vertex: Vec<MyVertex>,
+    /// ID need for find matrix in buffer
+    id: u32,
 }
 
 pub struct PhysicsDrawable {
@@ -79,11 +86,13 @@ pub trait Objects {
         &mut self,
         position: Option<Vector>,
         shape: Shapes,
+        id: u32,
     ) -> PhysicsDrawable;
     fn create_phys_object(
         &mut self,
         position: Option<Vector>,
         shape: Vec<MyVertex>,
+        id: u32,
     ) -> PhysicsDrawable;
 }
 
@@ -91,8 +100,18 @@ pub trait DrawableGPU {
     fn set_vertex(&mut self, vertex: Vec<MyVertex>);
 }
 
+impl Mesh {
+    pub fn new(ver: Vec<MyVertex>, id: u32) -> Self {
+        Mesh { vertex: ver, id }
+    }
+
+    pub fn get_id(&self) -> &u32 {
+        &self.id
+    }
+}
+
 impl Drawable {
-    pub fn new(vertex: Vec<MyVertex>) -> Self {
+    pub fn new(vertex: Vec<MyVertex>, id: u32) -> Self {
         let transform = Transform {
             transform: [
                 [1.0, 0.0, 0.0, 0.0],
@@ -102,7 +121,10 @@ impl Drawable {
             ],
         };
 
-        Drawable { vertex, transform }
+        Drawable {
+            mesh: Mesh::new(vertex, id),
+            transform,
+        }
     }
 
     pub fn get_transform_copy(&self) -> Transform {
@@ -110,11 +132,11 @@ impl Drawable {
     }
 
     pub fn get_vertex_clone(&self) -> Vec<MyVertex> {
-        self.vertex.clone()
+        self.mesh.vertex.clone()
     }
 
     pub fn get_vertex(&self) -> &Vec<MyVertex> {
-        &self.vertex
+        &self.mesh.vertex
     }
 
     pub fn get_transform(&self) -> &Transform {
@@ -128,7 +150,7 @@ impl Drawable {
 
 impl DrawableGPU for Drawable {
     fn set_vertex(&mut self, vertex: Vec<MyVertex>) {
-        self.vertex = vertex;
+        self.mesh.vertex = vertex;
     }
 }
 
@@ -139,12 +161,13 @@ impl DrawableGPU for PhysicsDrawable {
 }
 
 impl PhysicsDrawable {
-    pub fn new(rb_h: RigidBodyHandle, vertex: Vec<MyVertex>) -> Self {
+    pub fn new(rb_h: RigidBodyHandle, vertex: Vec<MyVertex>, id: u32) -> Self {
         PhysicsDrawable {
-            drawable: Drawable::new(vertex),
+            drawable: Drawable::new(vertex, id),
             rb_h,
         }
     }
+
     pub fn get_rb<'a>(&self, ctx: &'a mut PhysicsContext) -> &'a mut RigidBody {
         ctx.rigid_body_set.get_mut(self.rb_h).unwrap()
     }
@@ -152,9 +175,11 @@ impl PhysicsDrawable {
     pub fn get_rb_handle(&self) -> RigidBodyHandle {
         self.rb_h
     }
+
     pub fn get_drawable(&self) -> &Drawable {
         &self.drawable
     }
+
     pub fn get_mut_drawable(&mut self) -> &mut Drawable {
         &mut self.drawable
     }
@@ -195,6 +220,7 @@ impl PhysicsContext {
         }
     }
 
+    /// Step for physics calculates
     pub fn step(&mut self) {
         self.space.pipeline.step(
             GRAVITY,
@@ -218,6 +244,7 @@ impl Objects for PhysicsContext {
         &mut self,
         position: Option<Vector>,
         vertex: Vec<MyVertex>,
+        id: u32,
     ) -> PhysicsDrawable {
         let mut rigid_body_builder = RigidBodyBuilder::dynamic();
         if let Some(pos) = position {
@@ -228,12 +255,13 @@ impl Objects for PhysicsContext {
         let rb_h = self.rigid_body_set.insert(rigid_body);
         self.collider_set
             .insert_with_parent(collider, rb_h.clone(), &mut self.rigid_body_set);
-        PhysicsDrawable::new(rb_h, vertex)
+        PhysicsDrawable::new(rb_h, vertex, id)
     }
     fn create_phys_object_from_shape(
         &mut self,
         position: Option<Vector>,
         shape: Shapes,
+        id: u32,
     ) -> PhysicsDrawable {
         let vertex: Vec<MyVertex> = get_vertex_from_shapes(shape);
         let mut rigid_body_builder = RigidBodyBuilder::dynamic();
@@ -245,7 +273,7 @@ impl Objects for PhysicsContext {
         let rb_h = self.rigid_body_set.insert(rigid_body);
         self.collider_set
             .insert_with_parent(collider, rb_h.clone(), &mut self.rigid_body_set);
-        PhysicsDrawable::new(rb_h, vertex)
+        PhysicsDrawable::new(rb_h, vertex, id)
     }
 }
 

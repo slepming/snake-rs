@@ -6,7 +6,7 @@ use rapier2d::{
     parry::either::IntoEither,
     prelude::{ColliderSet, RigidBodySet},
 };
-use std::{error::Error, ops::RangeInclusive, sync::Arc};
+use std::{clone, error::Error, ops::RangeInclusive, sync::Arc};
 use vulkano::{
     Validated, VulkanError, VulkanLibrary,
     buffer::{Buffer, BufferContents, BufferCreateInfo, BufferUsage},
@@ -273,8 +273,16 @@ impl ApplicationHandler for App {
         self.children
             .physics_drawables
             .push(self.physics_context.create_phys_object_from_shape(
-                Some(Vector::new(0.0, 0.0)),
+                Some(Vector::new(-500.0, 0.0)),
                 geometry::shapes::Shapes::Cube,
+                self.children.physics_drawables.len() as u32 + 1,
+            ));
+        self.children
+            .physics_drawables
+            .push(self.physics_context.create_phys_object_from_shape(
+                Some(Vector::new(500.0, 0.0)),
+                geometry::shapes::Shapes::Cube,
+                self.children.physics_drawables.len() as u32 + 1,
             ));
         debug!("creating window");
         // The objective of this example is to draw a triangle on a window. To do so, we first need
@@ -701,15 +709,17 @@ impl ApplicationHandler for App {
                 )
                 .unwrap();
 
+                for offset in offsets.iter() {
+                    builder
+                        .push_constants(
+                            rcx.pipeline.layout().clone(),
+                            offset.clone() as u32,
+                            matrices.iter().next().unwrap().clone(),
+                        )
+                        .unwrap();
+                }
+
                 builder
-                    .push_constants(
-                        rcx.pipeline.layout().clone(),
-                        0,
-                        self.children.physics_drawables[0]
-                            .get_drawable()
-                            .get_transform_copy(),
-                    )
-                    .unwrap()
                     // Before we can draw, we have to *enter a render pass*.
                     .begin_render_pass(
                         RenderPassBeginInfo {
