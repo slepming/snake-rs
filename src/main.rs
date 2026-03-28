@@ -63,6 +63,10 @@ pub mod geometry;
 pub mod mv;
 pub mod shaders;
 
+#[global_allocator]
+static GLOBAL: tracy_client::ProfiledAllocator<std::alloc::System> =
+    tracy_client::ProfiledAllocator::new(std::alloc::System, 100);
+
 fn main() -> Result<(), impl Error> {
     pretty_env_logger::init();
     let event_loop = EventLoop::new().unwrap();
@@ -75,11 +79,33 @@ struct App {
     instance: Arc<Instance>,
     device: Arc<Device>,
     queue: Arc<Queue>,
-    command_buffer_allocator: Arc<StandardCommandBufferAllocator>,
-    memory_allocator: Arc<StandardMemoryAllocator>,
+    memory: AppMemory,
     rcx: Option<RenderContext>,
     physics_context: PhysicsContext,
     children: Children,
+}
+
+struct AppMemory {
+    command_buffer_allocator: Arc<StandardCommandBufferAllocator>,
+    memory_allocator: Arc<StandardMemoryAllocator>,
+}
+
+impl AppMemory {
+    pub fn new(device: Arc<Device>) -> Self {
+        let memory_allocator = Arc::new(StandardMemoryAllocator::new_default(device.clone()));
+
+        // Before we can start creating and recording command buffers, we need a way of allocating
+        // them. Vulkano provides a command buffer allocator, which manages raw Vulkan command
+        // pools underneath and provides a safe interface for them.
+        let command_buffer_allocator = Arc::new(StandardCommandBufferAllocator::new(
+            device.clone(),
+            Default::default(),
+        ));
+        AppMemory {
+            command_buffer_allocator,
+            memory_allocator,
+        }
+    }
 }
 
 struct RenderContext {
@@ -234,15 +260,7 @@ impl App {
         // the iterator.
         let queue = queues.next().unwrap();
 
-        let memory_allocator = Arc::new(StandardMemoryAllocator::new_default(device.clone()));
-
-        // Before we can start creating and recording command buffers, we need a way of allocating
-        // them. Vulkano provides a command buffer allocator, which manages raw Vulkan command
-        // pools underneath and provides a safe interface for them.
-        let command_buffer_allocator = Arc::new(StandardCommandBufferAllocator::new(
-            device.clone(),
-            Default::default(),
-        ));
+        let memory = AppMemory::new(device.clone());
 
         debug!("initializing physics");
         // Create physics
@@ -254,11 +272,10 @@ impl App {
         let ph_context = PhysicsContext::new(rbs, cds, space);
 
         App {
+            memory,
             instance,
-            memory_allocator: memory_allocator,
             device,
             queue,
-            command_buffer_allocator,
             rcx: None,
             physics_context: ph_context,
             children: Children::new(),
@@ -593,7 +610,6 @@ impl ApplicationHandler for App {
             }
             WindowEvent::RedrawRequested => {
                 let _span = tracy_client::span!("App::update");
-                thread::sleep(Duration::from_millis(1000 / 20));
                 let window_size = rcx.window.inner_size();
 
                 // Do not draw the frame when the screen size is zero. On Windows, this can occur
@@ -667,7 +683,7 @@ impl ApplicationHandler for App {
                 }
 
                 let vertex_buffer = Buffer::from_iter(
-                    self.memory_allocator.clone(),
+                    self.memory.memory_allocator.clone(),
                     BufferCreateInfo {
                         usage: BufferUsage::VERTEX_BUFFER,
                         ..Default::default()
@@ -720,7 +736,7 @@ impl ApplicationHandler for App {
                 // Note that we have to pass a queue family when we create the command buffer. The
                 // command buffer will only be executable on that given queue family.
                 let mut builder = AutoCommandBufferBuilder::primary(
-                    self.command_buffer_allocator.clone(),
+                    self.memory.command_buffer_allocator.clone(),
                     self.queue.queue_family_index(),
                     CommandBufferUsage::OneTimeSubmit,
                 )
