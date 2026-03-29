@@ -251,7 +251,7 @@ impl Objects for PhysicsContext {
             rigid_body_builder = rigid_body_builder.translation(pos);
         }
         let rigid_body = rigid_body_builder.build();
-        let collider = ColliderBuilder::ball(0.5).restitution(0.7).build();
+        let collider = ColliderBuilder::cuboid(0.3, 0.3).build();
         let rb_h = self.rigid_body_set.insert(rigid_body);
         self.collider_set
             .insert_with_parent(collider, rb_h.clone(), &mut self.rigid_body_set);
@@ -269,7 +269,7 @@ impl Objects for PhysicsContext {
             rigid_body_builder = rigid_body_builder.translation(pos);
         }
         let rigid_body = rigid_body_builder.build();
-        let collider = ColliderBuilder::ball(0.5).restitution(0.7).build();
+        let collider = ColliderBuilder::cuboid(0.3, 0.3).build();
         let rb_h = self.rigid_body_set.insert(rigid_body);
         self.collider_set
             .insert_with_parent(collider, rb_h.clone(), &mut self.rigid_body_set);

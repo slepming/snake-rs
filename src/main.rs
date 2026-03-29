@@ -290,21 +290,21 @@ impl ApplicationHandler for App {
         self.children
             .physics_drawables
             .push(self.physics_context.create_phys_object_from_shape(
-                Some(Vector::new(-0.3, 0.0)),
+                Some(Vector::new(200.0, 2000.0)),
                 geometry::shapes::Shapes::Cube,
                 self.children.physics_drawables.len() as u32 + 1,
             ));
         self.children
             .physics_drawables
             .push(self.physics_context.create_phys_object_from_shape(
-                Some(Vector::new(0.0, 0.0)),
+                Some(Vector::new(1000.0, 2000.0)),
                 geometry::shapes::Shapes::Cube,
                 self.children.physics_drawables.len() as u32 + 1,
             ));
         self.children
             .physics_drawables
             .push(self.physics_context.create_phys_object_from_shape(
-                Some(Vector::new(0.3, 0.0)),
+                Some(Vector::new(500.0, 2000.0)),
                 geometry::shapes::Shapes::Cube,
                 self.children.physics_drawables.len() as u32 + 1,
             ));
@@ -582,6 +582,9 @@ impl ApplicationHandler for App {
     ) {
         let rcx = self.rcx.as_mut().unwrap();
 
+        let scale_x = 2.0 / rcx.window.inner_size().width as f32;
+        let scale_y = 2.0 / rcx.window.inner_size().height as f32;
+
         match event {
             WindowEvent::CloseRequested => {
                 event_loop.exit();
@@ -592,11 +595,13 @@ impl ApplicationHandler for App {
                         Key::Named(NamedKey::Escape) => {
                             debug!("change position");
                             self.children.physics_drawables.iter_mut().for_each(|r| {
+                                let cont = &mut self.physics_context;
+                                let object = cont.rigid_body_set[r.get_rb_handle()].clone();
                                 r.teleport(
-                                    &mut self.physics_context,
+                                    cont,
                                     Vector::new(
-                                        r.get_drawable().get_transform().get_matrix()[3][0],
-                                        -1.0,
+                                        object.translation().x,
+                                        object.translation().y + 1000.0,
                                     ),
                                 );
                             });
@@ -654,23 +659,16 @@ impl ApplicationHandler for App {
                 let mut offsets: Vec<u32> = Vec::new();
 
                 for (i, drawable) in self.children.physics_drawables.iter_mut().enumerate() {
-                    debug!(
-                        "drawable {} x: {} y: {}",
-                        i,
-                        drawable.get_drawable().get_transform().get_matrix()[3][0],
-                        drawable.get_drawable().get_transform().get_matrix()[3][1],
-                    );
                     let object = &self.physics_context.rigid_body_set[drawable.get_rb_handle()];
-                    let mut transformation_matrix_before =
-                        drawable.get_drawable().get_transform_copy();
-                    transformation_matrix_before.get_matrix_mut()[3][1] =
-                        (object.translation().y * -1.0) / 100.0;
-                    transformation_matrix_before.get_matrix_mut()[3][0] =
-                        object.translation().x / 100.0;
+                    let mut transform = drawable.get_drawable().get_transform_copy();
 
-                    drawable
-                        .get_mut_drawable()
-                        .set_trasnform(transformation_matrix_before);
+                    let ndc_x = object.translation().x * scale_x - 1.0;
+                    let ndc_y = 1.0 - object.translation().y * scale_y;
+
+                    transform.get_matrix_mut()[3][0] = ndc_x;
+                    transform.get_matrix_mut()[3][1] = ndc_y;
+
+                    drawable.get_mut_drawable().set_trasnform(transform);
 
                     let drawable = drawable.get_drawable();
                     let verts = drawable.get_vertex();
@@ -680,6 +678,12 @@ impl ApplicationHandler for App {
                     offsets.push(offset);
                     vertices.extend_from_slice(verts);
                     matrices.push(matrics);
+                    debug!(
+                        "drawable {} x: {} y: {}",
+                        i,
+                        drawable.get_transform().get_matrix()[3][0],
+                        drawable.get_transform().get_matrix()[3][1],
+                    );
                 }
 
                 let vertex_buffer = Buffer::from_iter(
