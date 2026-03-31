@@ -224,6 +224,12 @@ impl PhysicsContext {
         );
     }
 
+    /// Create physical drawable object with physical size which will be converted to graphical size. WIP
+    /// # Parameters
+    /// `position` -> position where drawable object must spawn
+    /// `vertex` -> custom vertices for draw
+    /// `id` -> object id in engine array.
+    // TODO: Currently the id is not finished and WIP
     pub fn create_phys_object(
         &mut self,
         position: Option<Vector>,
@@ -245,7 +251,10 @@ impl PhysicsContext {
 
     /// Create physical drawable object with physical size which will be converted to graphical size
     /// # Parameters
-    /// `scale` -> Scale size for convert from physical coordinates to graphical
+    /// `size` -> drawable object size
+    /// `position` -> position where drawable object must spawn
+    /// `id` -> object id in engine array.
+    // TODO: Currently the id is not finished and WIP
     pub fn create_phys_square(
         &mut self,
         position: Option<Vector>,
