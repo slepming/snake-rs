@@ -7,6 +7,7 @@ use rapier2d::{
     },
 };
 use vulkano::buffer::BufferContents;
+use winit::dpi::PhysicalSize;
 
 use crate::{
     MyVertex,
@@ -80,22 +81,6 @@ pub struct PhysicsDrawable {
     drawable: Drawable,
 }
 
-/// Бесполезный трейт. По идее должен создавать объекты на экран, но это можно организовать в чем-либо другом.
-pub trait Objects {
-    fn create_phys_object_from_shape(
-        &mut self,
-        position: Option<Vector>,
-        shape: Shapes,
-        id: u32,
-    ) -> PhysicsDrawable;
-    fn create_phys_object(
-        &mut self,
-        position: Option<Vector>,
-        shape: Vec<MyVertex>,
-        id: u32,
-    ) -> PhysicsDrawable;
-}
-
 pub trait DrawableGPU {
     fn set_vertex(&mut self, vertex: Vec<MyVertex>);
 }
@@ -125,6 +110,10 @@ impl Drawable {
             mesh: Mesh::new(vertex, id),
             transform,
         }
+    }
+
+    pub fn from_shape(shape: Shapes, id: u32) -> Self {
+        Drawable::new(get_vertex_from_shapes(shape), id)
     }
 
     pub fn get_transform_copy(&self) -> Transform {
@@ -161,11 +150,8 @@ impl DrawableGPU for PhysicsDrawable {
 }
 
 impl PhysicsDrawable {
-    pub fn new(rb_h: RigidBodyHandle, vertex: Vec<MyVertex>, id: u32) -> Self {
-        PhysicsDrawable {
-            drawable: Drawable::new(vertex, id),
-            rb_h,
-        }
+    pub fn new(rb_h: RigidBodyHandle, drawable: Drawable) -> Self {
+        PhysicsDrawable { drawable, rb_h }
     }
 
     pub fn get_rb<'a>(&self, ctx: &'a mut PhysicsContext) -> &'a mut RigidBody {
@@ -237,10 +223,8 @@ impl PhysicsContext {
             &self.space.event_handler,
         );
     }
-}
 
-impl Objects for PhysicsContext {
-    fn create_phys_object(
+    pub fn create_phys_object(
         &mut self,
         position: Option<Vector>,
         vertex: Vec<MyVertex>,
@@ -255,25 +239,30 @@ impl Objects for PhysicsContext {
         let rb_h = self.rigid_body_set.insert(rigid_body);
         self.collider_set
             .insert_with_parent(collider, rb_h.clone(), &mut self.rigid_body_set);
-        PhysicsDrawable::new(rb_h, vertex, id)
+        let drawable = Drawable::new(vertex, id);
+        PhysicsDrawable::new(rb_h, drawable)
     }
-    fn create_phys_object_from_shape(
+
+    /// Create physical drawable object with physical size which will be converted to graphical size
+    /// # Parameters
+    /// `scale` -> Scale size for convert from physical coordinates to graphical
+    pub fn create_phys_square(
         &mut self,
         position: Option<Vector>,
-        shape: Shapes,
+        size: [f32; 2],
         id: u32,
     ) -> PhysicsDrawable {
-        let vertex: Vec<MyVertex> = get_vertex_from_shapes(shape);
         let mut rigid_body_builder = RigidBodyBuilder::dynamic();
         if let Some(pos) = position {
             rigid_body_builder = rigid_body_builder.translation(pos);
         }
         let rigid_body = rigid_body_builder.build();
-        let collider = ColliderBuilder::cuboid(0.3, 0.3).build();
+        let collider = ColliderBuilder::cuboid(size[0], size[1]).build();
         let rb_h = self.rigid_body_set.insert(rigid_body);
         self.collider_set
             .insert_with_parent(collider, rb_h.clone(), &mut self.rigid_body_set);
-        PhysicsDrawable::new(rb_h, vertex, id)
+        let drawable = Drawable::from_shape(Shapes::Square(size), id);
+        PhysicsDrawable::new(rb_h, drawable)
     }
 }
 

@@ -1,25 +1,25 @@
 use crate::MyVertex;
 
 pub enum Shapes {
-    Cube,
+    Square([f32; 2]),
     Circle,
 }
 
 pub fn get_vertex_from_shapes(shape: Shapes) -> Vec<MyVertex> {
     match shape {
-        Shapes::Cube => {
+        Shapes::Square(size) => {
             vec![
                 MyVertex {
-                    position: [-0.1, -0.1],
+                    position: [-size[0], -size[0]],
                 },
                 MyVertex {
-                    position: [-0.1, 0.1],
+                    position: [-size[1], size[1]],
                 },
                 MyVertex {
-                    position: [0.1, -0.1],
+                    position: [size[1], -size[1]],
                 },
                 MyVertex {
-                    position: [0.1, 0.1],
+                    position: [size[0], size[0]],
                 },
             ]
         }

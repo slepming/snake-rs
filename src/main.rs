@@ -53,9 +53,7 @@ use winit::{
 };
 
 use crate::{
-    mv::transform::{
-        Children, DynamicObject, Objects, PhysicsContext, PhysicsSpace, Position, Transform,
-    },
+    mv::transform::{Children, DynamicObject, PhysicsContext, PhysicsSpace, Position, Transform},
     shaders::cube_shader::{cube_fs, cube_vs},
 };
 
@@ -117,6 +115,11 @@ struct RenderContext {
     viewport: Viewport,
     recreate_swapchain: bool,
     previous_frame_end: Option<Box<dyn GpuFuture>>,
+    scale: [f32; 2],
+}
+
+trait Game {
+    fn start(&mut self);
 }
 
 impl App {
@@ -286,28 +289,6 @@ impl App {
 impl ApplicationHandler for App {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         let _span = tracy_client::span!("App::resumed");
-        // Create physical object
-        self.children
-            .physics_drawables
-            .push(self.physics_context.create_phys_object_from_shape(
-                Some(Vector::new(200.0, 2000.0)),
-                geometry::shapes::Shapes::Cube,
-                self.children.physics_drawables.len() as u32 + 1,
-            ));
-        self.children
-            .physics_drawables
-            .push(self.physics_context.create_phys_object_from_shape(
-                Some(Vector::new(1000.0, 2000.0)),
-                geometry::shapes::Shapes::Cube,
-                self.children.physics_drawables.len() as u32 + 1,
-            ));
-        self.children
-            .physics_drawables
-            .push(self.physics_context.create_phys_object_from_shape(
-                Some(Vector::new(500.0, 2000.0)),
-                geometry::shapes::Shapes::Cube,
-                self.children.physics_drawables.len() as u32 + 1,
-            ));
         debug!("creating window");
         // The objective of this example is to draw a triangle on a window. To do so, we first need
         // to create the window. We use the `WindowBuilder` from the `winit` crate to do that here.
@@ -563,6 +544,10 @@ impl ApplicationHandler for App {
         let previous_frame_end = Some(sync::now(self.device.clone()).boxed());
 
         self.rcx = Some(RenderContext {
+            scale: [
+                2.0 / window.clone().inner_size().width as f32,
+                2.0 / window.clone().inner_size().height as f32,
+            ],
             window,
             swapchain,
             render_pass,
@@ -572,6 +557,8 @@ impl ApplicationHandler for App {
             recreate_swapchain,
             previous_frame_end,
         });
+
+        self.start();
     }
 
     fn window_event(
@@ -581,9 +568,6 @@ impl ApplicationHandler for App {
         event: WindowEvent,
     ) {
         let rcx = self.rcx.as_mut().unwrap();
-
-        let scale_x = 2.0 / rcx.window.inner_size().width as f32;
-        let scale_y = 2.0 / rcx.window.inner_size().height as f32;
 
         match event {
             WindowEvent::CloseRequested => {
@@ -612,6 +596,9 @@ impl ApplicationHandler for App {
             }
             WindowEvent::Resized(_) => {
                 rcx.recreate_swapchain = true;
+                let scale_x = 2.0 / rcx.window.inner_size().width as f32;
+                let scale_y = 2.0 / rcx.window.inner_size().height as f32;
+                rcx.scale = [scale_x, scale_y];
             }
             WindowEvent::RedrawRequested => {
                 let _span = tracy_client::span!("App::update");
@@ -662,8 +649,8 @@ impl ApplicationHandler for App {
                     let object = &self.physics_context.rigid_body_set[drawable.get_rb_handle()];
                     let mut transform = drawable.get_drawable().get_transform_copy();
 
-                    let ndc_x = object.translation().x * scale_x - 1.0;
-                    let ndc_y = 1.0 - object.translation().y * scale_y;
+                    let ndc_x = object.translation().x * rcx.scale[0] - 1.0;
+                    let ndc_y = 1.0 - object.translation().y * rcx.scale[1];
 
                     transform.get_matrix_mut()[3][0] = ndc_x;
                     transform.get_matrix_mut()[3][1] = ndc_y;
@@ -852,6 +839,42 @@ impl ApplicationHandler for App {
     fn about_to_wait(&mut self, _event_loop: &ActiveEventLoop) {
         let rcx = self.rcx.as_mut().unwrap();
         rcx.window.request_redraw();
+    }
+}
+
+impl Game for App {
+    fn start(&mut self) {
+        // Create physical object
+        self.children
+            .physics_drawables
+            .push(self.physics_context.create_phys_square(
+                Some(Vector::new(200.0, 2000.0)),
+                [
+                    200.0 * self.rcx.as_ref().unwrap().scale[0],
+                    200.0 * self.rcx.as_ref().unwrap().scale[1],
+                ],
+                self.children.physics_drawables.len() as u32 + 1,
+            ));
+        self.children
+            .physics_drawables
+            .push(self.physics_context.create_phys_square(
+                Some(Vector::new(1000.0, 2000.0)),
+                [
+                    200.0 * self.rcx.as_ref().unwrap().scale[0],
+                    200.0 * self.rcx.as_ref().unwrap().scale[1],
+                ],
+                self.children.physics_drawables.len() as u32 + 1,
+            ));
+        self.children
+            .physics_drawables
+            .push(self.physics_context.create_phys_square(
+                Some(Vector::new(500.0, 2000.0)),
+                [
+                    200.0 * self.rcx.as_ref().unwrap().scale[0],
+                    200.0 * self.rcx.as_ref().unwrap().scale[1],
+                ],
+                self.children.physics_drawables.len() as u32 + 1,
+            ));
     }
 }
 
