@@ -1,0 +1,14 @@
+[package]
+name = "snake"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+snake-engine = { path = "../engine" }
+log = "0.4"
+pretty_env_logger = "0.5"
+tracy-client = "0.18.4"
+
+[dependencies.winit]
+version = "0.30.12"
+features = ["rwh_06"]

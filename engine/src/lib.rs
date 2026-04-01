@@ -65,30 +65,22 @@ pub mod shaders;
 static GLOBAL: tracy_client::ProfiledAllocator<std::alloc::System> =
     tracy_client::ProfiledAllocator::new(std::alloc::System, 100);
 
-fn main() -> Result<(), impl Error> {
-    pretty_env_logger::init();
-    let event_loop = EventLoop::new().unwrap();
-    let mut app = App::new(&event_loop);
-
-    event_loop.run_app(&mut app)
-}
-
-struct App {
+pub struct GameContext {
     instance: Arc<Instance>,
     device: Arc<Device>,
     queue: Arc<Queue>,
-    memory: AppMemory,
+    memory: GameMemory,
     rcx: Option<RenderContext>,
     physics_context: PhysicsContext,
     children: Children,
 }
 
-struct AppMemory {
+struct GameMemory {
     command_buffer_allocator: Arc<StandardCommandBufferAllocator>,
     memory_allocator: Arc<StandardMemoryAllocator>,
 }
 
-impl AppMemory {
+impl GameMemory {
     pub fn new(device: Arc<Device>) -> Self {
         let memory_allocator = Arc::new(StandardMemoryAllocator::new_default(device.clone()));
 
@@ -99,7 +91,7 @@ impl AppMemory {
             device.clone(),
             Default::default(),
         ));
-        AppMemory {
+        GameMemory {
             command_buffer_allocator,
             memory_allocator,
         }
@@ -118,13 +110,13 @@ struct RenderContext {
     scale: [f32; 2],
 }
 
-trait Game {
+pub trait Game {
     fn start(&mut self);
 }
 
-impl App {
-    fn new(event_loop: &EventLoop<()>) -> Self {
-        let _span = tracy_client::span!("App::new");
+impl GameContext {
+    pub fn new(event_loop: &EventLoop<()>) -> Self {
+        let _span = tracy_client::span!("Game::new");
         debug!("vulkan init");
         let library = VulkanLibrary::new().unwrap();
 
@@ -263,7 +255,7 @@ impl App {
         // the iterator.
         let queue = queues.next().unwrap();
 
-        let memory = AppMemory::new(device.clone());
+        let memory = GameMemory::new(device.clone());
 
         debug!("initializing physics");
         // Create physics
@@ -274,7 +266,7 @@ impl App {
 
         let ph_context = PhysicsContext::new(rbs, cds, space);
 
-        App {
+        GameContext {
             memory,
             instance,
             device,
@@ -286,9 +278,9 @@ impl App {
     }
 }
 
-impl ApplicationHandler for App {
+impl ApplicationHandler for GameContext {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
-        let _span = tracy_client::span!("App::resumed");
+        let _span = tracy_client::span!("Game::resumed");
         debug!("creating window");
         // The objective of this example is to draw a triangle on a window. To do so, we first need
         // to create the window. We use the `WindowBuilder` from the `winit` crate to do that here.
@@ -558,7 +550,37 @@ impl ApplicationHandler for App {
             previous_frame_end,
         });
 
-        self.start();
+        // Create physical object
+        self.children
+            .physics_drawables
+            .push(self.physics_context.create_phys_square(
+                Some(Vector::new(200.0, 2000.0)),
+                [
+                    200.0 * self.rcx.as_ref().unwrap().scale[0],
+                    200.0 * self.rcx.as_ref().unwrap().scale[1],
+                ],
+                self.children.physics_drawables.len() as u32 + 1,
+            ));
+        self.children
+            .physics_drawables
+            .push(self.physics_context.create_phys_square(
+                Some(Vector::new(1000.0, 2000.0)),
+                [
+                    200.0 * self.rcx.as_ref().unwrap().scale[0],
+                    200.0 * self.rcx.as_ref().unwrap().scale[1],
+                ],
+                self.children.physics_drawables.len() as u32 + 1,
+            ));
+        self.children
+            .physics_drawables
+            .push(self.physics_context.create_phys_square(
+                Some(Vector::new(500.0, 2000.0)),
+                [
+                    200.0 * self.rcx.as_ref().unwrap().scale[0],
+                    200.0 * self.rcx.as_ref().unwrap().scale[1],
+                ],
+                self.children.physics_drawables.len() as u32 + 1,
+            ));
     }
 
     fn window_event(
@@ -601,7 +623,7 @@ impl ApplicationHandler for App {
                 rcx.scale = [scale_x, scale_y];
             }
             WindowEvent::RedrawRequested => {
-                let _span = tracy_client::span!("App::update");
+                let _span = tracy_client::span!("Game::update");
                 let window_size = rcx.window.inner_size();
 
                 // Do not draw the frame when the screen size is zero. On Windows, this can occur
@@ -839,42 +861,6 @@ impl ApplicationHandler for App {
     fn about_to_wait(&mut self, _event_loop: &ActiveEventLoop) {
         let rcx = self.rcx.as_mut().unwrap();
         rcx.window.request_redraw();
-    }
-}
-
-impl Game for App {
-    fn start(&mut self) {
-        // Create physical object
-        self.children
-            .physics_drawables
-            .push(self.physics_context.create_phys_square(
-                Some(Vector::new(200.0, 2000.0)),
-                [
-                    200.0 * self.rcx.as_ref().unwrap().scale[0],
-                    200.0 * self.rcx.as_ref().unwrap().scale[1],
-                ],
-                self.children.physics_drawables.len() as u32 + 1,
-            ));
-        self.children
-            .physics_drawables
-            .push(self.physics_context.create_phys_square(
-                Some(Vector::new(1000.0, 2000.0)),
-                [
-                    200.0 * self.rcx.as_ref().unwrap().scale[0],
-                    200.0 * self.rcx.as_ref().unwrap().scale[1],
-                ],
-                self.children.physics_drawables.len() as u32 + 1,
-            ));
-        self.children
-            .physics_drawables
-            .push(self.physics_context.create_phys_square(
-                Some(Vector::new(500.0, 2000.0)),
-                [
-                    200.0 * self.rcx.as_ref().unwrap().scale[0],
-                    200.0 * self.rcx.as_ref().unwrap().scale[1],
-                ],
-                self.children.physics_drawables.len() as u32 + 1,
-            ));
     }
 }
 
