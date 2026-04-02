@@ -16,33 +16,12 @@
 
 pub mod cube_vs {
     vulkano_shaders::shader! {
-        ty: "vertex",
-        src: r"
-            #version 450
-
-            layout(location = 0) in vec2 position;
-            layout(push_constant) uniform Transform {
-                mat4 transform;
-            } pc;
-
-            void main() {
-                gl_Position = pc.transform * vec4(position, 0.0, 1.0);
-            }
-        ",
+        bytes: "shaders/cube.vert.spv"
     }
 }
 
 pub mod cube_fs {
     vulkano_shaders::shader! {
-        ty: "fragment",
-        src: r"
-            #version 450
-
-            layout(location = 0) out vec4 f_color;
-
-            void main() {
-                f_color = vec4(1.0, 0.0, 0.0, 1.0);
-            }
-        ",
+        bytes: "shaders/cube.frag.spv"
     }
 }

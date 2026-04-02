@@ -3,7 +3,6 @@
 use log::debug;
 use rapier2d::{
     math::Vector,
-    parry::either::IntoEither,
     prelude::{ColliderSet, RigidBodySet},
 };
 use std::{clone, error::Error, ops::RangeInclusive, sync::Arc, thread, time::Duration};
