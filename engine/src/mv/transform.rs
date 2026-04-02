@@ -7,14 +7,13 @@ use rapier2d::{
     },
 };
 use vulkano::buffer::BufferContents;
-use winit::dpi::PhysicalSize;
 
 use crate::{
     MyVertex,
     geometry::shapes::{Shapes, get_vertex_from_shapes},
 };
 
-const GRAVITY: Vector = Vector::new(0.0, -9.81);
+const GRAVITY: Vector = Vector::new(0.0, -9.81 * 60.0); // * 60 is magick value. I will fix that in the future
 
 pub struct Children {
     pub physics_drawables: Vec<PhysicsDrawable>,
@@ -83,6 +82,11 @@ pub struct PhysicsDrawable {
 
 pub trait DrawableGPU {
     fn set_vertex(&mut self, vertex: Vec<MyVertex>);
+    fn get_transform(&self) -> &Transform;
+    fn get_transform_clone(&self) -> Transform;
+    fn get_vertex_clone(&self) -> Vec<MyVertex>;
+    fn get_vertex(&self) -> &Vec<MyVertex>;
+    fn set_transform(&mut self, transform: Transform);
 }
 
 impl Mesh {
@@ -115,29 +119,28 @@ impl Drawable {
     pub fn from_shape(shape: Shapes, id: u32) -> Self {
         Drawable::new(get_vertex_from_shapes(shape), id)
     }
-
-    pub fn get_transform_copy(&self) -> Transform {
-        self.transform.clone() // TODO: This method not the best, but idk what function I need instead of this 
-    }
-
-    pub fn get_vertex_clone(&self) -> Vec<MyVertex> {
-        self.mesh.vertex.clone()
-    }
-
-    pub fn get_vertex(&self) -> &Vec<MyVertex> {
-        &self.mesh.vertex
-    }
-
-    pub fn get_transform(&self) -> &Transform {
-        &self.transform
-    }
-
-    pub fn set_trasnform(&mut self, transform: Transform) {
-        self.transform = transform;
-    }
 }
 
 impl DrawableGPU for Drawable {
+    fn get_transform_clone(&self) -> Transform {
+        self.transform.clone() // TODO: This method not the best, but idk what function I need instead of this 
+    }
+
+    fn get_vertex_clone(&self) -> Vec<MyVertex> {
+        self.mesh.vertex.clone()
+    }
+
+    fn get_vertex(&self) -> &Vec<MyVertex> {
+        &self.mesh.vertex
+    }
+
+    fn get_transform(&self) -> &Transform {
+        &self.transform
+    }
+
+    fn set_transform(&mut self, transform: Transform) {
+        self.transform = transform;
+    }
     fn set_vertex(&mut self, vertex: Vec<MyVertex>) {
         self.mesh.vertex = vertex;
     }
@@ -146,6 +149,26 @@ impl DrawableGPU for Drawable {
 impl DrawableGPU for PhysicsDrawable {
     fn set_vertex(&mut self, vertex: Vec<MyVertex>) {
         self.drawable.set_vertex(vertex);
+    }
+
+    fn get_transform(&self) -> &Transform {
+        self.drawable.get_transform()
+    }
+
+    fn get_transform_clone(&self) -> Transform {
+        self.drawable.get_transform_clone()
+    }
+
+    fn get_vertex_clone(&self) -> Vec<MyVertex> {
+        self.drawable.get_vertex_clone()
+    }
+
+    fn get_vertex(&self) -> &Vec<MyVertex> {
+        self.drawable.get_vertex()
+    }
+
+    fn set_transform(&mut self, transform: Transform) {
+        self.drawable.set_transform(transform);
     }
 }
 
@@ -258,10 +281,10 @@ impl PhysicsContext {
     pub fn create_phys_square(
         &mut self,
         position: Option<Vector>,
+        mut rigid_body_builder: RigidBodyBuilder,
         size: [f32; 2],
         id: u32,
     ) -> PhysicsDrawable {
-        let mut rigid_body_builder = RigidBodyBuilder::dynamic();
         if let Some(pos) = position {
             rigid_body_builder = rigid_body_builder.translation(pos);
         }

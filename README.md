@@ -23,3 +23,15 @@ This project proceeds without a formal plan. My primary goal is to acquire pract
 ## Conclusion
 
 This implementation does not exemplify engine development practices. Instead, it highlights common pitfalls to avoid, particularly frequent memory leaks.
+
+## Building
+
+First step is building shaders
+```sh
+for shader in "./engine/shaders"/*; do
+  if [[ "${shader}" == *.frag || "${shader}" == *.vert ]]; then
+    glslangValidator -V "$shader" -o "$shader.spv"
+  fi
+done
+```
+And then you can build engine and game with `cargo build` or `cargo run`

@@ -3,7 +3,7 @@
 use log::debug;
 use rapier2d::{
     math::Vector,
-    prelude::{ColliderSet, RigidBodySet},
+    prelude::{ColliderSet, RigidBodyBuilder, RigidBodySet},
 };
 use std::{clone, error::Error, ops::RangeInclusive, sync::Arc, thread, time::Duration};
 use vulkano::{
@@ -52,7 +52,10 @@ use winit::{
 };
 
 use crate::{
-    mv::transform::{Children, DynamicObject, PhysicsContext, PhysicsSpace, Position, Transform},
+    mv::transform::{
+        Children, Drawable, DrawableGPU, DynamicObject, PhysicsContext, PhysicsSpace, Position,
+        Transform,
+    },
     shaders::cube_shader::{cube_fs, cube_vs},
 };
 
@@ -553,32 +556,45 @@ impl ApplicationHandler for GameContext {
         self.children
             .physics_drawables
             .push(self.physics_context.create_phys_square(
-                Some(Vector::new(200.0, 2000.0)),
+                Some(Vector::new(0.0, 100.0)),
+                RigidBodyBuilder::fixed(),
                 [
-                    200.0 * self.rcx.as_ref().unwrap().scale[0],
-                    200.0 * self.rcx.as_ref().unwrap().scale[1],
+                    5000.0 * self.rcx.as_ref().unwrap().scale[0],
+                    50.0 * self.rcx.as_ref().unwrap().scale[1],
                 ],
-                self.children.physics_drawables.len() as u32 + 1,
+                self.children.physics_drawables.len() as u32
+                    + self.children.drawables.len() as u32
+                    + 1,
             ));
+        self.children.drawables.push(Drawable::from_shape(
+            geometry::shapes::Shapes::Square([0.5, 0.5]),
+            self.children.physics_drawables.len() as u32 + self.children.drawables.len() as u32 + 1,
+        ));
         self.children
             .physics_drawables
             .push(self.physics_context.create_phys_square(
                 Some(Vector::new(1000.0, 2000.0)),
+                RigidBodyBuilder::dynamic(),
                 [
                     200.0 * self.rcx.as_ref().unwrap().scale[0],
                     200.0 * self.rcx.as_ref().unwrap().scale[1],
                 ],
-                self.children.physics_drawables.len() as u32 + 1,
+                self.children.physics_drawables.len() as u32
+                    + self.children.drawables.len() as u32
+                    + 1,
             ));
         self.children
             .physics_drawables
             .push(self.physics_context.create_phys_square(
                 Some(Vector::new(500.0, 2000.0)),
+                RigidBodyBuilder::dynamic(),
                 [
                     200.0 * self.rcx.as_ref().unwrap().scale[0],
                     200.0 * self.rcx.as_ref().unwrap().scale[1],
                 ],
-                self.children.physics_drawables.len() as u32 + 1,
+                self.children.physics_drawables.len() as u32
+                    + self.children.drawables.len() as u32
+                    + 1,
             ));
     }
 
@@ -601,14 +617,16 @@ impl ApplicationHandler for GameContext {
                             debug!("change position");
                             self.children.physics_drawables.iter_mut().for_each(|r| {
                                 let cont = &mut self.physics_context;
-                                let object = cont.rigid_body_set[r.get_rb_handle()].clone();
-                                r.teleport(
-                                    cont,
-                                    Vector::new(
-                                        object.translation().x,
-                                        object.translation().y + 1000.0,
-                                    ),
-                                );
+                                if r.get_rb(cont).is_dynamic() {
+                                    let object = cont.rigid_body_set[r.get_rb_handle()].clone();
+                                    r.teleport(
+                                        cont,
+                                        Vector::new(
+                                            object.translation().x,
+                                            object.translation().y + 1000.0,
+                                        ),
+                                    );
+                                }
                             });
                         }
                         _ => {}
@@ -668,29 +686,45 @@ impl ApplicationHandler for GameContext {
 
                 for (i, drawable) in self.children.physics_drawables.iter_mut().enumerate() {
                     let object = &self.physics_context.rigid_body_set[drawable.get_rb_handle()];
-                    let mut transform = drawable.get_drawable().get_transform_copy();
+                    let mut transform = drawable.get_drawable().get_transform_clone();
 
                     let ndc_x = object.translation().x * rcx.scale[0] - 1.0;
                     let ndc_y = 1.0 - object.translation().y * rcx.scale[1];
 
-                    transform.get_matrix_mut()[3][0] = ndc_x;
-                    transform.get_matrix_mut()[3][1] = ndc_y;
+                    transform.get_matrix_mut()[0][3] = ndc_x;
+                    transform.get_matrix_mut()[1][3] = ndc_y;
 
-                    drawable.get_mut_drawable().set_trasnform(transform);
+                    drawable.set_transform(transform);
 
                     let drawable = drawable.get_drawable();
                     let verts = drawable.get_vertex();
-                    let matrics = drawable.get_transform_copy();
+                    let matrics = drawable.get_transform_clone();
                     let offset = vertices.len() as u32;
 
                     offsets.push(offset);
                     vertices.extend_from_slice(verts);
                     matrices.push(matrics);
                     debug!(
-                        "drawable {} x: {} y: {}",
+                        "POSITIONS: drawable {} x: {:?} y: {:?}",
                         i,
-                        drawable.get_transform().get_matrix()[3][0],
-                        drawable.get_transform().get_matrix()[3][1],
+                        drawable.get_transform().get_matrix()[0][3],
+                        drawable.get_transform().get_matrix()[1][3],
+                    );
+                }
+
+                for (i, drawable) in self.children.drawables.iter().enumerate() {
+                    let verts = drawable.get_vertex();
+                    let matrix = drawable.get_transform_clone();
+                    let offset = vertices.len() as u32;
+
+                    offsets.push(offset);
+                    vertices.extend_from_slice(verts);
+                    matrices.push(matrix);
+                    debug!(
+                        "POSITIONS: drawable {} x: {:?} y: {:?}",
+                        i,
+                        drawable.get_transform().get_matrix()[0][3],
+                        drawable.get_transform().get_matrix()[1][3],
                     );
                 }
 
@@ -788,17 +822,25 @@ impl ApplicationHandler for GameContext {
                     .unwrap()
                     .bind_vertex_buffers(0, vertex_buffer.clone())
                     .unwrap();
+                let all_items = self
+                    .children
+                    .drawables
+                    .iter()
+                    .map(|d| d as &dyn DrawableGPU)
+                    .chain(
+                        self.children
+                            .physics_drawables
+                            .iter()
+                            .map(|pd| pd as &dyn DrawableGPU),
+                    );
 
-                for i in 0..offsets.len() {
+                for (i, item) in all_items.enumerate() {
                     builder
                         .push_constants(rcx.pipeline.layout().clone(), 0, matrices[i].clone())
                         .unwrap();
 
                     let vertex_offset = offsets[i] as u32;
-                    let vertex_count = self.children.physics_drawables[i]
-                        .get_drawable()
-                        .get_vertex()
-                        .len() as u32;
+                    let vertex_count = item.get_vertex().len() as u32;
 
                     unsafe {
                         builder.draw(vertex_count, 1, vertex_offset, 0).unwrap();

@@ -6,6 +6,6 @@ layout(push_constant) uniform Transform {
 } pc;
 
 void main() {
-    gl_Position = pc.transform * vec4(position, 0.0, 1.0);
+    gl_Position = vec4(position, 0.0, 1.0) * pc.transform;
 }
 
