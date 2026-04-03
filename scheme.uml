@@ -1,0 +1,192 @@
+@startuml
+left to right direction
+skinparam defaultFontName "Helvetica"
+skinparam monochrome false
+skinparam packageStyle rect
+skinparam shadowing false
+
+!define ORANGE #DE6733
+!define DARK #282C34
+!define LIGHT #F2EFEA
+!define BROWN #523024
+
+skinparam struct {
+    BackgroundColor LIGHT
+    ArrowColor BROWN
+    BorderColor BROWN
+    HeaderBackgroundColor ORANGE
+    HeaderFontColor White
+    FontColor BROWN
+    AttributeFontName "Consolas"
+    AttributeFontSize 11
+}
+
+skinparam interface {
+    BackgroundColor White
+    BorderColor ORANGE
+    FontColor BROWN
+}
+
+skinparam note {
+    BackgroundColor #FEF9E7
+    BorderColor ORANGE
+}
+
+skinparam package {
+    BorderColor BROWN
+    FontColor BROWN
+}
+
+title Архитектура
+
+package "Base" {
+    package "Winit / Event Loop" {
+        interface ApplicationHandler << (T,ORANGE) >> {
+            + resumed(event_loop: &ActiveEventLoop)
+            + window_event(event_loop: &ActiveEventLoop, id: WindowId, event: WindowEvent)
+            + about_to_wait(event_loop: &ActiveEventLoop)
+        }
+    }
+
+    package "Core Engine" {
+        struct GameContext {
+            - instance: Arc<Instance>
+            - device: Arc<Device>
+            - queue: Arc<Queue>
+            - memory: GameMemory
+            - rcx: Option<RenderContext>
+            - physics_context: PhysicsContext
+            - children: Children
+        }
+
+        interface TGameContext << (T,ORANGE) >> {
+            + new(event_loop: &EventLoop) -> GameContext
+        }
+
+        struct GameMemory {
+            - command_buffer_allocator: Arc<StandardCommandBufferAllocator>
+            - memory_allocator: Arc<StandardMemoryAllocator>
+        }
+
+        interface TGameMemory << (T,ORANGE) >> {
+            + new(device: Arc<Device>) -> GameMemory
+        }
+
+        struct Children {
+            + physics_drawables: Vec<PhysicsDrawable>
+            + drawables: Vec<Drawable>
+        }
+}
+}
+
+package "Vulkan Rendering" {
+    struct RenderContext {
+        - window: Arc<Window>
+        - swapchain: Arc<Swapchain>
+        - render_pass: Arc<RenderPass>
+        - framebuffers: Vec<Arc<Framebuffer>>
+        - pipeline: Arc<GraphicsPipeline>
+        - viewport: Viewport
+        - scale: [f32; 2]
+        - recreate_swapchain: bool
+        - previous_frame_end: Option<Box<dyn GpuFuture>>
+    }
+
+    struct MyVertex {
+        + position: [f32; 2]
+    }
+}
+
+package "Physics (Rapier2D)" {
+    struct PhysicsContext {
+        + rigid_body_set: RigidBodySet
+        + collider_set: ColliderSet
+        + space: PhysicsSpace
+    }
+
+    interface TPhysicsContext << (T, ORANGE) >> {
+        + step(&mut self)
+        + create_phys_square(&mut self, position: Option<Vector>, mut rigid_body_builder: RigidBodyBuilder, size: [f32; 2], id: u32) -> PhysicsDrawable
+    }
+}
+
+package "Draw" {
+    struct Drawable {
+        - transform: Transform
+        - mesh: Mesh
+    }
+
+    struct PhysicsDrawable {
+        - drawable: Drawable
+        - rb_h: RigidBodyHandle
+    }
+
+    struct Mesh {
+        - vertex: Vec<MyVertex>
+        - id: u32
+    }
+
+    struct Transform {
+        - transform: [[f32; 4]; 4]
+    }
+
+    interface Position << (T,ORANGE) >> {
+        + get_matrix_mut(&mut self) -> &mut [[f32; 4]; 4]
+        + get_matrix(&self) -> &[[f32; 4]; 4]
+    }
+
+    interface DynamicObject << (T,ORANGE) >> {
+        fn teleport(&mut self, ctx: &mut PhysicsContext, vec: Vector)
+    }
+
+    interface DrawableGPU << (T,ORANGE) >> {
+        + set_vertex(vertex: Vec<MyVertex>)
+        + get_transform() : &Transform
+        + get_transform_clone() : Transform
+        + get_vertex_clone() : Vec<MyVertex>
+        + get_vertex() : &Vec<MyVertex>
+        + set_transform(transform: Transform)
+    }
+}
+
+' Relationships
+ApplicationHandler <.. GameContext : implement
+Position <.. Transform : implement
+DynamicObject <.. PhysicsDrawable : implement
+DrawableGPU <.. PhysicsDrawable : implement
+DrawableGPU <.. Drawable : implement
+GameMemory <.. TGameMemory : implement
+
+Drawable *-- Transform : own
+Drawable *-- Transform : own
+
+GameContext *-- GameMemory : own
+GameContext *-- PhysicsContext : own
+GameContext *-- Children : own
+GameContext o-- RenderContext : contains (Option)
+
+Children *-- "many" PhysicsDrawable
+Children *-- "many" Drawable
+
+RenderContext ..> MyVertex : used in vertex buffer
+RenderContext ..> "vulkano" : managment
+
+together {
+    note right of GameContext
+        Центральная точка входа.
+        Управляет жизненным циклом
+        приложения через ApplicationHandler.
+    end note
+
+    note right of Drawable
+        Является главной структурой для управления и изменения вершин и матрицы трансформации.
+    end note
+
+    note top of RenderContext
+        Window-dependent state.
+        Инициализируется в resumed()
+        и пересоздается при Resized.
+    end note
+}
+
+@enduml
