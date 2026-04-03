@@ -1,6 +1,6 @@
 @startuml
 left to right direction
-skinparam defaultFontName "Helvetica"
+skinparam defaultFontName "Fira Code"
 skinparam monochrome false
 skinparam packageStyle rect
 skinparam shadowing false
@@ -141,10 +141,10 @@ package "Draw" {
 
     interface DrawableGPU << (T,ORANGE) >> {
         + set_vertex(vertex: Vec<MyVertex>)
-        + get_transform() : &Transform
-        + get_transform_clone() : Transform
-        + get_vertex_clone() : Vec<MyVertex>
-        + get_vertex() : &Vec<MyVertex>
+        + get_transform() -> &Transform
+        + get_transform_clone() -> Transform
+        + get_vertex_clone() -> Vec<MyVertex>
+        + get_vertex() -> &Vec<MyVertex>
         + set_transform(transform: Transform)
     }
 }
