@@ -704,12 +704,7 @@ impl ApplicationHandler for GameContext {
                     offsets.push(offset);
                     vertices.extend_from_slice(verts);
                     matrices.push(matrics);
-                    debug!(
-                        "POSITIONS: drawable {} x: {:?} y: {:?}",
-                        i,
-                        drawable.get_transform().get_matrix()[0][3],
-                        drawable.get_transform().get_matrix()[1][3],
-                    );
+                    debug!("POSITIONS: drawable {} {}", i, drawable.get_transform(),);
                 }
 
                 for (i, drawable) in self.children.drawables.iter().enumerate() {
@@ -720,12 +715,7 @@ impl ApplicationHandler for GameContext {
                     offsets.push(offset);
                     vertices.extend_from_slice(verts);
                     matrices.push(matrix);
-                    debug!(
-                        "POSITIONS: drawable {} x: {:?} y: {:?}",
-                        i,
-                        drawable.get_transform().get_matrix()[0][3],
-                        drawable.get_transform().get_matrix()[1][3],
-                    );
+                    debug!("POSITIONS: drawable {} {}", i, drawable.get_transform(),);
                 }
 
                 let vertex_buffer = Buffer::from_iter(

@@ -156,9 +156,11 @@ DynamicObject <.. PhysicsDrawable : implement
 DrawableGPU <.. PhysicsDrawable : implement
 DrawableGPU <.. Drawable : implement
 GameMemory <.. TGameMemory : implement
+PhysicsContext <.. TPhysicsContext : implement
+GameContext <.. TGameContext : implement
 
 Drawable *-- Transform : own
-Drawable *-- Transform : own
+Drawable *-- Mesh : own
 
 GameContext *-- GameMemory : own
 GameContext *-- PhysicsContext : own

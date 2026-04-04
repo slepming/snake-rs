@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use rapier2d::{
     math::Vector,
     prelude::{
@@ -324,6 +326,16 @@ pub trait Position {
 #[derive(BufferContents, Clone, Copy, Debug)]
 pub struct Transform {
     transform: [[f32; 4]; 4],
+}
+
+impl Display for Transform {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let fmt = format!(
+            "\n{:?}\n{:?}\n{:?}\n{:?}",
+            self.transform[0], self.transform[1], self.transform[2], self.transform[3]
+        );
+        write!(f, "{}", fmt)
+    }
 }
 
 impl Position for Transform {
