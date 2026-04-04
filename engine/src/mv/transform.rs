@@ -1,5 +1,3 @@
-use std::fmt::Display;
-
 use rapier2d::{
     math::Vector,
     prelude::{
@@ -8,28 +6,14 @@ use rapier2d::{
         RigidBody, RigidBodyBuilder, RigidBodyHandle, RigidBodySet,
     },
 };
-use vulkano::buffer::BufferContents;
 
 use crate::{
     MyVertex,
-    geometry::shapes::{Shapes, get_vertex_from_shapes},
+    drw::drawable::{Drawable, DrawableGPU, PhysicsDrawable},
+    geometry::shapes::Shapes,
 };
 
 const GRAVITY: Vector = Vector::new(0.0, -9.81 * 60.0); // * 60 is magick value. I will fix that in the future
-
-pub struct Children {
-    pub physics_drawables: Vec<PhysicsDrawable>,
-    pub drawables: Vec<Drawable>,
-}
-
-impl Children {
-    pub fn new() -> Self {
-        Children {
-            physics_drawables: Vec::new(),
-            drawables: Vec::new(),
-        }
-    }
-}
 
 /// Basic context for use physics.
 /// # Example
@@ -64,136 +48,6 @@ pub struct PhysicsSpace {
     ccd_solver: CCDSolver,
     physics_hooks: (),
     event_handler: (),
-}
-
-pub struct Drawable {
-    transform: Transform,
-    mesh: Mesh,
-}
-
-pub struct Mesh {
-    vertex: Vec<MyVertex>,
-    /// ID need for find matrix in buffer
-    id: u32,
-}
-
-pub struct PhysicsDrawable {
-    rb_h: RigidBodyHandle,
-    drawable: Drawable,
-}
-
-pub trait DrawableGPU {
-    fn set_vertex(&mut self, vertex: Vec<MyVertex>);
-    fn get_transform(&self) -> &Transform;
-    fn get_transform_clone(&self) -> Transform;
-    fn get_vertex_clone(&self) -> Vec<MyVertex>;
-    fn get_vertex(&self) -> &Vec<MyVertex>;
-    fn set_transform(&mut self, transform: Transform);
-}
-
-impl Mesh {
-    pub fn new(ver: Vec<MyVertex>, id: u32) -> Self {
-        Mesh { vertex: ver, id }
-    }
-
-    pub fn get_id(&self) -> &u32 {
-        &self.id
-    }
-}
-
-impl Drawable {
-    pub fn new(vertex: Vec<MyVertex>, id: u32) -> Self {
-        let transform = Transform {
-            transform: [
-                [1.0, 0.0, 0.0, 0.0],
-                [0.0, 1.0, 0.0, 0.0],
-                [0.0, 0.0, 1.0, 0.0],
-                [0.0, 0.0, 0.0, 1.0],
-            ],
-        };
-
-        Drawable {
-            mesh: Mesh::new(vertex, id),
-            transform,
-        }
-    }
-
-    pub fn from_shape(shape: Shapes, id: u32) -> Self {
-        Drawable::new(get_vertex_from_shapes(shape), id)
-    }
-}
-
-impl DrawableGPU for Drawable {
-    fn get_transform_clone(&self) -> Transform {
-        self.transform.clone() // TODO: This method not the best, but idk what function I need instead of this 
-    }
-
-    fn get_vertex_clone(&self) -> Vec<MyVertex> {
-        self.mesh.vertex.clone()
-    }
-
-    fn get_vertex(&self) -> &Vec<MyVertex> {
-        &self.mesh.vertex
-    }
-
-    fn get_transform(&self) -> &Transform {
-        &self.transform
-    }
-
-    fn set_transform(&mut self, transform: Transform) {
-        self.transform = transform;
-    }
-    fn set_vertex(&mut self, vertex: Vec<MyVertex>) {
-        self.mesh.vertex = vertex;
-    }
-}
-
-impl DrawableGPU for PhysicsDrawable {
-    fn set_vertex(&mut self, vertex: Vec<MyVertex>) {
-        self.drawable.set_vertex(vertex);
-    }
-
-    fn get_transform(&self) -> &Transform {
-        self.drawable.get_transform()
-    }
-
-    fn get_transform_clone(&self) -> Transform {
-        self.drawable.get_transform_clone()
-    }
-
-    fn get_vertex_clone(&self) -> Vec<MyVertex> {
-        self.drawable.get_vertex_clone()
-    }
-
-    fn get_vertex(&self) -> &Vec<MyVertex> {
-        self.drawable.get_vertex()
-    }
-
-    fn set_transform(&mut self, transform: Transform) {
-        self.drawable.set_transform(transform);
-    }
-}
-
-impl PhysicsDrawable {
-    pub fn new(rb_h: RigidBodyHandle, drawable: Drawable) -> Self {
-        PhysicsDrawable { drawable, rb_h }
-    }
-
-    pub fn get_rb<'a>(&self, ctx: &'a mut PhysicsContext) -> &'a mut RigidBody {
-        ctx.rigid_body_set.get_mut(self.rb_h).unwrap()
-    }
-
-    pub fn get_rb_handle(&self) -> RigidBodyHandle {
-        self.rb_h
-    }
-
-    pub fn get_drawable(&self) -> &Drawable {
-        &self.drawable
-    }
-
-    pub fn get_mut_drawable(&mut self) -> &mut Drawable {
-        &mut self.drawable
-    }
 }
 
 /// Используется для перемещения объекта в пространстве
@@ -322,27 +176,8 @@ pub trait Position {
     fn get_matrix(&self) -> &[[f32; 4]; 4];
 }
 
-#[repr(C)]
-#[derive(BufferContents, Clone, Copy, Debug)]
-pub struct Transform {
-    transform: [[f32; 4]; 4],
-}
+pub trait Entity: DrawableGPU + DynamicObject {
+    fn rigid_body<'a>(&self, ctx: &'a mut PhysicsContext) -> &'a mut RigidBody;
 
-impl Display for Transform {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let fmt = format!(
-            "\n{:?}\n{:?}\n{:?}\n{:?}",
-            self.transform[0], self.transform[1], self.transform[2], self.transform[3]
-        );
-        write!(f, "{}", fmt)
-    }
-}
-
-impl Position for Transform {
-    fn get_matrix_mut(&mut self) -> &mut [[f32; 4]; 4] {
-        &mut self.transform
-    }
-    fn get_matrix(&self) -> &[[f32; 4]; 4] {
-        &self.transform
-    }
+    fn rb_handle(&self) -> RigidBodyHandle;
 }
