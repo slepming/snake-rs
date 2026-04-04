@@ -689,10 +689,10 @@ impl ApplicationHandler for GameContext {
                     let mut transform = drawable.get_drawable().get_transform_clone();
 
                     let ndc_x = object.translation().x * rcx.scale[0] - 1.0;
-                    let ndc_y = 1.0 - object.translation().y * rcx.scale[1];
+                    let ndc_y = object.translation().y * rcx.scale[1];
 
                     transform.get_matrix_mut()[0][3] = ndc_x;
-                    transform.get_matrix_mut()[1][3] = ndc_y;
+                    transform.get_matrix_mut()[1][3] = -ndc_y;
 
                     drawable.set_transform(transform);
 
@@ -708,6 +708,7 @@ impl ApplicationHandler for GameContext {
                 }
 
                 for (i, drawable) in self.children.drawables.iter().enumerate() {
+                    // FIX: a rectangle is distorted to a parallelogram
                     let verts = drawable.get_vertex();
                     let matrix = drawable.get_transform_clone();
                     let offset = vertices.len() as u32;
