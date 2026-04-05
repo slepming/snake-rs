@@ -42,9 +42,9 @@ title Архитектура
 package "Base" {
     package "Winit / Event Loop" {
         interface ApplicationHandler << (T,ORANGE) >> {
-            + resumed(event_loop: &ActiveEventLoop)
-            + window_event(event_loop: &ActiveEventLoop, id: WindowId, event: WindowEvent)
-            + about_to_wait(event_loop: &ActiveEventLoop)
+            + resumed(&mut self, event_loop: &ActiveEventLoop)
+            + window_event(&mut self, event_loop: &ActiveEventLoop, id: WindowId, event: WindowEvent)
+            + about_to_wait(&mut self, event_loop: &ActiveEventLoop)
         }
     }
 
@@ -70,11 +70,6 @@ package "Base" {
 
         interface TGameMemory << (T,ORANGE) >> {
             + new(device: Arc<Device>) -> GameMemory
-        }
-
-        struct Children {
-            + physics_drawables: Vec<PhysicsDrawable>
-            + drawables: Vec<Drawable>
         }
 }
 }
@@ -108,9 +103,27 @@ package "Physics (Rapier2D)" {
         + step(&mut self)
         + create_phys_square(&mut self, position: Option<Vector>, mut rigid_body_builder: RigidBodyBuilder, size: [f32; 2], id: u32) -> PhysicsDrawable
     }
+
+    interface Entity << (T,ORANGE) >> {
+        + rigid_body<'a>(&self, ctx: &'a mut PhysicsContext) -> &'a mut RigidBody
+        + fn rb_handle(&self) -> RigidBodyHandle
+    }
 }
 
 package "Draw" {
+    together {
+        struct Children {
+            + physics_drawables: Vec<Box<dyn Entity>>
+            + drawables: Vec<Box<dyn DrawableGPU>>
+        }
+
+        interface TChildren << (T,ORANGE) >> {
+            + new() -> Children
+            + add_physics<T: Entity + 'static>(&mut self, item: T)
+            + add_drawable<T: DrawableGPU + 'static>(&mut self, item: T)
+        }
+    }
+
     struct Drawable {
         - transform: Transform
         - mesh: Mesh
@@ -140,27 +153,33 @@ package "Draw" {
     }
 
     interface DrawableGPU << (T,ORANGE) >> {
-        + set_vertex(vertex: Vec<MyVertex>)
-        + get_transform() -> &Transform
-        + get_transform_clone() -> Transform
-        + get_vertex_clone() -> Vec<MyVertex>
-        + get_vertex() -> &Vec<MyVertex>
-        + set_transform(transform: Transform)
+        + set_vertex(&self, vertex: Vec<MyVertex>)
+        + get_transform(&self) -> &Transform
+        + get_transform_clone(&self) -> Transform
+        + get_vertex_clone(&self) -> Vec<MyVertex>
+        + get_vertex(&self) -> &Vec<MyVertex>
+        + set_transform(&self, transform: Transform)
+        + drawable(&self) -> &Drawable
+        + drawable_mut(&mut self) -> &mut Drawable
     }
 }
 
 ' Relationships
 ApplicationHandler <.. GameContext : implement
-Position <.. Transform : implement
-DynamicObject <.. PhysicsDrawable : implement
+Position <. Transform : implement
 DrawableGPU <.. PhysicsDrawable : implement
+Entity <. PhysicsDrawable : implement
 DrawableGPU <.. Drawable : implement
-GameMemory <.. TGameMemory : implement
-PhysicsContext <.. TPhysicsContext : implement
+GameMemory <. TGameMemory : implement
+PhysicsContext <. TPhysicsContext : implement
 GameContext <.. TGameContext : implement
+TChildren <. Children: implement
 
 Drawable *-- Transform : own
 Drawable *-- Mesh : own
+
+DrawableGPU *.. Entity : inherits
+DynamicObject *.. Entity : inherits
 
 GameContext *-- GameMemory : own
 GameContext *-- PhysicsContext : own
@@ -170,7 +189,7 @@ GameContext o-- RenderContext : contains (Option)
 Children *-- "many" PhysicsDrawable
 Children *-- "many" Drawable
 
-RenderContext ..> MyVertex : used in vertex buffer
+RenderContext .> MyVertex : used in vertex buffer
 RenderContext ..> "vulkano" : managment
 
 together {
@@ -180,14 +199,13 @@ together {
         приложения через ApplicationHandler.
     end note
 
-    note right of Drawable
-        Является главной структурой для управления и изменения вершин и матрицы трансформации.
+    note right of Draw
+        Отсутствие в параметрах функций селфа указывает на стандартное значение -> &self
     end note
 
     note top of RenderContext
         Window-dependent state.
         Инициализируется в resumed()
-        и пересоздается при Resized.
     end note
 }
 
