@@ -124,7 +124,7 @@ impl PhysicsContext {
         let rb_h = self.rigid_body_set.insert(rigid_body);
         self.collider_set
             .insert_with_parent(collider, rb_h.clone(), &mut self.rigid_body_set);
-        let drawable = Drawable::new(vertex, id);
+        let drawable = Drawable::new(vertex, id, None);
         PhysicsDrawable::new(rb_h, drawable)
     }
 
@@ -149,7 +149,7 @@ impl PhysicsContext {
         let rb_h = self.rigid_body_set.insert(rigid_body);
         self.collider_set
             .insert_with_parent(collider, rb_h.clone(), &mut self.rigid_body_set);
-        let drawable = Drawable::from_shape(Shapes::Square(size), id);
+        let drawable = Drawable::from_shape(Shapes::Square(size), id, None);
         PhysicsDrawable::new(rb_h, drawable)
     }
 }

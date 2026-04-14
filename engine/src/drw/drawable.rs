@@ -1,4 +1,4 @@
-use rapier2d::prelude::{RigidBody, RigidBodyHandle};
+use rapier2d::{math::Vec2, prelude::{RigidBody, RigidBodyHandle}};
 
 use crate::{
     MyVertex,
@@ -6,7 +6,7 @@ use crate::{
         matrix::Transform,
         shapes::{Shapes, get_vertex_from_shapes},
     },
-    mv::transform::{DynamicObject, Entity, PhysicsContext},
+    mv::transform::{Entity, PhysicsContext},
 };
 
 pub struct Children {
@@ -69,7 +69,7 @@ impl Mesh {
 }
 
 impl Drawable {
-    pub fn new(vertex: Vec<MyVertex>, id: u32) -> Self {
+    pub fn new(vertex: Vec<MyVertex>, id: u32, position: Option<Vec2>) -> Self {
         let transform = Transform {
             transform: [
                 [1.0, 0.0, 0.0, 0.0],
@@ -85,8 +85,8 @@ impl Drawable {
         }
     }
 
-    pub fn from_shape(shape: Shapes, id: u32) -> Self {
-        Drawable::new(get_vertex_from_shapes(shape), id)
+    pub fn from_shape(shape: Shapes, id: u32, position: Option<Vec2>) -> Self {
+        Drawable::new(get_vertex_from_shapes(shape), id, position)
     }
 }
 
@@ -188,3 +188,6 @@ impl Entity for PhysicsDrawable {
         self.get_rb_handle()
     }
 }
+
+// TODO: Drawable should implement translation from physics model to vulkan matrix model in the
+// future

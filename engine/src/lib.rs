@@ -1,8 +1,11 @@
-// How I can change code for better readability
+// TODO: 
+// * Dependency container for get data from anywhere
+// * Translate matrix from physics matrix to vulkan matrix at the Drawable level
+// * Create a user space. I mean encapsulate engine.
 
 use log::debug;
 use rapier2d::{
-    math::{Vector},
+    math::{Vec2, Vector},
     prelude::{ColliderSet, RigidBodyBuilder, RigidBodySet},
 };
 use std::{ops::RangeInclusive, sync::Arc};
@@ -279,12 +282,12 @@ impl GameContext {
         }
     }
 
-    pub fn create_drawable_physics(&mut self, start_position: Option<Vector>, size: Vector) {
-        self.children.add_physics(self.physics_context.create_phys_square(start_position, RigidBodyBuilder::dynamic(), size.into(), self.children.physics_drawables.len() as u32 + 1));
+    pub fn create_drawable_physics(&mut self, start_position: Option<Vec2>, size: Vec2) {
+        self.children.add_physics(self.physics_context.create_phys_square(start_position, RigidBodyBuilder::dynamic(), size.into(), self.children.physics_drawables.len() as u32 + self.children.drawables.len() as u32 + 1));
     }
 
-    pub fn create_drawable(&mut self, shape: geometry::shapes::Shapes, start_position: Option<Vector>) {
-        self.children.add_drawable(Drawable::from_shape(shape, self.children.drawables.len() as u32 + 1));
+    pub fn create_drawable(&mut self, shape: geometry::shapes::Shapes, start_position: Option<Vec2>) {
+        self.children.add_drawable(Drawable::from_shape(shape, self.children.drawables.len() as u32 + self.children.physics_drawables.len() as u32 + 1, start_position));
     }
 }
 
@@ -672,7 +675,6 @@ impl ApplicationHandler for GameContext {
                 }
 
                 for (i, drawable) in self.children.drawables.iter().enumerate() {
-                    // FIX: a rectangle is distorted to a parallelogram
                     let verts = drawable.get_vertex();
                     let matrix = drawable.get_transform_clone();
                     let offset = vertices.len() as u32;
@@ -777,6 +779,7 @@ impl ApplicationHandler for GameContext {
                     .unwrap()
                     .bind_vertex_buffers(0, vertex_buffer.clone())
                     .unwrap();
+
                 let all_items = self
                     .children
                     .drawables
