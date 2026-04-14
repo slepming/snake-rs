@@ -199,10 +199,6 @@ together {
         приложения через ApplicationHandler.
     end note
 
-    note right of Draw
-        Отсутствие в параметрах функций селфа указывает на стандартное значение -> &self
-    end note
-
     note top of RenderContext
         Window-dependent state.
         Инициализируется в resumed()

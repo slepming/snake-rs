@@ -2,7 +2,7 @@
 
 use log::debug;
 use rapier2d::{
-    math::Vector,
+    math::{Vector},
     prelude::{ColliderSet, RigidBodyBuilder, RigidBodySet},
 };
 use std::{ops::RangeInclusive, sync::Arc};
@@ -45,7 +45,6 @@ use winit::{
     event::{ElementState, WindowEvent},
     event_loop::{ActiveEventLoop, EventLoop},
     keyboard::{Key, NamedKey},
-    monitor::MonitorHandle,
     platform::{
         modifier_supplement::KeyEventExtModifierSupplement, wayland::WindowAttributesExtWayland,
     },
@@ -55,7 +54,7 @@ use winit::{
 use crate::{
     drw::drawable::{Children, Drawable, DrawableGPU},
     geometry::matrix::Transform,
-    mv::transform::{DynamicObject, PhysicsContext, PhysicsSpace, Position},
+    mv::transform::{PhysicsContext, PhysicsSpace, Position},
     shaders::cube_shader::{cube_fs, cube_vs},
 };
 
@@ -74,8 +73,8 @@ pub struct GameContext {
     queue: Arc<Queue>,
     memory: GameMemory,
     rcx: Option<RenderContext>,
-    physics_context: PhysicsContext,
-    children: Children,
+    pub(crate) physics_context: PhysicsContext,
+    pub children: Children,
 }
 
 struct GameMemory {
@@ -278,6 +277,14 @@ impl GameContext {
             physics_context: ph_context,
             children: Children::new(),
         }
+    }
+
+    pub fn create_drawable_physics(&mut self, start_position: Option<Vector>, size: Vector) {
+        self.children.add_physics(self.physics_context.create_phys_square(start_position, RigidBodyBuilder::dynamic(), size.into(), self.children.physics_drawables.len() as u32 + 1));
+    }
+
+    pub fn create_drawable(&mut self, shape: geometry::shapes::Shapes, start_position: Option<Vector>) {
+        self.children.add_drawable(Drawable::from_shape(shape, self.children.drawables.len() as u32 + 1));
     }
 }
 
@@ -553,42 +560,6 @@ impl ApplicationHandler for GameContext {
             recreate_swapchain,
             previous_frame_end,
         });
-
-        // Create physical object
-        self.children
-            .add_physics(self.physics_context.create_phys_square(
-                Some(Vector::new(0.0, 100.0)),
-                RigidBodyBuilder::fixed(),
-                [
-                    5000.0 * self.rcx.as_ref().unwrap().scale[0],
-                    50.0 * self.rcx.as_ref().unwrap().scale[1],
-                ],
-                self.children.drawables.len() as u32 + 1,
-            ));
-        self.children.add_drawable(Drawable::from_shape(
-            geometry::shapes::Shapes::Square([0.5, 0.5]),
-            self.children.drawables.len() as u32 + 1,
-        ));
-        self.children
-            .add_physics(self.physics_context.create_phys_square(
-                Some(Vector::new(1000.0, 2000.0)),
-                RigidBodyBuilder::dynamic(),
-                [
-                    200.0 * self.rcx.as_ref().unwrap().scale[0],
-                    200.0 * self.rcx.as_ref().unwrap().scale[1],
-                ],
-                self.children.drawables.len() as u32 + 1,
-            ));
-        self.children
-            .add_physics(self.physics_context.create_phys_square(
-                Some(Vector::new(500.0, 2000.0)),
-                RigidBodyBuilder::dynamic(),
-                [
-                    200.0 * self.rcx.as_ref().unwrap().scale[0],
-                    200.0 * self.rcx.as_ref().unwrap().scale[1],
-                ],
-                self.children.drawables.len() as u32 + 1,
-            ));
     }
 
     fn window_event(

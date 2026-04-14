@@ -2503,6 +2503,7 @@ version = "0.1.0"
 dependencies = [
  "log",
  "pretty_env_logger",
+ "rapier2d",
  "snake-engine",
  "tracy-client",
  "winit",

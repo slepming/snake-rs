@@ -8,6 +8,7 @@ snake-engine = { path = "../engine" }
 log = "0.4"
 pretty_env_logger = "0.5"
 tracy-client = "0.18.4"
+rapier2d = "0.32.0"
 
 [dependencies.winit]
 version = "0.30.12"
