@@ -797,11 +797,11 @@ impl ApplicationHandler for GameContext {
                         .push_constants(rcx.pipeline.layout().clone(), 0, matrices[i].clone())
                         .unwrap();
 
-                    let vertex_offset = offsets[i] as u32;
+                    let vertex_cursor = offsets[i] as u32;
                     let vertex_count = item.get_vertex().len() as u32;
 
                     unsafe {
-                        builder.draw(vertex_count, 1, vertex_offset, 0).unwrap();
+                        builder.draw(vertex_count, 1, vertex_cursor, 0).unwrap();
                     }
                 }
                 builder
