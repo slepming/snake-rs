@@ -13,8 +13,8 @@ use crate::{
 };
 
 pub struct Children {
-    pub drawables: Vec<Box<dyn DrawableGPU>>,
-    pub physics_drawables: Vec<Box<dyn Entity>>,
+    pub(crate) drawables: Vec<Box<dyn DrawableGPU>>,
+    pub(crate) physics_drawables: Vec<Box<dyn Entity>>,
 }
 
 impl Children {
