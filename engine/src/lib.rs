@@ -1,4 +1,4 @@
-// TODO: 
+// TODO:
 // * Dependency container for get data from anywhere
 // * Translate matrix from physics matrix to vulkan matrix at the Drawable level
 // * Create a user space. I mean encapsulate engine.
@@ -11,7 +11,7 @@ use rapier2d::{
 use std::{ops::RangeInclusive, sync::Arc};
 use vulkano::{
     Validated, VulkanError, VulkanLibrary,
-    buffer::{Buffer, BufferContents, BufferCreateInfo, BufferUsage},
+    buffer::{Buffer, BufferContents, BufferCreateInfo, BufferUsage, Subbuffer},
     command_buffer::{
         AutoCommandBufferBuilder, CommandBufferUsage, RenderPassBeginInfo, SubpassBeginInfo,
         SubpassContents, allocator::StandardCommandBufferAllocator,
@@ -22,7 +22,7 @@ use vulkano::{
     },
     image::{Image, ImageUsage, view::ImageView},
     instance::{Instance, InstanceCreateFlags, InstanceCreateInfo, InstanceExtensions},
-    memory::allocator::{AllocationCreateInfo, MemoryTypeFilter, StandardMemoryAllocator},
+    memory::allocator::{AllocationCreateInfo, MemoryAllocator, MemoryTypeFilter, StandardMemoryAllocator},
     pipeline::{
         DynamicState, GraphicsPipeline, Pipeline, PipelineLayout, PipelineShaderStageCreateInfo,
         graphics::{
@@ -283,11 +283,85 @@ impl GameContext {
     }
 
     pub fn create_drawable_physics(&mut self, start_position: Option<Vec2>, size: Vec2) {
-        self.children.add_physics(self.physics_context.create_phys_square(start_position, RigidBodyBuilder::dynamic(), size.into(), self.children.physics_drawables.len() as u32 + self.children.drawables.len() as u32 + 1));
+        self.children
+            .add_physics(self.physics_context.create_phys_square(
+                start_position,
+                RigidBodyBuilder::dynamic(),
+                size.into(),
+                self.children.physics_drawables.len() as u32
+                    + self.children.drawables.len() as u32
+                    + 1,
+            ));
     }
 
-    pub fn create_drawable(&mut self, shape: geometry::shapes::Shapes, start_position: Option<Vec2>) {
-        self.children.add_drawable(Drawable::from_shape(shape, self.children.drawables.len() as u32 + self.children.physics_drawables.len() as u32 + 1, start_position));
+    pub fn create_drawable(
+        &mut self,
+        shape: geometry::shapes::Shapes,
+        start_position: Option<Vec2>,
+    ) {
+        self.children.add_drawable(Drawable::from_shape(
+            shape,
+            self.children.drawables.len() as u32 + self.children.physics_drawables.len() as u32 + 1,
+            start_position,
+        ));
+    }
+
+    pub(crate) fn calculate_drawables(memory_allocator: Arc<dyn MemoryAllocator>, physics_context: &PhysicsContext, children: &mut Children, rcx: &mut RenderContext) -> (Subbuffer<[MyVertex]>, Vec<Transform>, Vec<u32>) {
+        let _span = tracy_client::span!("Game::calculate_drawables");
+        let mut vertices: Vec<MyVertex> = Vec::new();
+        let mut matrices: Vec<Transform> = Vec::new();
+        let mut offsets: Vec<u32> = Vec::new();
+
+        for (i, drawable) in children.physics_drawables.iter_mut().enumerate() {
+            let object = physics_context.rigid_body_set[drawable.rb_handle()].clone();
+            let mut transform = drawable.drawable().get_transform_clone();
+
+            let ndc_x = object.translation().x * rcx.scale[0] - 1.0;
+            let ndc_y = object.translation().y * rcx.scale[1];
+
+            transform.get_matrix_mut()[0][3] = ndc_x;
+            transform.get_matrix_mut()[1][3] = -ndc_y;
+
+            drawable.set_transform(transform);
+
+            let drawable = drawable.drawable();
+            let verts = drawable.get_vertex();
+            let matrics = drawable.get_transform_clone();
+            let offset = vertices.len() as u32;
+
+            offsets.push(offset);
+            vertices.extend_from_slice(verts);
+            matrices.push(matrics);
+            debug!("POSITIONS: drawable {} {}", i, drawable.get_transform(),);
+        }
+
+        for (i, drawable) in children.drawables.iter().enumerate() {
+            let verts = drawable.get_vertex();
+            let matrix = drawable.get_transform_clone();
+            let offset = vertices.len() as u32;
+
+            offsets.push(offset);
+            vertices.extend_from_slice(verts);
+            matrices.push(matrix);
+            debug!("POSITIONS: drawable {} {}", i, drawable.get_transform(),);
+        }
+
+        let vertex_buffer = Buffer::from_iter(
+            memory_allocator,
+            BufferCreateInfo {
+                usage: BufferUsage::VERTEX_BUFFER,
+                ..Default::default()
+            },
+            AllocationCreateInfo {
+                memory_type_filter: MemoryTypeFilter::PREFER_DEVICE
+                    | MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
+                ..Default::default()
+            },
+            vertices,
+        )
+        .unwrap();
+
+        (vertex_buffer, matrices, offsets)
     }
 }
 
@@ -578,6 +652,8 @@ impl ApplicationHandler for GameContext {
                 event_loop.exit();
             }
             WindowEvent::KeyboardInput { event, .. } => {
+                let span = tracy_client::span!("Game::Keyboard_input");
+                span.emit_color(0xFF0000);
                 if event.state == ElementState::Pressed && !event.repeat {
                     match event.key_without_modifiers().as_ref() {
                         Key::Named(NamedKey::Escape) => {
@@ -601,6 +677,7 @@ impl ApplicationHandler for GameContext {
                 }
             }
             WindowEvent::Resized(_) => {
+                let _span = tracy_client::span!("Game::resize");
                 rcx.recreate_swapchain = true;
                 let scale_x = 2.0 / rcx.window.inner_size().width as f32;
                 let scale_y = 2.0 / rcx.window.inner_size().height as f32;
@@ -647,58 +724,7 @@ impl ApplicationHandler for GameContext {
                     rcx.recreate_swapchain = false;
                 }
 
-                let mut vertices: Vec<MyVertex> = Vec::new();
-                let mut matrices: Vec<Transform> = Vec::new();
-                let mut offsets: Vec<u32> = Vec::new();
-
-                for (i, drawable) in self.children.physics_drawables.iter_mut().enumerate() {
-                    let object = &self.physics_context.rigid_body_set[drawable.rb_handle()];
-                    let mut transform = drawable.drawable().get_transform_clone();
-
-                    let ndc_x = object.translation().x * rcx.scale[0] - 1.0;
-                    let ndc_y = object.translation().y * rcx.scale[1];
-
-                    transform.get_matrix_mut()[0][3] = ndc_x;
-                    transform.get_matrix_mut()[1][3] = -ndc_y;
-
-                    drawable.set_transform(transform);
-
-                    let drawable = drawable.drawable();
-                    let verts = drawable.get_vertex();
-                    let matrics = drawable.get_transform_clone();
-                    let offset = vertices.len() as u32;
-
-                    offsets.push(offset);
-                    vertices.extend_from_slice(verts);
-                    matrices.push(matrics);
-                    debug!("POSITIONS: drawable {} {}", i, drawable.get_transform(),);
-                }
-
-                for (i, drawable) in self.children.drawables.iter().enumerate() {
-                    let verts = drawable.get_vertex();
-                    let matrix = drawable.get_transform_clone();
-                    let offset = vertices.len() as u32;
-
-                    offsets.push(offset);
-                    vertices.extend_from_slice(verts);
-                    matrices.push(matrix);
-                    debug!("POSITIONS: drawable {} {}", i, drawable.get_transform(),);
-                }
-
-                let vertex_buffer = Buffer::from_iter(
-                    self.memory.memory_allocator.clone(),
-                    BufferCreateInfo {
-                        usage: BufferUsage::VERTEX_BUFFER,
-                        ..Default::default()
-                    },
-                    AllocationCreateInfo {
-                        memory_type_filter: MemoryTypeFilter::PREFER_DEVICE
-                            | MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
-                        ..Default::default()
-                    },
-                    vertices,
-                )
-                .unwrap();
+                let (vertex_buffer, matrices, offsets) = GameContext::calculate_drawables(self.memory.memory_allocator.clone(), &self.physics_context, &mut self.children, rcx);
 
                 // Before we can draw on the output, we have to *acquire* an image from the
                 // swapchain. If no image is available (which happens if you submit draw commands
