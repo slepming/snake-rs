@@ -4,12 +4,13 @@
 // * Create game storage for cache-files
 // * Create a user space. I mean encapsulate engine.
 
-use log::debug;
+//use log::debug;
 use rapier2d::{
     math::{Vec2, Vector},
     prelude::{ColliderSet, RigidBodyBuilder, RigidBodySet},
 };
 use std::{ops::RangeInclusive, sync::Arc};
+use tracing::debug;
 use vulkano::{
     Validated, VulkanError, VulkanLibrary,
     buffer::{Buffer, BufferContents, BufferCreateInfo, BufferUsage, Subbuffer},
@@ -124,6 +125,7 @@ pub trait Game {
 
 impl GameContext {
     pub fn new(event_loop: &EventLoop<()>) -> Self {
+        tracing_subscriber::fmt::init();
         let _span = tracy_client::span!("Game::new");
         debug!("vulkan init");
         let library = VulkanLibrary::new().unwrap();
@@ -351,7 +353,7 @@ impl GameContext {
             offsets.push(offset);
             vertices.extend_from_slice(verts);
             matrices.push(matrics);
-            debug!("POSITIONS: drawable {} {}", i, drawable.get_transform(),);
+            //debug!("POSITIONS: drawable {} {}", i, drawable.get_transform(),);
         }
 
         for (i, drawable) in children.drawables.iter().enumerate() {
@@ -362,7 +364,7 @@ impl GameContext {
             offsets.push(offset);
             vertices.extend_from_slice(verts);
             matrices.push(matrix);
-            debug!("POSITIONS: drawable {} {}", i, drawable.get_transform(),);
+            //debug!("POSITIONS: drawable {} {}", i, drawable.get_transform(),);
         }
 
         let vertex_buffer = Buffer::from_iter(

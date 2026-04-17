@@ -7,7 +7,6 @@ use winit::event_loop::EventLoop;
 const OBJECTS_COUNT: u32 = 5;
 
 fn main() -> Result<(), impl Error> {
-    pretty_env_logger::init();
     let event_loop = EventLoop::new().unwrap();
     let mut app = GameContext::new(&event_loop);
     for i in 0..OBJECTS_COUNT {

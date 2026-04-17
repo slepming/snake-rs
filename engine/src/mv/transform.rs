@@ -1,5 +1,7 @@
+//use log::debug;
+use tracing::debug;
 use rapier2d::{
-    math::Vector,
+    math::{Vec2, Vector},
     prelude::{
         CCDSolver, ColliderBuilder, ColliderSet, DefaultBroadPhase, ImpulseJointSet,
         IntegrationParameters, IslandManager, MultibodyJointSet, NarrowPhase, PhysicsPipeline,
@@ -136,20 +138,33 @@ impl PhysicsContext {
     // TODO: Currently the id is not finished and WIP
     pub fn create_phys_square(
         &mut self,
-        position: Option<Vector>,
+        position: Option<Vec2>,
         mut rigid_body_builder: RigidBodyBuilder,
         size: [f32; 2],
         id: u32,
     ) -> PhysicsDrawable {
+        let _span = tracy_client::span!("PhysicsContext::create_phys_square");
         if let Some(pos) = position {
             rigid_body_builder = rigid_body_builder.translation(pos);
         }
         let rigid_body = rigid_body_builder.build();
         let collider = ColliderBuilder::cuboid(size[0], size[1]).build();
-        let rb_h = self.rigid_body_set.insert(rigid_body);
-        self.collider_set
-            .insert_with_parent(collider, rb_h.clone(), &mut self.rigid_body_set);
+        let rb_h = self.rigid_body_set.insert(rigid_body.clone());
+        self.collider_set.insert_with_parent(
+            collider.clone(),
+            rb_h.clone(),
+            &mut self.rigid_body_set,
+        );
         let drawable = Drawable::from_shape(Shapes::Square(size), id, None);
+        debug!(id = id,
+            "created new object:\n\
+             position: {:?}\n\
+             size: {:?}\n\n
+             rigid_body: {:?}\n\n
+             collider: {:?}\n\n
+             rb_handle: {:?}",
+            &position, &size, &rigid_body, &collider, &rb_h
+        );
         PhysicsDrawable::new(rb_h, drawable)
     }
 }
