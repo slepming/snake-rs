@@ -138,10 +138,10 @@ impl PhysicsContext {
     // TODO: Currently the id is not finished and WIP
     pub fn create_phys_square(
         &mut self,
-        position: Option<Vec2>,
         mut rigid_body_builder: RigidBodyBuilder,
         size: [f32; 2],
         id: u32,
+        position: Option<Vec2>,
     ) -> PhysicsDrawable {
         let _span = tracy_client::span!("PhysicsContext::create_phys_square");
         if let Some(pos) = position {

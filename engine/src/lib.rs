@@ -295,12 +295,12 @@ impl GameContext {
     ) {
         self.children
             .add_physics(self.physics_context.create_phys_square(
-                start_position,
                 rigidbodybuilder.unwrap_or(RigidBodyBuilder::dynamic()),
                 size.into(),
                 self.children.physics_drawables.len() as u32
                     + self.children.drawables.len() as u32
                     + 1,
+                start_position,
             ));
     }
 
@@ -331,9 +331,9 @@ impl GameContext {
         let mut matrices: Vec<Transform> = Vec::new();
         let mut offsets: Vec<u32> = Vec::new();
 
-        // TODO: in the future I should think about join this iteration loops via abstractions or
-        // compositing strcutures
-        for (i, drawable) in children.physics_drawables.iter_mut().enumerate() {
+        // TODO: in the future I should think about join this iteration loops through abstractions or
+        // compositing structures
+        for drawable in children.physics_drawables.iter_mut() {
             let object = physics_context.rigid_body_set[drawable.rb_handle()].clone();
             let mut transform = drawable.drawable().get_transform_clone();
 
@@ -356,7 +356,7 @@ impl GameContext {
             //debug!("POSITIONS: drawable {} {}", i, drawable.get_transform(),);
         }
 
-        for (i, drawable) in children.drawables.iter().enumerate() {
+        for drawable in children.drawables.iter() {
             let verts = drawable.get_vertex();
             let matrix = drawable.get_transform_clone();
             let offset = vertices.len() as u32;
