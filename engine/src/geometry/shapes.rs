@@ -10,16 +10,16 @@ pub fn get_vertex_from_shapes(shape: Shapes) -> Vec<MyVertex> {
         Shapes::Square(size) => {
             vec![
                 MyVertex {
-                    position: [-size[0], -size[0]],
+                    position: [-size[0], -size[1]], // x0 -> y0
                 },
                 MyVertex {
-                    position: [-size[1], size[1]],
+                    position: [size[0], -size[1]], // x1 -> y0
                 },
                 MyVertex {
-                    position: [size[1], -size[1]],
+                    position: [size[0], size[1]], // x1 -> y1
                 },
                 MyVertex {
-                    position: [size[0], size[0]],
+                    position: [-size[0], size[1]], // x0 -> y1
                 },
             ]
         }

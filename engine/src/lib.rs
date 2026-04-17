@@ -1,6 +1,7 @@
 // TODO:
 // * Dependency container for get data from anywhere
 // * Translate matrix from physics matrix to vulkan matrix at the Drawable level
+// * Create game storage for cache-files
 // * Create a user space. I mean encapsulate engine.
 
 use log::debug;
@@ -22,7 +23,9 @@ use vulkano::{
     },
     image::{Image, ImageUsage, view::ImageView},
     instance::{Instance, InstanceCreateFlags, InstanceCreateInfo, InstanceExtensions},
-    memory::allocator::{AllocationCreateInfo, MemoryAllocator, MemoryTypeFilter, StandardMemoryAllocator},
+    memory::allocator::{
+        AllocationCreateInfo, MemoryAllocator, MemoryTypeFilter, StandardMemoryAllocator,
+    },
     pipeline::{
         DynamicState, GraphicsPipeline, Pipeline, PipelineLayout, PipelineShaderStageCreateInfo,
         graphics::{
@@ -112,7 +115,7 @@ struct RenderContext {
     viewport: Viewport,
     recreate_swapchain: bool,
     previous_frame_end: Option<Box<dyn GpuFuture>>,
-    scale: [f32; 2],
+    scale: Vec2,
 }
 
 pub trait Game {
@@ -282,11 +285,16 @@ impl GameContext {
         }
     }
 
-    pub fn create_drawable_physics(&mut self, start_position: Option<Vec2>, size: Vec2) {
+    pub fn create_drawable_physics(
+        &mut self,
+        size: Vec2,
+        start_position: Option<Vec2>,
+        rigidbodybuilder: Option<RigidBodyBuilder>,
+    ) {
         self.children
             .add_physics(self.physics_context.create_phys_square(
                 start_position,
-                RigidBodyBuilder::dynamic(),
+                rigidbodybuilder.unwrap_or(RigidBodyBuilder::dynamic()),
                 size.into(),
                 self.children.physics_drawables.len() as u32
                     + self.children.drawables.len() as u32
@@ -306,12 +314,23 @@ impl GameContext {
         ));
     }
 
-    pub(crate) fn calculate_drawables(memory_allocator: Arc<dyn MemoryAllocator>, physics_context: &PhysicsContext, children: &mut Children, rcx: &mut RenderContext) -> (Subbuffer<[MyVertex]>, Vec<Transform>, Vec<u32>) {
+    /// Calculates Vertex buffer, matrices vector and offsets vector for draw in Vulkano
+    ///
+    /// # Returns
+    /// tuple with buffer for vertices, matrices, offsets vectors
+    pub(crate) fn calculate_drawables(
+        memory_allocator: Arc<dyn MemoryAllocator>,
+        physics_context: &PhysicsContext,
+        children: &mut Children,
+        rcx: &mut RenderContext,
+    ) -> (Subbuffer<[MyVertex]>, Vec<Transform>, Vec<u32>) {
         let _span = tracy_client::span!("Game::calculate_drawables");
         let mut vertices: Vec<MyVertex> = Vec::new();
         let mut matrices: Vec<Transform> = Vec::new();
         let mut offsets: Vec<u32> = Vec::new();
 
+        // TODO: in the future I should think about join this iteration loops via abstractions or
+        // compositing strcutures
         for (i, drawable) in children.physics_drawables.iter_mut().enumerate() {
             let object = physics_context.rigid_body_set[drawable.rb_handle()].clone();
             let mut transform = drawable.drawable().get_transform_clone();
@@ -365,6 +384,7 @@ impl GameContext {
     }
 }
 
+// TODO: I must create opportunity of realising this trate from game space instead of engine space
 impl ApplicationHandler for GameContext {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         let _span = tracy_client::span!("Game::resumed");
@@ -566,7 +586,7 @@ impl ApplicationHandler for GameContext {
                     // How vertices are arranged into primitive shapes. The default primitive shape
                     // is a triangle.
                     input_assembly_state: Some(InputAssemblyState {
-                        topology: vulkano::pipeline::graphics::input_assembly::PrimitiveTopology::TriangleStrip,
+                        topology: vulkano::pipeline::graphics::input_assembly::PrimitiveTopology::TriangleFan,
                         ..Default::default()
                     }),
                     // How primitives are transformed and clipped to fit the framebuffer. We use a
@@ -624,10 +644,10 @@ impl ApplicationHandler for GameContext {
         let previous_frame_end = Some(sync::now(self.device.clone()).boxed());
 
         self.rcx = Some(RenderContext {
-            scale: [
+            scale: Vec2::new(
                 2.0 / window.clone().inner_size().width as f32,
                 2.0 / window.clone().inner_size().height as f32,
-            ],
+            ),
             window,
             swapchain,
             render_pass,
@@ -681,7 +701,7 @@ impl ApplicationHandler for GameContext {
                 rcx.recreate_swapchain = true;
                 let scale_x = 2.0 / rcx.window.inner_size().width as f32;
                 let scale_y = 2.0 / rcx.window.inner_size().height as f32;
-                rcx.scale = [scale_x, scale_y];
+                (rcx.scale.x, rcx.scale.y) = (scale_x, scale_y);
             }
             WindowEvent::RedrawRequested => {
                 let _span = tracy_client::span!("Game::update");
@@ -724,7 +744,12 @@ impl ApplicationHandler for GameContext {
                     rcx.recreate_swapchain = false;
                 }
 
-                let (vertex_buffer, matrices, offsets) = GameContext::calculate_drawables(self.memory.memory_allocator.clone(), &self.physics_context, &mut self.children, rcx);
+                let (vertex_buffer, matrices, offsets) = GameContext::calculate_drawables(
+                    self.memory.memory_allocator.clone(),
+                    &self.physics_context,
+                    &mut self.children,
+                    rcx,
+                );
 
                 // Before we can draw on the output, we have to *acquire* an image from the
                 // swapchain. If no image is available (which happens if you submit draw commands

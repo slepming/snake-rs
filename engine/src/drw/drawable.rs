@@ -1,4 +1,7 @@
-use rapier2d::{math::Vec2, prelude::{RigidBody, RigidBodyHandle}};
+use rapier2d::{
+    math::Vec2,
+    prelude::{RigidBody, RigidBodyHandle},
+};
 
 use crate::{
     MyVertex,
