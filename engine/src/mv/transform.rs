@@ -1,5 +1,4 @@
 //use log::debug;
-use tracing::debug;
 use rapier2d::{
     math::{Vec2, Vector},
     prelude::{
@@ -8,6 +7,7 @@ use rapier2d::{
         RigidBody, RigidBodyBuilder, RigidBodyHandle, RigidBodySet,
     },
 };
+use tracing::debug;
 
 use crate::{
     MyVertex,
@@ -156,14 +156,19 @@ impl PhysicsContext {
             &mut self.rigid_body_set,
         );
         let drawable = Drawable::from_shape(Shapes::Square(size), id, None);
-        debug!(id = id,
+        debug!(
+            id = id,
             "created new object:\n\
              position: {:?}\n\
              size: {:?}\n\n
              rigid_body: {:?}\n\n
              collider: {:?}\n\n
              rb_handle: {:?}",
-            &position, &size, &rigid_body, &collider, &rb_h
+            &position,
+            &size,
+            &rigid_body,
+            &collider,
+            &rb_h
         );
         PhysicsDrawable::new(rb_h, drawable)
     }
