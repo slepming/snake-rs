@@ -2,12 +2,11 @@
 // * Dependency container for get data from anywhere
 // * Translate matrix from physics matrix to vulkan matrix at the Drawable level
 // * Create game storage for cache-files
-// * Create a user space. I mean encapsulate engine.
 
 //use log::debug;
 use rapier2d::{
-    math::{Vec2, Vector},
-    prelude::{ColliderSet, RigidBodyBuilder, RigidBodySet},
+    math::Vec2,
+    prelude::{ColliderSet, RigidBodySet},
 };
 use std::{ops::RangeInclusive, sync::Arc};
 use tracing::debug;
@@ -48,75 +47,34 @@ use vulkano::{
 };
 use winit::{
     application::ApplicationHandler,
-    event::{ElementState, WindowEvent},
+    event::WindowEvent,
     event_loop::{ActiveEventLoop, EventLoop},
-    keyboard::{Key, NamedKey},
-    platform::{
-        modifier_supplement::KeyEventExtModifierSupplement
-    },
     window::{Window, WindowId},
 };
 
 use crate::{
-    drw::drawable::{Children, Drawable, DrawableGPU},
-    geometry::matrix::Transform,
-    mv::transform::{PhysicsContext, PhysicsSpace, Position},
-    shaders::cube_shader::{cube_fs, cube_vs},
+    drw::drawable::{Children, DrawableGPU}, game::{Game, GameWrapper}, geometry::matrix::Transform, mv::transform::{PhysicsContext, PhysicsSpace, Position}, shaders::cube_shader::{cube_fs, cube_vs}
 };
 
 pub mod drw;
 pub mod geometry;
 pub mod mv;
 pub mod shaders;
+pub mod game;
 
 #[global_allocator]
 static GLOBAL: tracy_client::ProfiledAllocator<std::alloc::System> =
     tracy_client::ProfiledAllocator::new(std::alloc::System, 100);
 
-pub struct EngineContext<G: Game> {
+pub struct EngineContext<G> where G: Game + Copy + Clone {
     game: G,
     instance: Arc<Instance>,
     device: Arc<Device>,
     queue: Arc<Queue>,
     memory: EngineMemory,
     rcx: Option<RenderContext>,
-    drws: Drawables,
-}
-
-pub struct Drawables {
     pub(crate) physics_context: PhysicsContext,
     pub children: Children,
-}
-
-impl Drawables {
-    pub fn create_drawable_physics(
-        &mut self,
-        size: Vec2,
-        start_position: Option<Vec2>,
-        rigidbodybuilder: Option<RigidBodyBuilder>,
-    ) {
-        self.children
-            .add_physics(self.physics_context.create_phys_square(
-                rigidbodybuilder.unwrap_or(RigidBodyBuilder::dynamic()),
-                size.into(),
-                self.children.physics_drawables.len() as u32
-                    + self.children.drawables.len() as u32
-                    + 1,
-                start_position,
-            ));
-    }
-
-    pub fn create_drawable(
-        &mut self,
-        shape: geometry::shapes::Shapes,
-        start_position: Option<Vec2>,
-    ) {
-        self.children.add_drawable(Drawable::from_shape(
-            shape,
-            self.children.drawables.len() as u32 + self.children.physics_drawables.len() as u32 + 1,
-            start_position,
-        ));
-    }
 }
 
 struct EngineMemory {
@@ -154,12 +112,7 @@ struct RenderContext {
     scale: Vec2,
 }
 
-pub trait Game {
-    fn start(&mut self, event_loop: &ActiveEventLoop, engine: &mut Drawables) -> Arc<Window>;
-    fn update(&mut self, event_loop: &ActiveEventLoop, event: &WindowEvent);
-}
-
-impl<G: Game> EngineContext<G> {
+impl<G> EngineContext<G> where G: Game + Clone + Copy {
     pub fn new(event_loop: &EventLoop<()>, game: G) -> Self {
         tracing_subscriber::fmt::init();
         let _span = tracy_client::span!("Engine::new");
@@ -303,7 +256,7 @@ impl<G: Game> EngineContext<G> {
 
         let memory = EngineMemory::new(device.clone());
 
-        debug!("initializing physics");
+        debug!("physics initialization");
         // Create physics
         let rbs = RigidBodySet::new();
         let cds = ColliderSet::new();
@@ -319,10 +272,8 @@ impl<G: Game> EngineContext<G> {
             device,
             queue,
             rcx: None,
-            drws: Drawables {
-                physics_context: ph_context,
-                children: Children::new(),
-            },
+            physics_context: ph_context,
+            children: Children::new(),
         }
     }
 
@@ -343,7 +294,7 @@ impl<G: Game> EngineContext<G> {
 
         // TODO: in the future I should think about join this iteration loops through abstractions or
         // compositing structures
-        for drawable in children.physics_drawables.iter_mut() {
+        children.physics_drawables.iter_mut().for_each(|drawable| {
             let object = physics_context.rigid_body_set[drawable.rb_handle()].clone();
             let mut transform = drawable.drawable().get_transform_clone();
 
@@ -364,9 +315,9 @@ impl<G: Game> EngineContext<G> {
             vertices.extend_from_slice(verts);
             matrices.push(matrics);
             //debug!("POSITIONS: drawable {} {}", i, drawable.get_transform(),);
-        }
+        });
 
-        for drawable in children.drawables.iter() {
+        children.drawables.iter().for_each(|drawable| {
             let verts = drawable.get_vertex();
             let matrix = drawable.get_transform_clone();
             let offset = vertices.len() as u32;
@@ -375,7 +326,7 @@ impl<G: Game> EngineContext<G> {
             vertices.extend_from_slice(verts);
             matrices.push(matrix);
             //debug!("POSITIONS: drawable {} {}", i, drawable.get_transform(),);
-        }
+        });
 
         let vertex_buffer = Buffer::from_iter(
             memory_allocator,
@@ -397,8 +348,9 @@ impl<G: Game> EngineContext<G> {
 }
 
 // TODO: I must create opportunity of realising this trate from game space instead of engine space
-impl<G: Game> ApplicationHandler for EngineContext<G> {
+impl<G> ApplicationHandler for EngineContext<G> where G: Game + Clone + Copy {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
+        let game = &mut self.game.clone();
         let _span = tracy_client::span!("Engine::resumed");
         debug!("creating window");
         // The objective of this example is to draw a triangle on a window. To do so, we first need
@@ -407,7 +359,7 @@ impl<G: Game> ApplicationHandler for EngineContext<G> {
         // Before we can render to a window, we must first create a `vulkano::swapchain::Surface`
         // object from it, which represents the drawable surface of a window. For that we must wrap
         // the `winit::window::Window` in an `Arc`.
-        let window = self.game.start(event_loop, &mut self.drws);
+        let window = game.start(event_loop, self);
         let surface = Surface::from_window(self.instance.clone(), window.clone()).unwrap();
         let window_size = window.inner_size();
 
@@ -662,39 +614,13 @@ impl<G: Game> ApplicationHandler for EngineContext<G> {
         event: WindowEvent,
     ) {
         let rcx = self.rcx.as_mut().unwrap();
+        //self.game.update(event_loop, &event, &mut self);
 
         match event {
             WindowEvent::CloseRequested => {
                 event_loop.exit();
             }
             WindowEvent::KeyboardInput { event, .. } => {
-                let span = tracy_client::span!("Engine::Keyboard_input");
-                span.emit_color(0xFF0000);
-                if event.state == ElementState::Pressed && !event.repeat {
-                    match event.key_without_modifiers().as_ref() {
-                        Key::Named(NamedKey::Escape) => {
-                            debug!("change position");
-                            self.drws
-                                .children
-                                .physics_drawables
-                                .iter_mut()
-                                .for_each(|r| {
-                                    let cont = &mut self.drws.physics_context;
-                                    if r.rigid_body(cont).is_dynamic() {
-                                        let object = cont.rigid_body_set[r.rb_handle()].clone();
-                                        r.teleport(
-                                            cont,
-                                            Vector::new(
-                                                object.translation().x,
-                                                object.translation().y + 1000.0,
-                                            ),
-                                        );
-                                    }
-                                });
-                        }
-                        _ => {}
-                    }
-                }
             }
             WindowEvent::Resized(_) => {
                 let _span = tracy_client::span!("Engine::resize");
@@ -746,8 +672,8 @@ impl<G: Game> ApplicationHandler for EngineContext<G> {
 
                 let (vertex_buffer, matrices, offsets) = EngineContext::<G>::calculate_drawables(
                     self.memory.memory_allocator.clone(),
-                    &self.drws.physics_context,
-                    &mut self.drws.children,
+                    &self.physics_context,
+                    &mut self.children,
                     rcx,
                 );
 
@@ -832,20 +758,19 @@ impl<G: Game> ApplicationHandler for EngineContext<G> {
                     .unwrap();
 
                 let all_items = self
-                    .drws
                     .children
                     .drawables
                     .iter()
                     .map(|d| d.as_ref() as &dyn DrawableGPU)
                     .chain(
-                        self.drws
+                        self
                             .children
                             .physics_drawables
                             .iter()
                             .map(|pd| pd.as_ref() as &dyn DrawableGPU),
                     );
 
-                for (i, item) in all_items.enumerate() {
+                all_items.enumerate().for_each(|(i, item)| {
                     builder
                         .push_constants(rcx.pipeline.layout().clone(), 0, matrices[i].clone())
                         .unwrap();
@@ -856,7 +781,8 @@ impl<G: Game> ApplicationHandler for EngineContext<G> {
                     unsafe {
                         builder.draw(vertex_count, 1, vertex_cursor, 0).unwrap();
                     }
-                }
+                });
+
                 builder
                     // We leave the render pass. Note that if we had multiple subpasses we could
                     // have called `next_subpass` to jump to the next subpass.
@@ -903,7 +829,7 @@ impl<G: Game> ApplicationHandler for EngineContext<G> {
                         // previous_frame_end = Some(sync::now(&device).boxed());
                     }
                 }
-                self.drws.physics_context.step();
+                self.physics_context.step();
                 tracy_client::Client::running().unwrap().frame_mark();
             }
             _ => {}

@@ -1,11 +1,15 @@
 use std::{error::Error, sync::Arc};
 
 use rapier2d::{math::Vec2, prelude::RigidBodyBuilder};
-use snake_engine::{Drawables, EngineContext, Game};
+use snake_engine::{EngineContext, drw::drawable::Children, game::GameWrapper};
 use winit::{
     dpi::{PhysicalSize, Size},
+    event::ElementState,
     event_loop::EventLoop,
-    platform::wayland::WindowAttributesExtWayland,
+    keyboard::{Key, NamedKey},
+    platform::{
+        modifier_supplement::KeyEventExtModifierSupplement, wayland::WindowAttributesExtWayland,
+    },
     window::Window,
 };
 
@@ -18,13 +22,14 @@ fn main() -> Result<(), impl Error> {
     event_loop.run_app(&mut app)
 }
 
+#[derive(Copy, Clone)]
 struct Snake {}
 
-impl Game for Snake {
+impl snake_engine::game::Game for Snake {
     fn start(
         &mut self,
         event_loop: &winit::event_loop::ActiveEventLoop,
-        drw: &mut Drawables,
+        drw: &mut impl GameWrapper,
     ) -> Arc<Window> {
         for i in 0..OBJECTS_COUNT {
             drw.create_drawable_physics(
@@ -61,7 +66,42 @@ impl Game for Snake {
         &mut self,
         event_loop: &winit::event_loop::ActiveEventLoop,
         event: &winit::event::WindowEvent,
+        drws: &mut impl GameWrapper,
     ) {
+        // TODO: Надо чтобы был какой-то трейт между update и Drawables и EngineContext.(трейт для
+        // EngineContext, в котором есть Drawables
+        let children: &mut Children = drws.as_ref().get_children_mut();
+        match event.clone() {
+            winit::event::WindowEvent::KeyboardInput {
+                device_id,
+                event,
+                is_synthetic,
+            } => {
+                let span = tracy_client::span!("Engine::Keyboard_input");
+                span.emit_color(0xFF0000);
+                if event.state == ElementState::Pressed && !event.repeat {
+                    match event.key_without_modifiers().as_ref() {
+                        Key::Named(NamedKey::Escape) => {
+                            children.physics_drawables.iter_mut().for_each(|r| {
+                                let cont = drws.physics_context_mut();
+                                if r.rigid_body(cont).is_dynamic() {
+                                    let object = cont.rigid_body_set[r.rb_handle()].clone();
+                                    r.teleport(
+                                        cont,
+                                        Vec2::new(
+                                            object.translation().x,
+                                            object.translation().y + 1000.0,
+                                        ),
+                                    );
+                                }
+                            });
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            _ => {}
+        }
         todo!()
     }
 }
