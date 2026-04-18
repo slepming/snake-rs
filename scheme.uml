@@ -99,6 +99,17 @@ package "Physics (Rapier2D)" {
         + space: PhysicsSpace
     }
 
+	struct PhysicsSpace {
+		- integration_parameters: IntegrationParameters
+		- pipeline: PhysicsPipeline
+		- island_manager: IslandManager
+		- broad_phase: DefaultBroadPhase
+		- narrow_phase: NarrowPhase
+		- impulse_joint_set: ImpulseJointSet
+		- multibody_joint_set: MultibodyJointSet
+		- ccd_solver: CCDSolver
+	}
+
     interface TPhysicsContext << (T, ORANGE) >> {
         + step(&mut self)
         + create_phys_square(&mut self, position: Option<Vector>, mut rigid_body_builder: RigidBodyBuilder, size: [f32; 2], id: u32) -> PhysicsDrawable
@@ -120,9 +131,10 @@ package "DeveloperSpace" {
 package "Draw" {
     together {
 		struct Drawables {
-			+(crate) physics_context: PhysicsContext
+			~ physics_context: PhysicsContext
 			+ children: Children
 		}
+
         struct Children {
             + physics_drawables: Vec<Box<dyn Entity>>
             + drawables: Vec<Box<dyn DrawableGPU>>
@@ -160,7 +172,7 @@ package "Draw" {
     }
 
     interface DynamicObject << (T,ORANGE) >> {
-        fn teleport(&mut self, ctx: &mut PhysicsContext, vec: Vector)
+        + fn teleport(&mut self, ctx: &mut PhysicsContext, vec: Vector)
     }
 
     interface DrawableGPU << (T,ORANGE) >> {
@@ -192,10 +204,10 @@ Drawable *-- Mesh : own
 DrawableGPU *.. Entity : inherits
 DynamicObject *.. Entity : inherits
 
-Drawables *- PhysicsContext : own
-Drawables *- Children : own
-EngineContext *- Drawables : own
-EngineContext *- EngineMemory : own
+Drawables <|- PhysicsContext : own
+Drawables <|- Children : own
+EngineContext <|- Drawables : own
+EngineContext <|- EngineMemory : own
 EngineContext o-- RenderContext : contains (Option)
 
 ApplicationHandler -o Game : calls
