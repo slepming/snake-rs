@@ -48,12 +48,11 @@ use vulkano::{
 };
 use winit::{
     application::ApplicationHandler,
-    dpi::{PhysicalSize, Size},
     event::{ElementState, WindowEvent},
     event_loop::{ActiveEventLoop, EventLoop},
     keyboard::{Key, NamedKey},
     platform::{
-        modifier_supplement::KeyEventExtModifierSupplement, wayland::WindowAttributesExtWayland,
+        modifier_supplement::KeyEventExtModifierSupplement
     },
     window::{Window, WindowId},
 };

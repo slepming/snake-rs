@@ -49,27 +49,27 @@ package "Base" {
     }
 
     package "Core Engine" {
-        struct GameContext {
+        struct EngineContext<G: Game> {
+			- game: Game
             - instance: Arc<Instance>
             - device: Arc<Device>
             - queue: Arc<Queue>
-            - memory: GameMemory
+            - memory: EngineMemory
             - rcx: Option<RenderContext>
-            - physics_context: PhysicsContext
-            - children: Children
+            + children: Drawables
         }
 
-        interface TGameContext << (T,ORANGE) >> {
-            + new(event_loop: &EventLoop) -> GameContext
+        interface TEngineContext<G: Game> << (T,ORANGE) >> {
+            + new(event_loop: &EventLoop, game: G) -> EngineContext
         }
 
-        struct GameMemory {
+        struct EngineMemory {
             - command_buffer_allocator: Arc<StandardCommandBufferAllocator>
             - memory_allocator: Arc<StandardMemoryAllocator>
         }
 
-        interface TGameMemory << (T,ORANGE) >> {
-            + new(device: Arc<Device>) -> GameMemory
+        interface TEngineMemory << (T,ORANGE) >> {
+            + new(device: Arc<Device>) -> EngineMemory
         }
 }
 }
@@ -110,8 +110,19 @@ package "Physics (Rapier2D)" {
     }
 }
 
+package "DeveloperSpace" {
+	interface Game << (T, ORANGE) >> {
+		- start(&mut self, event_loop: &winit::event_loop::ActiveEventLoop, drw: &mut Drawables) -> Arc<Window>
+		- update(&mut self, event_loop: &winit::event_loop::ActiveEventLoop, event: &winit::event::WindowEvent)
+	}
+}
+
 package "Draw" {
     together {
+		struct Drawables {
+			+(crate) physics_context: PhysicsContext
+			+ children: Children
+		}
         struct Children {
             + physics_drawables: Vec<Box<dyn Entity>>
             + drawables: Vec<Box<dyn DrawableGPU>>
@@ -165,14 +176,14 @@ package "Draw" {
 }
 
 ' Relationships
-ApplicationHandler <.. GameContext : implement
+ApplicationHandler <.. EngineContext : implement
 Position <. Transform : implement
 DrawableGPU <.. PhysicsDrawable : implement
 Entity <. PhysicsDrawable : implement
 DrawableGPU <.. Drawable : implement
-GameMemory <. TGameMemory : implement
+EngineMemory <. TEngineMemory : implement
 PhysicsContext <. TPhysicsContext : implement
-GameContext <.. TGameContext : implement
+EngineContext <. TEngineContext : implement
 TChildren <. Children: implement
 
 Drawable *-- Transform : own
@@ -181,10 +192,13 @@ Drawable *-- Mesh : own
 DrawableGPU *.. Entity : inherits
 DynamicObject *.. Entity : inherits
 
-GameContext *-- GameMemory : own
-GameContext *-- PhysicsContext : own
-GameContext *-- Children : own
-GameContext o-- RenderContext : contains (Option)
+Drawables *- PhysicsContext : own
+Drawables *- Children : own
+EngineContext *- Drawables : own
+EngineContext *- EngineMemory : own
+EngineContext o-- RenderContext : contains (Option)
+
+ApplicationHandler -o Game : calls
 
 Children *-- "many" PhysicsDrawable
 Children *-- "many" Drawable
@@ -192,17 +206,10 @@ Children *-- "many" Drawable
 RenderContext .> MyVertex : used in vertex buffer
 RenderContext ..> "vulkano" : managment
 
-together {
-    note right of GameContext
-        Центральная точка входа.
-        Управляет жизненным циклом
-        приложения через ApplicationHandler.
-    end note
-
-    note top of RenderContext
-        Window-dependent state.
-        Инициализируется в resumed()
-    end note
-}
+note right of EngineContext
+	Центральная точка входа.
+	Управляет жизненным циклом
+	приложения через ApplicationHandler.
+end note
 
 @enduml
