@@ -19,49 +19,49 @@ pub trait GameWrapper {
     fn physics_context(&self) -> &PhysicsContext;
 }
 
-impl<G> GameWrapper for EngineContext<G> where G: Game + Clone + Copy {
-    fn get_children(&self) -> &Children {
-        &self.children
-    }
-
-    fn get_children_mut(&mut self) -> &mut Children {
-        &mut self.children
-    }
-
-    fn create_drawable(
-        &mut self,
-        shape: geometry::shapes::Shapes,
-        start_position: Option<Vec2>,
-    ) {
-        self.children.add_drawable(Drawable::from_shape(
-            shape,
-            self.children.drawables.len() as u32 + self.children.physics_drawables.len() as u32 + 1,
-            start_position,
-        ));
-    }
-
-    fn create_drawable_physics(
-        &mut self,
-        size: Vec2,
-        start_position: Option<Vec2>,
-        rigidbodybuilder: Option<RigidBodyBuilder>,
-    ) {
-        self.children
-            .add_physics(self.physics_context.create_phys_square(
-                rigidbodybuilder.unwrap_or(RigidBodyBuilder::dynamic()),
-                size.into(),
-                self.children.physics_drawables.len() as u32
-                    + self.children.drawables.len() as u32
-                    + 1,
-                start_position,
-            ));
-    }
-
-    fn physics_context_mut(&mut self) -> &mut PhysicsContext {
-        &mut self.physics_context
-    }
-
-    fn physics_context(&self) -> &PhysicsContext {
-        &self.physics_context
-    }
-}
+//impl<G> GameWrapper for EngineContext<G> where G: Game + Clone + Copy {
+//    fn get_children(&self) -> &Children {
+//        &self.children
+//    }
+//
+//    fn get_children_mut(&mut self) -> &mut Children {
+//        &mut self.children
+//    }
+//
+//    fn create_drawable(
+//        &mut self,
+//        shape: geometry::shapes::Shapes,
+//        start_position: Option<Vec2>,
+//    ) {
+//        self.children.add_drawable(Drawable::from_shape(
+//            shape,
+//            self.children.drawables.len() as u32 + self.children.physics_drawables.len() as u32 + 1,
+//            start_position,
+//        ));
+//    }
+//
+//    fn create_drawable_physics(
+//        &mut self,
+//        size: Vec2,
+//        start_position: Option<Vec2>,
+//        rigidbodybuilder: Option<RigidBodyBuilder>,
+//    ) {
+//        self.children
+//            .add_physics(self.physics_context.create_phys_square(
+//                rigidbodybuilder.unwrap_or(RigidBodyBuilder::dynamic()),
+//                size.into(),
+//                self.children.physics_drawables.len() as u32
+//                    + self.children.drawables.len() as u32
+//                    + 1,
+//                start_position,
+//            ));
+//    }
+//
+//    fn physics_context_mut(&mut self) -> &mut PhysicsContext {
+//        &mut self.physics_context
+//    }
+//
+//    fn physics_context(&self) -> &PhysicsContext {
+//        &self.physics_context
+//    }
+//}

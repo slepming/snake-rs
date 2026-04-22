@@ -46,10 +46,7 @@ use vulkano::{
     sync::{self, GpuFuture},
 };
 use winit::{
-    application::ApplicationHandler,
-    event::WindowEvent,
-    event_loop::{ActiveEventLoop, EventLoop},
-    window::{Window, WindowId},
+    application::ApplicationHandler, dpi::{PhysicalSize, Size}, event::WindowEvent, event_loop::{ActiveEventLoop, EventLoop}, platform::wayland::WindowAttributesExtWayland, window::{Window, WindowId}
 };
 
 use crate::{
@@ -66,8 +63,7 @@ pub mod game;
 static GLOBAL: tracy_client::ProfiledAllocator<std::alloc::System> =
     tracy_client::ProfiledAllocator::new(std::alloc::System, 100);
 
-pub struct EngineContext<G> where G: Game + Copy + Clone {
-    game: G,
+pub struct EngineContext<Redraw, Start> where Redraw: FnMut(), Start: FnMut(&ActiveEventLoop) -> Arc<Window> {
     instance: Arc<Instance>,
     device: Arc<Device>,
     queue: Arc<Queue>,
@@ -75,6 +71,8 @@ pub struct EngineContext<G> where G: Game + Copy + Clone {
     rcx: Option<RenderContext>,
     pub(crate) physics_context: PhysicsContext,
     pub children: Children,
+    redraw: Redraw,
+    start: Start
 }
 
 struct EngineMemory {
@@ -112,8 +110,10 @@ struct RenderContext {
     scale: Vec2,
 }
 
-impl<G> EngineContext<G> where G: Game + Clone + Copy {
-    pub fn new(event_loop: &EventLoop<()>, game: G) -> Self {
+impl<Redraw, Start> EngineContext<Redraw, Start> 
+where Redraw: FnMut(), 
+      Start: FnMut(&ActiveEventLoop) -> Arc<Window> {
+    pub fn new(event_loop: &EventLoop<()>, start: Start, redraw: Redraw) -> Self {
         tracing_subscriber::fmt::init();
         let _span = tracy_client::span!("Engine::new");
         debug!("vulkan init");
@@ -266,7 +266,6 @@ impl<G> EngineContext<G> where G: Game + Clone + Copy {
         let ph_context = PhysicsContext::new(rbs, cds, space);
 
         Self {
-            game,
             memory,
             instance,
             device,
@@ -274,7 +273,17 @@ impl<G> EngineContext<G> where G: Game + Clone + Copy {
             rcx: None,
             physics_context: ph_context,
             children: Children::new(),
+            start: start, 
+            redraw: redraw
         }
+    }
+
+    pub fn bind_redraw(&mut self, redraw: Redraw) {
+        self.redraw = redraw;
+    }
+
+    pub fn bind_start(&mut self, start: Start) {
+        self.start = start;
     }
 
     /// Calculates Vertex buffer, matrices vector and offsets vector for draw in Vulkano
@@ -348,9 +357,8 @@ impl<G> EngineContext<G> where G: Game + Clone + Copy {
 }
 
 // TODO: I must create opportunity of realising this trate from game space instead of engine space
-impl<G> ApplicationHandler for EngineContext<G> where G: Game + Clone + Copy {
+impl<Redraw, Start> ApplicationHandler for EngineContext<Redraw, Start> where Redraw: FnMut(), Start: FnMut(&ActiveEventLoop) -> Arc<Window> {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
-        let game = &mut self.game.clone();
         let _span = tracy_client::span!("Engine::resumed");
         debug!("creating window");
         // The objective of this example is to draw a triangle on a window. To do so, we first need
@@ -359,7 +367,7 @@ impl<G> ApplicationHandler for EngineContext<G> where G: Game + Clone + Copy {
         // Before we can render to a window, we must first create a `vulkano::swapchain::Surface`
         // object from it, which represents the drawable surface of a window. For that we must wrap
         // the `winit::window::Window` in an `Arc`.
-        let window = game.start(event_loop, self);
+        let window = (self.start)(&event_loop);
         let surface = Surface::from_window(self.instance.clone(), window.clone()).unwrap();
         let window_size = window.inner_size();
 
@@ -670,7 +678,7 @@ impl<G> ApplicationHandler for EngineContext<G> where G: Game + Clone + Copy {
                     rcx.recreate_swapchain = false;
                 }
 
-                let (vertex_buffer, matrices, offsets) = EngineContext::<G>::calculate_drawables(
+                let (vertex_buffer, matrices, offsets) = EngineContext::<Redraw, Start>::calculate_drawables(
                     self.memory.memory_allocator.clone(),
                     &self.physics_context,
                     &mut self.children,
