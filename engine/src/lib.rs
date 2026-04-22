@@ -337,7 +337,7 @@ where Redraw: FnMut(),
             //debug!("POSITIONS: drawable {} {}", i, drawable.get_transform(),);
         });
 
-        let vertex_buffer = Buffer::from_iter(
+        let vertex_buffer = Buffer::from_iter( // NOTE: Panic when iter vertices is empty
             memory_allocator,
             BufferCreateInfo {
                 usage: BufferUsage::VERTEX_BUFFER,
@@ -356,7 +356,6 @@ where Redraw: FnMut(),
     }
 }
 
-// TODO: I must create opportunity of realising this trate from game space instead of engine space
 impl<Redraw, Start> ApplicationHandler for EngineContext<Redraw, Start> where Redraw: FnMut(), Start: FnMut(&ActiveEventLoop) -> Arc<Window> {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         let _span = tracy_client::span!("Engine::resumed");
