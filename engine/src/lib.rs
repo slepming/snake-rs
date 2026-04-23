@@ -65,8 +65,8 @@ static GLOBAL: tracy_client::ProfiledAllocator<std::alloc::System> =
 
 pub struct EngineContext<Redraw, Start> 
 where 
-    Redraw: FnMut(&mut Children, &mut PhysicsContext), 
-    Start: FnMut(&ActiveEventLoop) -> Arc<Window> 
+    Redraw: FnMut(&mut Children, &mut PhysicsContext, &WindowEvent), 
+    Start: FnMut(&ActiveEventLoop, &mut Children, &mut PhysicsContext) -> Arc<Window> 
 {
     instance: Arc<Instance>,
     device: Arc<Device>,
@@ -115,8 +115,8 @@ struct RenderContext {
 }
 
 impl<Redraw, Start> EngineContext<Redraw, Start> 
-where Redraw: FnMut(&mut Children, &mut PhysicsContext), 
-      Start: FnMut(&ActiveEventLoop) -> Arc<Window> {
+where Redraw: FnMut(&mut Children, &mut PhysicsContext, &WindowEvent), 
+      Start: FnMut(&ActiveEventLoop, &mut Children, &mut PhysicsContext) -> Arc<Window> {
     pub fn new(event_loop: &EventLoop<()>, start: Start, redraw: Redraw) -> Self {
         tracing_subscriber::fmt::init();
         let _span = tracy_client::span!("Engine::new");
@@ -362,8 +362,8 @@ where Redraw: FnMut(&mut Children, &mut PhysicsContext),
 
 impl<Redraw, Start> ApplicationHandler for EngineContext<Redraw, Start> 
 where 
-    Redraw: FnMut(&mut Children, &mut PhysicsContext), 
-    Start: FnMut(&ActiveEventLoop) -> Arc<Window> {
+    Redraw: FnMut(&mut Children, &mut PhysicsContext, &WindowEvent), 
+    Start: FnMut(&ActiveEventLoop, &mut Children, &mut PhysicsContext) -> Arc<Window> {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         let _span = tracy_client::span!("Engine::resumed");
         debug!("creating window");
@@ -373,7 +373,7 @@ where
         // Before we can render to a window, we must first create a `vulkano::swapchain::Surface`
         // object from it, which represents the drawable surface of a window. For that we must wrap
         // the `winit::window::Window` in an `Arc`.
-        let window = (self.start)(&event_loop);
+        let window = (self.start)(&event_loop, &mut self.children, &mut self.physics_context);
         let surface = Surface::from_window(self.instance.clone(), window.clone()).unwrap();
         let window_size = window.inner_size();
 
@@ -628,7 +628,7 @@ where
         event: WindowEvent,
     ) {
         let rcx = self.rcx.as_mut().unwrap();
-        (self.redraw)(&mut self.children, &mut self.physics_context);
+        (self.redraw)(&mut self.children, &mut self.physics_context, &event);
 
         match event {
             WindowEvent::CloseRequested => {

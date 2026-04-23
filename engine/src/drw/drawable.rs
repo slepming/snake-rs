@@ -13,6 +13,8 @@ use crate::{
 };
 
 pub struct Children {
+    // I think iterations through Vector with Box is very slowly operation, but I dont know how I to
+    // make this faster
     pub drawables: Vec<Box<dyn DrawableGPU>>,
     pub physics_drawables: Vec<Box<dyn Entity>>,
 }
