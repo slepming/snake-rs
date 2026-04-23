@@ -8,13 +8,13 @@ During my college studies, I developed a Snake game using Python in the terminal
 
 The graphics library selected is **Vulkano**, providing high-level abstractions over complex Vulkan operations with minimal `unsafe` code—simpler than alternatives.
 
-| Category          | Crate(s)                  | Purpose                          |
-|-------------------|---------------------------|----------------------------------|
+| Category          | Crate(s)                  | Purpose                            |
+|-------------------|---------------------------|------------------------------------|
 | Window Management | `winit`                   | Window creation and event handling |
-| Logging           | `pretty_env_logger`, `log`| Structured logging               |
-| Physics           | `rapier2d`                | 2D physics simulation            |
-| Image Processing  | `png`, `image`            | Font parsing (future use)        |
-| Profiling         | `tracing`                 | Performance tracking and leaks   |
+| Logging           | `tracing `                | Structured logging                 |
+| Physics           | `rapier2d`                | 2D physics simulation              |
+| Image Processing  | `png`, `image`            | Font parsing (future use)          |
+| Profiling         | `tracing`                 | Performance tracking and leaks     |
 
 ## Development Process
 

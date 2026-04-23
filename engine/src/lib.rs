@@ -46,11 +46,11 @@ use vulkano::{
     sync::{self, GpuFuture},
 };
 use winit::{
-    application::ApplicationHandler, dpi::{PhysicalSize, Size}, event::WindowEvent, event_loop::{ActiveEventLoop, EventLoop}, platform::wayland::WindowAttributesExtWayland, window::{Window, WindowId}
+    application::ApplicationHandler, event::WindowEvent, event_loop::{ActiveEventLoop, EventLoop}, window::{Window, WindowId}
 };
 
 use crate::{
-    drw::drawable::{Children, DrawableGPU}, game::{Game, GameWrapper}, geometry::matrix::Transform, mv::transform::{PhysicsContext, PhysicsSpace, Position}, shaders::cube_shader::{cube_fs, cube_vs}
+    drw::drawable::{Children, DrawableGPU}, geometry::matrix::Transform, mv::transform::{PhysicsContext, PhysicsSpace, Position}, shaders::cube_shader::{cube_fs, cube_vs}
 };
 
 pub mod drw;
@@ -63,7 +63,11 @@ pub mod game;
 static GLOBAL: tracy_client::ProfiledAllocator<std::alloc::System> =
     tracy_client::ProfiledAllocator::new(std::alloc::System, 100);
 
-pub struct EngineContext<Redraw, Start> where Redraw: FnMut(), Start: FnMut(&ActiveEventLoop) -> Arc<Window> {
+pub struct EngineContext<Redraw, Start> 
+where 
+    Redraw: FnMut(&mut Children, &mut PhysicsContext), 
+    Start: FnMut(&ActiveEventLoop) -> Arc<Window> 
+{
     instance: Arc<Instance>,
     device: Arc<Device>,
     queue: Arc<Queue>,
@@ -111,7 +115,7 @@ struct RenderContext {
 }
 
 impl<Redraw, Start> EngineContext<Redraw, Start> 
-where Redraw: FnMut(), 
+where Redraw: FnMut(&mut Children, &mut PhysicsContext), 
       Start: FnMut(&ActiveEventLoop) -> Arc<Window> {
     pub fn new(event_loop: &EventLoop<()>, start: Start, redraw: Redraw) -> Self {
         tracing_subscriber::fmt::init();
@@ -356,7 +360,10 @@ where Redraw: FnMut(),
     }
 }
 
-impl<Redraw, Start> ApplicationHandler for EngineContext<Redraw, Start> where Redraw: FnMut(), Start: FnMut(&ActiveEventLoop) -> Arc<Window> {
+impl<Redraw, Start> ApplicationHandler for EngineContext<Redraw, Start> 
+where 
+    Redraw: FnMut(&mut Children, &mut PhysicsContext), 
+    Start: FnMut(&ActiveEventLoop) -> Arc<Window> {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         let _span = tracy_client::span!("Engine::resumed");
         debug!("creating window");
@@ -621,7 +628,7 @@ impl<Redraw, Start> ApplicationHandler for EngineContext<Redraw, Start> where Re
         event: WindowEvent,
     ) {
         let rcx = self.rcx.as_mut().unwrap();
-        //self.game.update(event_loop, &event, &mut self);
+        (self.redraw)(&mut self.children, &mut self.physics_context);
 
         match event {
             WindowEvent::CloseRequested => {
