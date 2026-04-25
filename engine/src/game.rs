@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::{ActiveEventLoop, EngineContext, drw::drawable::{Children, Drawable}, geometry, mv::transform::PhysicsContext};
+use crate::{ActiveEventLoop, drw::drawable::Children, geometry, mv::transform::PhysicsContext};
 
 use rapier2d::{math::Vec2, prelude::RigidBodyBuilder};
 use winit::{event::WindowEvent, window::Window};

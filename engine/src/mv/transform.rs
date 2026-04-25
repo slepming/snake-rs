@@ -143,6 +143,7 @@ impl PhysicsContext {
         id: u32,
         position: Option<Vec2>,
     ) -> PhysicsDrawable {
+        #[cfg(feature = "tracing")]
         let _span = tracy_client::span!("PhysicsContext::create_phys_square");
         if let Some(pos) = position {
             rigid_body_builder = rigid_body_builder.translation(pos);

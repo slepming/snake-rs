@@ -59,6 +59,7 @@ pub mod mv;
 pub mod shaders;
 pub mod game;
 
+#[cfg(feature = "tracing")]
 #[global_allocator]
 static GLOBAL: tracy_client::ProfiledAllocator<std::alloc::System> =
     tracy_client::ProfiledAllocator::new(std::alloc::System, 100);
@@ -119,7 +120,9 @@ where Redraw: FnMut(&mut Children, &mut PhysicsContext, &WindowEvent),
       Start: FnMut(&ActiveEventLoop, &mut Children, &mut PhysicsContext) -> Arc<Window> {
     pub fn new(event_loop: &EventLoop<()>, start: Start, redraw: Redraw) -> Self {
         tracing_subscriber::fmt::init();
+        #[cfg(feature = "tracing")]
         let _span = tracy_client::span!("Engine::new");
+
         debug!("vulkan init");
         let library = VulkanLibrary::new().unwrap();
 
@@ -300,6 +303,7 @@ where Redraw: FnMut(&mut Children, &mut PhysicsContext, &WindowEvent),
         children: &mut Children,
         rcx: &mut RenderContext,
     ) -> (Subbuffer<[MyVertex]>, Vec<Transform>, Vec<u32>) {
+        #[cfg(feature = "tracing")]
         let _span = tracy_client::span!("Engine::calculate_drawables");
         let mut vertices: Vec<MyVertex> = Vec::new();
         let mut matrices: Vec<Transform> = Vec::new();
@@ -365,6 +369,7 @@ where
     Redraw: FnMut(&mut Children, &mut PhysicsContext, &WindowEvent), 
     Start: FnMut(&ActiveEventLoop, &mut Children, &mut PhysicsContext) -> Arc<Window> {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
+        #[cfg(feature = "tracing")]
         let _span = tracy_client::span!("Engine::resumed");
         debug!("creating window");
         // The objective of this example is to draw a triangle on a window. To do so, we first need
@@ -637,6 +642,7 @@ where
             WindowEvent::KeyboardInput { event, .. } => {
             }
             WindowEvent::Resized(_) => {
+                #[cfg(feature = "tracing")]
                 let _span = tracy_client::span!("Engine::resize");
                 rcx.recreate_swapchain = true;
                 let scale_x = 2.0 / rcx.window.inner_size().width as f32;
@@ -644,6 +650,7 @@ where
                 (rcx.scale.x, rcx.scale.y) = (scale_x, scale_y);
             }
             WindowEvent::RedrawRequested => {
+                #[cfg(feature = "tracing")]
                 let _span = tracy_client::span!("Engine::update");
                 let window_size = rcx.window.inner_size();
 
@@ -844,6 +851,7 @@ where
                     }
                 }
                 self.physics_context.step();
+                #[cfg(feature = "tracing")]
                 tracy_client::Client::running().unwrap().frame_mark();
             }
             _ => {}

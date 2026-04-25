@@ -4,7 +4,7 @@ use rapier2d::{math::Vec2, prelude::RigidBodyBuilder};
 use snake_engine::{EngineContext, drw::drawable::Children, mv::transform::PhysicsContext};
 use winit::{
     dpi::{PhysicalSize, Size}, event::{ElementState, WindowEvent}, event_loop::{ActiveEventLoop, EventLoop}, keyboard::{Key, NamedKey}, platform::{modifier_supplement::KeyEventExtModifierSupplement, 
-        wayland::WindowAttributesExtWayland}, window::Window
+        wayland::WindowAttributesExtWayland}, window::{Fullscreen, Window}
 };
 
 const OBJECTS_COUNT: u32 = 5;
@@ -27,7 +27,7 @@ fn main() -> Result<(), impl std::error::Error> {
                     Window::default_attributes()
                         .with_title("snake")
                         .with_name("snake-engine", "snake-engine")
-                        .with_fullscreen(Some(winit::window::Fullscreen::Borderless(None)))
+                        .with_fullscreen(Some(Fullscreen::Borderless(None)))
                         .with_min_inner_size(Size::Physical(PhysicalSize { width: 640, height: 480 }))
                         .with_max_inner_size(e.available_monitors().next().unwrap().size()),
                 )
