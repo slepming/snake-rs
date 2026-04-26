@@ -14,7 +14,7 @@ The graphics library selected is **Vulkano**, providing high-level abstractions 
 | Logging           | `tracing `                | Structured logging                 |
 | Physics           | `rapier2d`                | 2D physics simulation              |
 | Image Processing  | `png`, `image`            | Font parsing (future use)          |
-| Profiling         | `tracing`                 | Performance tracking and leaks     |
+| Profiling         | `tracy_client`                 | Performance tracking and leaks     |
 
 ## Development Process
 
