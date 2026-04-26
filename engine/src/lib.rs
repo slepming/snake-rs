@@ -336,6 +336,10 @@ where
             let matrics = drawable.get_transform_clone();
             let offset = vertices.len() as u32;
 
+            //if vertices.windows(verts.len()).any(|w| w == verts) {}
+            dbg!(&offset);
+            dbg!(&vertices);
+
             offsets.push(offset);
             vertices.extend_from_slice(verts);
             matrices.push(matrics);
@@ -875,7 +879,7 @@ where
 
 // We use `#[repr(C)]` here to force rustc to use a defined layout for our data, as the default
 // representation has *no guarantees*.
-#[derive(BufferContents, Vertex, Clone, Copy)]
+#[derive(BufferContents, Vertex, Clone, Copy, PartialEq, Debug)]
 #[repr(C)]
 pub struct MyVertex {
     #[format(R32G32_SFLOAT)]

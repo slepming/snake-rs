@@ -6,15 +6,15 @@ During my college studies, I developed a Snake game using Python in the terminal
 
 ## Dependencies
 
-The graphics library selected is **Vulkano**, providing high-level abstractions over complex Vulkan operations with minimal `unsafe` code—simpler than alternatives.
+The graphics library selected is **Vulkano**, providing high-level abstractions over complex Vulkan operations with minimal `unsafe` code-simpler than alternatives.
 
 | Category          | Crate(s)                  | Purpose                            |
 |-------------------|---------------------------|------------------------------------|
 | Window Management | `winit`                   | Window creation and event handling |
-| Logging           | `tracing `                | Structured logging                 |
+| Logging           | `tracing`                 | Structured logging                 |
 | Physics           | `rapier2d`                | 2D physics simulation              |
 | Image Processing  | `png`, `image`            | Font parsing (future use)          |
-| Profiling         | `tracy_client`                 | Performance tracking and leaks     |
+| Profiling         | `tracy_client`            | Performance tracking and leaks     |
 
 ## Development Process
 
@@ -25,6 +25,8 @@ This project proceeds without a formal plan. My primary goal is to acquire pract
 This implementation does not exemplify engine development practices. Instead, it highlights common pitfalls to avoid, particularly frequent memory leaks.
 
 ## Building
+
+It's build steps **for linux**
 
 First step is building shaders
 ```sh
