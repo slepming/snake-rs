@@ -6,15 +6,26 @@ use rapier2d::{math::Vec2, prelude::RigidBodyBuilder};
 use winit::{event::WindowEvent, window::Window};
 
 pub trait Game {
-    fn start(&mut self, event_loop: &ActiveEventLoop, engine: &mut impl GameWrapper) -> Arc<Window>;
-    fn update(&mut self, event_loop: &ActiveEventLoop, event: &WindowEvent, drws: &mut impl GameWrapper);
+    fn start(&mut self, event_loop: &ActiveEventLoop, engine: &mut impl GameWrapper)
+    -> Arc<Window>;
+    fn update(
+        &mut self,
+        event_loop: &ActiveEventLoop,
+        event: &WindowEvent,
+        drws: &mut impl GameWrapper,
+    );
 }
 
 pub trait GameWrapper {
     fn get_children(&self) -> &Children;
     fn get_children_mut(&mut self) -> &mut Children;
     fn create_drawable(&mut self, shape: geometry::shapes::Shapes, start_position: Option<Vec2>);
-    fn create_drawable_physics(&mut self, size: Vec2, start_position: Option<Vec2>, rigidbodybuilder: Option<RigidBodyBuilder>);
+    fn create_drawable_physics(
+        &mut self,
+        size: Vec2,
+        start_position: Option<Vec2>,
+        rigidbodybuilder: Option<RigidBodyBuilder>,
+    );
     fn physics_context_mut(&mut self) -> &mut PhysicsContext;
     fn physics_context(&self) -> &PhysicsContext;
 }

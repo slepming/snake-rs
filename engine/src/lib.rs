@@ -46,28 +46,34 @@ use vulkano::{
     sync::{self, GpuFuture},
 };
 use winit::{
-    application::ApplicationHandler, event::WindowEvent, event_loop::{ActiveEventLoop, EventLoop}, window::{Window, WindowId}
+    application::ApplicationHandler,
+    event::WindowEvent,
+    event_loop::{ActiveEventLoop, EventLoop},
+    window::{Window, WindowId},
 };
 
 use crate::{
-    drw::drawable::{Children, DrawableGPU}, geometry::matrix::Transform, mv::transform::{PhysicsContext, PhysicsSpace, Position}, shaders::cube_shader::{cube_fs, cube_vs}
+    drw::drawable::{Children, DrawableGPU},
+    geometry::matrix::Transform,
+    mv::transform::{PhysicsContext, PhysicsSpace, Position},
+    shaders::cube_shader::{cube_fs, cube_vs},
 };
 
 pub mod drw;
+pub mod game;
 pub mod geometry;
 pub mod mv;
 pub mod shaders;
-pub mod game;
 
 #[cfg(feature = "tracing")]
 #[global_allocator]
 static GLOBAL: tracy_client::ProfiledAllocator<std::alloc::System> =
     tracy_client::ProfiledAllocator::new(std::alloc::System, 100);
 
-pub struct EngineContext<Redraw, Start> 
-where 
-    Redraw: FnMut(&mut Children, &mut PhysicsContext, &WindowEvent), 
-    Start: FnMut(&ActiveEventLoop, &mut Children, &mut PhysicsContext) -> Arc<Window> 
+pub struct EngineContext<Redraw, Start>
+where
+    Redraw: FnMut(&mut Children, &mut PhysicsContext, &WindowEvent),
+    Start: FnMut(&ActiveEventLoop, &mut Children, &mut PhysicsContext) -> Arc<Window>,
 {
     instance: Arc<Instance>,
     device: Arc<Device>,
@@ -77,7 +83,7 @@ where
     pub(crate) physics_context: PhysicsContext,
     pub children: Children,
     redraw: Redraw,
-    start: Start
+    start: Start,
 }
 
 struct EngineMemory {
@@ -115,9 +121,11 @@ struct RenderContext {
     scale: Vec2,
 }
 
-impl<Redraw, Start> EngineContext<Redraw, Start> 
-where Redraw: FnMut(&mut Children, &mut PhysicsContext, &WindowEvent), 
-      Start: FnMut(&ActiveEventLoop, &mut Children, &mut PhysicsContext) -> Arc<Window> {
+impl<Redraw, Start> EngineContext<Redraw, Start>
+where
+    Redraw: FnMut(&mut Children, &mut PhysicsContext, &WindowEvent),
+    Start: FnMut(&ActiveEventLoop, &mut Children, &mut PhysicsContext) -> Arc<Window>,
+{
     pub fn new(event_loop: &EventLoop<()>, start: Start, redraw: Redraw) -> Self {
         tracing_subscriber::fmt::init();
         #[cfg(feature = "tracing")]
@@ -280,8 +288,8 @@ where Redraw: FnMut(&mut Children, &mut PhysicsContext, &WindowEvent),
             rcx: None,
             physics_context: ph_context,
             children: Children::new(),
-            start: start, 
-            redraw: redraw
+            start: start,
+            redraw: redraw,
         }
     }
 
@@ -345,7 +353,8 @@ where Redraw: FnMut(&mut Children, &mut PhysicsContext, &WindowEvent),
             //debug!("POSITIONS: drawable {} {}", i, drawable.get_transform(),);
         });
 
-        let vertex_buffer = Buffer::from_iter( // NOTE: Panic when iter vertices is empty
+        let vertex_buffer = Buffer::from_iter(
+            // NOTE: Panic when iter vertices is empty
             memory_allocator,
             BufferCreateInfo {
                 usage: BufferUsage::VERTEX_BUFFER,
@@ -364,10 +373,11 @@ where Redraw: FnMut(&mut Children, &mut PhysicsContext, &WindowEvent),
     }
 }
 
-impl<Redraw, Start> ApplicationHandler for EngineContext<Redraw, Start> 
-where 
-    Redraw: FnMut(&mut Children, &mut PhysicsContext, &WindowEvent), 
-    Start: FnMut(&ActiveEventLoop, &mut Children, &mut PhysicsContext) -> Arc<Window> {
+impl<Redraw, Start> ApplicationHandler for EngineContext<Redraw, Start>
+where
+    Redraw: FnMut(&mut Children, &mut PhysicsContext, &WindowEvent),
+    Start: FnMut(&ActiveEventLoop, &mut Children, &mut PhysicsContext) -> Arc<Window>,
+{
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         #[cfg(feature = "tracing")]
         let _span = tracy_client::span!("Engine::resumed");
@@ -639,8 +649,7 @@ where
             WindowEvent::CloseRequested => {
                 event_loop.exit();
             }
-            WindowEvent::KeyboardInput { event, .. } => {
-            }
+            WindowEvent::KeyboardInput { event, .. } => {}
             WindowEvent::Resized(_) => {
                 #[cfg(feature = "tracing")]
                 let _span = tracy_client::span!("Engine::resize");
@@ -691,12 +700,13 @@ where
                     rcx.recreate_swapchain = false;
                 }
 
-                let (vertex_buffer, matrices, offsets) = EngineContext::<Redraw, Start>::calculate_drawables(
-                    self.memory.memory_allocator.clone(),
-                    &self.physics_context,
-                    &mut self.children,
-                    rcx,
-                );
+                let (vertex_buffer, matrices, offsets) =
+                    EngineContext::<Redraw, Start>::calculate_drawables(
+                        self.memory.memory_allocator.clone(),
+                        &self.physics_context,
+                        &mut self.children,
+                        rcx,
+                    );
 
                 // Before we can draw on the output, we have to *acquire* an image from the
                 // swapchain. If no image is available (which happens if you submit draw commands
@@ -784,8 +794,7 @@ where
                     .iter()
                     .map(|d| d.as_ref() as &dyn DrawableGPU)
                     .chain(
-                        self
-                            .children
+                        self.children
                             .physics_drawables
                             .iter()
                             .map(|pd| pd.as_ref() as &dyn DrawableGPU),
