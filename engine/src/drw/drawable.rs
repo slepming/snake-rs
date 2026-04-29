@@ -5,11 +5,11 @@ use rapier2d::{
 
 use crate::{
     MyVertex,
-    geometry::{
+    geom::{
         matrix::Transform,
         shapes::{Shapes, get_vertex_from_shapes},
     },
-    mv::transform::{Entity, PhysicsContext},
+    mv::{phys::movement::PhysicsContext, transform::Entity},
 };
 
 pub struct Children {
@@ -75,10 +75,11 @@ impl Mesh {
 
 impl Drawable {
     pub fn new(vertex: Vec<MyVertex>, id: u32, position: Option<Vec2>) -> Self {
+        let pos = position.unwrap_or(Vec2::new(1.0, 1.0));
         let transform = Transform {
             transform: [
-                [1.0, 0.0, 0.0, 0.0],
-                [0.0, 1.0, 0.0, 0.0],
+                [1.0, 0.0, 0.0, pos[0]],
+                [0.0, 1.0, 0.0, pos[1]],
                 [0.0, 0.0, 1.0, 0.0],
                 [0.0, 0.0, 0.0, 1.0],
             ],
@@ -193,6 +194,3 @@ impl Entity for PhysicsDrawable {
         self.get_rb_handle()
     }
 }
-
-// TODO: Drawable should implement translation from physics model to vulkan matrix model in the
-// future

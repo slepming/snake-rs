@@ -54,14 +54,14 @@ use winit::{
 
 use crate::{
     drw::drawable::{Children, DrawableGPU},
-    geometry::matrix::Transform,
-    mv::transform::{PhysicsContext, PhysicsSpace, Position},
+    geom::matrix::Transform,
+    mv::{phys::movement::{PhysicsContext, PhysicsSpace}, transform::Position},
     shaders::cube_shader::{cube_fs, cube_vs},
 };
 
 pub mod drw;
 pub mod game;
-pub mod geometry;
+pub mod geom;
 pub mod mv;
 pub mod shaders;
 
@@ -336,14 +336,10 @@ where
             let matrics = drawable.get_transform_clone();
             let offset = vertices.len() as u32;
 
-            //if vertices.windows(verts.len()).any(|w| w == verts) {}
-            dbg!(&offset);
-            dbg!(&vertices);
 
             offsets.push(offset);
             vertices.extend_from_slice(verts);
             matrices.push(matrics);
-            //debug!("POSITIONS: drawable {} {}", i, drawable.get_transform(),);
         });
 
         children.drawables.iter().for_each(|drawable| {
@@ -354,7 +350,6 @@ where
             offsets.push(offset);
             vertices.extend_from_slice(verts);
             matrices.push(matrix);
-            //debug!("POSITIONS: drawable {} {}", i, drawable.get_transform(),);
         });
 
         let vertex_buffer = Buffer::from_iter(

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::{ActiveEventLoop, drw::drawable::Children, geometry, mv::transform::PhysicsContext};
+use crate::{ActiveEventLoop, drw::drawable::Children, geom, mv::phys::movement::PhysicsContext};
 
 use rapier2d::{math::Vec2, prelude::RigidBodyBuilder};
 use winit::{event::WindowEvent, window::Window};
@@ -19,7 +19,7 @@ pub trait Game {
 pub trait GameWrapper {
     fn get_children(&self) -> &Children;
     fn get_children_mut(&mut self) -> &mut Children;
-    fn create_drawable(&mut self, shape: geometry::shapes::Shapes, start_position: Option<Vec2>);
+    fn create_drawable(&mut self, shape: geom::shapes::Shapes, start_position: Option<Vec2>);
     fn create_drawable_physics(
         &mut self,
         size: Vec2,

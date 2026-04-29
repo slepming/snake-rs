@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use rapier2d::{math::Vec2, prelude::RigidBodyBuilder};
-use snake_engine::{EngineContext, drw::drawable::Children, mv::transform::PhysicsContext};
+use snake_engine::{EngineContext, drw::drawable::{Children, Drawable}, mv::phys::movement::PhysicsContext};
 use winit::{
     dpi::{PhysicalSize, Size},
     event::{ElementState, WindowEvent},
@@ -13,18 +13,16 @@ use winit::{
     window::{Fullscreen, Window},
 };
 
-const OBJECTS_COUNT: u32 = 300;
+const OBJECTS_COUNT: u32 = 5;
 
 fn main() -> Result<(), impl std::error::Error> {
     let event_loop = EventLoop::new().unwrap();
 
     let window = |e: &ActiveEventLoop, ch: &mut Children, pc: &mut PhysicsContext| {
         for i in 0..OBJECTS_COUNT {
-            ch.add_physics(pc.create_phys_square(
-                RigidBodyBuilder::fixed(),
-                [0.1, 0.1],
+            ch.add_drawable(Drawable::from_shape(snake_engine::geom::shapes::Shapes::Square([0.1, 0.1]),
                 ch.physics_drawables.len() as u32 + ch.drawables.len() as u32 + 1,
-                Some(Vec2::new(1920.0 / OBJECTS_COUNT as f32 * i as f32, 100.0)),
+                Some(Vec2::new(2.0 / i as f32, 0.0)),
             ));
         }
         Arc::new(
