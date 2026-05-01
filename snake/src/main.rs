@@ -13,16 +13,20 @@ use winit::{
     window::{Fullscreen, Window},
 };
 use color::Rgba8;
+use rand::{RngExt, rng};
 
 const OBJECTS_COUNT: u32 = 5;
 
 fn main() -> Result<(), impl std::error::Error> {
     let event_loop = EventLoop::new().unwrap();
+    let mut rng = rand::rng();
 
-    let window = |e: &ActiveEventLoop, ch: &mut Children, pc: &mut PhysicsContext| {
+    let mut window = |e: &ActiveEventLoop, ch: &mut Children, _pc: &mut PhysicsContext| {
         for i in 0..OBJECTS_COUNT {
+            let (r,g,b) = (rng.random::<u8>(), rng.random::<u8>(), rng.random::<u8>());
+            //dbg!((r, g, b));
             ch.add_drawable(Drawable::from_shape(snake_engine::geom::shapes::Shapes::Square([0.1, 0.1]),
-                Rgba8 { r: 215, g: 230, b: 0, a: 255 },
+                Rgba8 { r, g, b, a: 255 },
                 ch.physics_drawables.len() as u32 + ch.drawables.len() as u32 + 1,
                 Some(Vec2::new(2.0 / i as f32, 0.0)),
             ));

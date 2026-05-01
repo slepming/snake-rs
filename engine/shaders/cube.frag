@@ -12,9 +12,9 @@ layout(push_constant) uniform Constants {
 } pc;
 
 void main() {
-	float r = (pc.rgba >> 0) & 0xFF;
-	float g = (pc.rgba >> 8) & 0xFF;
-	float b = (pc.rgba >> 16) & 0xFF;
-	float a = (pc.rgba >> 24) & 0xFF;
+	float r = ((pc.rgba >> 0) & 0xFF) / 255.0;
+	float g = ((pc.rgba >> 8) & 0xFF) / 255.0;
+	float b = ((pc.rgba >> 16) & 0xFF) / 255.0;
+	float a = ((pc.rgba >> 24) & 0xFF) / 255.0;
     f_color = vec4(r, g, b, a);
 }

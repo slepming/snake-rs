@@ -3,7 +3,6 @@
 // * Translate matrix from physics matrix to vulkan matrix at the Drawable level
 // * Create game storage for cache-files
 
-use color::Rgba8;
 //use log::debug;
 use rapier2d::{
     math::Vec2,
@@ -805,6 +804,7 @@ where
                 all_items.enumerate().for_each(|(i, item)| {
                     let colour = item.get_colour().clone();
                     let constants = Constants(matrices[i].clone(), (colour.r as u32) | (colour.g as u32) << 8 | (colour.b as u32) << 16 | (colour.a as u32) << 24);
+                    //dbg!(((constants.1 >> 0) & 0xFF, (constants.1 >> 8) & 0xFF, (constants.1 >> 16) & 0xFF, (constants.1 >> 24) & 0xFF));
                     builder
                         .push_constants(rcx.pipeline.layout().clone(), 0, constants)
                         .unwrap();
