@@ -12,6 +12,8 @@ use crate::{
     mv::{phys::movement::PhysicsContext, transform::Entity},
 };
 
+use color::Rgba8;
+
 pub struct Children {
     // I think iterations through Vector with Box is very slowly operation, but I dont know how I to
     // make this faster
@@ -38,6 +40,7 @@ impl Children {
 
 pub struct Drawable {
     transform: Transform,
+    color: Rgba8,
     mesh: Mesh,
 }
 
@@ -61,6 +64,7 @@ pub trait DrawableGPU {
     fn set_transform(&mut self, transform: Transform);
     fn drawable(&self) -> &Drawable;
     fn drawable_mut(&mut self) -> &mut Drawable;
+    fn get_colour(&self) -> &Rgba8;
 }
 
 impl Mesh {
@@ -87,16 +91,43 @@ impl Drawable {
 
         Drawable {
             mesh: Mesh::new(vertex, id),
+            color: Rgba8 { r: 0, g: 0, b: 0, a: 255 },
             transform,
         }
     }
 
-    pub fn from_shape(shape: Shapes, id: u32, position: Option<Vec2>) -> Self {
-        Drawable::new(get_vertex_from_shapes(shape), id, position)
+    pub fn new_with_color(vertex: Vec<MyVertex>, color: Rgba8, id: u32, position: Option<Vec2>) -> Self {
+        let pos = position.unwrap_or(Vec2::new(1.0, 1.0));
+        let transform = Transform {
+            transform: [
+                [1.0, 0.0, 0.0, pos[0]],
+                [0.0, 1.0, 0.0, pos[1]],
+                [0.0, 0.0, 1.0, 0.0],
+                [0.0, 0.0, 0.0, 1.0],
+            ],
+        };
+
+        Drawable {
+            mesh: Mesh::new(vertex, id),
+            color,
+            transform,
+        }
+    }
+
+    pub fn from_shape(shape: Shapes, col: Rgba8, id: u32, position: Option<Vec2>) -> Self {
+        Drawable::new_with_color(get_vertex_from_shapes(shape), col, id, position,)
     }
 }
 
 impl DrawableGPU for Drawable {
+    fn set_vertex(&mut self, vertex: Vec<MyVertex>) {
+        self.mesh.vertex = vertex;
+    }
+
+    fn get_transform(&self) -> &Transform {
+        &self.transform
+    }
+
     fn get_transform_clone(&self) -> Transform {
         self.transform.clone() // TODO: This method not the best, but idk what function I need instead of this 
     }
@@ -109,15 +140,8 @@ impl DrawableGPU for Drawable {
         &self.mesh.vertex
     }
 
-    fn get_transform(&self) -> &Transform {
-        &self.transform
-    }
-
     fn set_transform(&mut self, transform: Transform) {
         self.transform = transform;
-    }
-    fn set_vertex(&mut self, vertex: Vec<MyVertex>) {
-        self.mesh.vertex = vertex;
     }
 
     fn drawable(&self) -> &Drawable {
@@ -126,6 +150,10 @@ impl DrawableGPU for Drawable {
 
     fn drawable_mut(&mut self) -> &mut Drawable {
         self
+    }
+
+    fn get_colour(&self) -> &Rgba8 {
+        &self.color
     }
 }
 
@@ -160,6 +188,10 @@ impl DrawableGPU for PhysicsDrawable {
 
     fn drawable_mut(&mut self) -> &mut Drawable {
         self.get_mut_drawable()
+    }
+
+    fn get_colour(&self) -> &Rgba8 {
+        &self.drawable.color
     }
 }
 

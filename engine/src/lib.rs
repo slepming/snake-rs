@@ -3,6 +3,7 @@
 // * Translate matrix from physics matrix to vulkan matrix at the Drawable level
 // * Create game storage for cache-files
 
+use color::Rgba8;
 //use log::debug;
 use rapier2d::{
     math::Vec2,
@@ -232,11 +233,11 @@ where
             })
             .expect("no suitable physical device found");
 
-        // Some little debug infos.
         debug!(
-            "Using device: {:?} (type: {:?})",
+            "Using device: {:?} (type: {:?}); max push constant size: {}",
             physical_device.properties().device_name,
             physical_device.properties().device_type,
+            physical_device.properties().max_push_constants_size
         );
 
         // Now initializing the device. This is probably the most important object of Vulkan.
@@ -272,6 +273,7 @@ where
         let memory = EngineMemory::new(device.clone());
 
         debug!("physics initialization");
+        
         // Create physics
         let rbs = RigidBodySet::new();
         let cds = ColliderSet::new();
@@ -547,6 +549,8 @@ where
             )
             .unwrap();
 
+            dbg!(&layout);
+
             // We have to indicate which subpass of which render pass this pipeline is going to be
             // used in. The pipeline will only be usable from this particular subpass.
             let subpass = Subpass::from(render_pass.clone(), 0).unwrap();
@@ -648,7 +652,6 @@ where
             WindowEvent::CloseRequested => {
                 event_loop.exit();
             }
-            WindowEvent::KeyboardInput { event, .. } => {}
             WindowEvent::Resized(_) => {
                 #[cfg(feature = "tracing")]
                 let _span = tracy_client::span!("Engine::resize");
@@ -800,8 +803,10 @@ where
                     );
 
                 all_items.enumerate().for_each(|(i, item)| {
+                    let colour = item.get_colour().clone();
+                    let constants = Constants(matrices[i].clone(), (colour.r as u32) | (colour.g as u32) << 8 | (colour.b as u32) << 16 | (colour.a as u32) << 24);
                     builder
-                        .push_constants(rcx.pipeline.layout().clone(), 0, matrices[i].clone())
+                        .push_constants(rcx.pipeline.layout().clone(), 0, constants)
                         .unwrap();
 
                     let vertex_cursor = offsets[i] as u32;
@@ -880,6 +885,10 @@ pub struct MyVertex {
     #[format(R32G32_SFLOAT)]
     position: [f32; 2],
 }
+
+#[derive(BufferContents, Clone, Copy, Debug)]
+#[repr(C)]
+struct Constants(Transform, u32);
 
 fn window_size_dependent_setup(
     images: &[Arc<Image>],

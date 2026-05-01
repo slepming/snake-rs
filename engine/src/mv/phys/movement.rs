@@ -1,3 +1,4 @@
+use color::Rgba8;
 use rapier2d::{math::Vec2, prelude::{CCDSolver, ColliderBuilder, ColliderSet, DefaultBroadPhase, ImpulseJointSet, IntegrationParameters, IslandManager, MultibodyJointSet, NarrowPhase, PhysicsPipeline, RigidBodyBuilder, RigidBodySet}};
 use tracing::debug;
 
@@ -144,7 +145,7 @@ impl PhysicsContext {
             rb_h.clone(),
             &mut self.rigid_body_set,
         );
-        let drawable = Drawable::from_shape(Shapes::Square(size), id, None);
+        let drawable = Drawable::from_shape(Shapes::Square(size), Rgba8 { r: 0, g: 0, b: 0, a: 255}, id, None);
         debug!(
             id = id,
             "created new object:\n\

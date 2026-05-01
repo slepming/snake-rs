@@ -12,6 +12,7 @@ use winit::{
     },
     window::{Fullscreen, Window},
 };
+use color::Rgba8;
 
 const OBJECTS_COUNT: u32 = 5;
 
@@ -21,6 +22,7 @@ fn main() -> Result<(), impl std::error::Error> {
     let window = |e: &ActiveEventLoop, ch: &mut Children, pc: &mut PhysicsContext| {
         for i in 0..OBJECTS_COUNT {
             ch.add_drawable(Drawable::from_shape(snake_engine::geom::shapes::Shapes::Square([0.1, 0.1]),
+                Rgba8 { r: 215, g: 230, b: 0, a: 255 },
                 ch.physics_drawables.len() as u32 + ch.drawables.len() as u32 + 1,
                 Some(Vec2::new(2.0 / i as f32, 0.0)),
             ));
