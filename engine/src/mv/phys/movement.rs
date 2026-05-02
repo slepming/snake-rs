@@ -1,8 +1,10 @@
+use std::sync::{Arc, RwLock};
+
 use color::Rgba8;
 use rapier2d::{math::Vec2, prelude::{CCDSolver, ColliderBuilder, ColliderSet, DefaultBroadPhase, ImpulseJointSet, IntegrationParameters, IslandManager, MultibodyJointSet, NarrowPhase, PhysicsPipeline, RigidBodyBuilder, RigidBodySet}};
 use tracing::debug;
 
-use crate::{MyVertex, drw::drawable::{Drawable, PhysicsDrawable}, geom::shapes::Shapes};
+use crate::{MyVertex, drw::drawable::{Drawable, PhysicsDrawable}, geom::shapes::Shapes, res::cache::Cache};
 
 const GRAVITY: Vec2 = Vec2::new(0.0, -9.81 * 60.0); // * 60 is magick value. I will fix that in the future
 
@@ -100,11 +102,14 @@ impl PhysicsContext {
     /// `vertex` -> custom vertices for draw
     /// `id` -> object id in engine array.
     // TODO: Currently the id is not finished and WIP
+    #[deprecated]
     pub fn create_phys_object(
         &mut self,
         position: Option<Vec2>,
         vertex: Vec<MyVertex>,
         id: u32,
+        cache: Arc<RwLock<Cache>>,
+        key: &'static str
     ) -> PhysicsDrawable {
         let mut rigid_body_builder = RigidBodyBuilder::dynamic();
         if let Some(pos) = position {
@@ -115,7 +120,7 @@ impl PhysicsContext {
         let rb_h = self.rigid_body_set.insert(rigid_body);
         self.collider_set
             .insert_with_parent(collider, rb_h.clone(), &mut self.rigid_body_set);
-        let drawable = Drawable::new(vertex, id, None);
+        let drawable = Drawable::new(vertex, id, cache, key, None);
         PhysicsDrawable::new(rb_h, drawable)
     }
 
@@ -128,8 +133,9 @@ impl PhysicsContext {
     pub fn create_phys_square(
         &mut self,
         mut rigid_body_builder: RigidBodyBuilder,
-        size: [f32; 2],
+        size: Vec2,
         id: u32,
+        cache: Arc<RwLock<Cache>>,
         position: Option<Vec2>,
     ) -> PhysicsDrawable {
         #[cfg(feature = "tracing")]
@@ -145,7 +151,7 @@ impl PhysicsContext {
             rb_h.clone(),
             &mut self.rigid_body_set,
         );
-        let drawable = Drawable::from_shape(Shapes::Square(size), Rgba8 { r: 0, g: 0, b: 0, a: 255}, id, None);
+        let drawable = Drawable::from_shape(Shapes::Square(size.into()), crate::drw::drawable::DrawableCreateInfo { cache, position, size, id, color: Rgba8 { r: 0, g: 0, b: 0, a: 255} });
         debug!(
             id = id,
             "created new object:\n\

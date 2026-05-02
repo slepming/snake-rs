@@ -1,9 +1,10 @@
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 
 use rapier2d::{
     math::Vec2,
     prelude::{RigidBody, RigidBodyHandle},
 };
+use tracing::{debug, field::debug};
 use vulkano::pipeline::GraphicsPipeline;
 
 use crate::{
@@ -16,6 +17,21 @@ use crate::{
 };
 
 use color::Rgba8;
+
+pub struct Drawable {
+    transform: Transform,
+    color: Rgba8,
+    mesh: Mesh,
+    cache: Arc<RwLock<Cache>>
+}
+
+pub struct DrawableCreateInfo {
+    pub cache: Arc<RwLock<Cache>>,
+    pub position: Option<Vec2>,
+    pub size: Vec2,
+    pub id: u32,
+    pub color: Rgba8
+}
 
 pub struct Children {
     // I think iterations through Vector with Box is very slowly operation, but I dont know how I to
@@ -41,13 +57,6 @@ impl Children {
     }
 }
 
-pub struct Drawable {
-    transform: Transform,
-    color: Rgba8,
-    mesh: Mesh,
-    cache: Arc<Cache>
-}
-
 pub struct Mesh {
     vertex: Vec<MyVertex>,
     pipeline: Arc<GraphicsPipeline>,
@@ -70,6 +79,7 @@ pub trait DrawableGPU {
     fn drawable(&self) -> &Drawable;
     fn drawable_mut(&mut self) -> &mut Drawable;
     fn get_colour(&self) -> &Rgba8;
+    fn get_pipeline(&self) -> Arc<GraphicsPipeline>;
 }
 
 impl Mesh {
@@ -83,7 +93,7 @@ impl Mesh {
 }
 
 impl Drawable {
-    pub fn new(vertex: Vec<MyVertex>, id: u32, cache: Arc<Cache>, key: &'static str, position: Option<Vec2>) -> Self {
+    pub fn new(vertex: Vec<MyVertex>, id: u32, cache: Arc<RwLock<Cache>>, key: &'static str, position: Option<Vec2>) -> Self {
         let pos = position.unwrap_or(Vec2::new(1.0, 1.0));
         let transform = Transform {
             transform: [
@@ -95,14 +105,14 @@ impl Drawable {
         };
 
         Drawable {
-            mesh: Mesh::new(vertex, id, cache.get_pipeline(key).unwrap()),
+            mesh: Mesh::new(vertex, id, cache.clone().read().unwrap().get_pipeline(key).unwrap()),
             color: Rgba8 { r: 0, g: 0, b: 0, a: 255 },
             transform,
             cache
         }
     }
 
-    pub fn new_with_color(vertex: Vec<MyVertex>, color: Rgba8, id: u32, cache: Arc<Cache>, key: &'static str, position: Option<Vec2>) -> Self {
+    pub fn new_with_color(vertex: Vec<MyVertex>, color: Rgba8, id: u32, cache: Arc<RwLock<Cache>>, key: &'static str, position: Option<Vec2>) -> Self {
         let pos = position.unwrap_or(Vec2::new(1.0, 1.0));
         let transform = Transform {
             transform: [
@@ -114,7 +124,7 @@ impl Drawable {
         };
 
         Drawable {
-            mesh: Mesh::new(vertex, id, cache.get_pipeline(key).unwrap()), // TODO: in the future I
+            mesh: Mesh::new(vertex, id, cache.clone().read().unwrap().get_pipeline(key).expect("pipeline cache haven't this shader")), // TODO: in the future I
                                                                            // must add custom
                                                                            // pipelines
             color,
@@ -123,8 +133,8 @@ impl Drawable {
         }
     }
 
-    pub fn from_shape(shape: Shapes, col: Rgba8, id: u32, cache: Arc<Cache>, position: Option<Vec2>) -> Self {
-        Drawable::new_with_color(get_vertex_from_shapes(shape.clone()), col, id, cache, shape.into(), position)
+    pub fn from_shape(shape: Shapes, drw: DrawableCreateInfo) -> Self {
+        Drawable::new_with_color(get_vertex_from_shapes(shape.clone()), drw.color, drw.id, drw.cache, shape.into(), drw.position)
     }
 }
 
@@ -164,6 +174,10 @@ impl DrawableGPU for Drawable {
     fn get_colour(&self) -> &Rgba8 {
         &self.color
     }
+
+    fn get_pipeline(&self) -> Arc<GraphicsPipeline> {
+        self.mesh.pipeline.clone()
+    }
 }
 
 impl DrawableGPU for PhysicsDrawable {
@@ -201,6 +215,10 @@ impl DrawableGPU for PhysicsDrawable {
 
     fn get_colour(&self) -> &Rgba8 {
         &self.drawable.color
+    }
+
+    fn get_pipeline(&self) -> Arc<GraphicsPipeline> {
+        self.get_drawable().get_pipeline()
     }
 }
 
