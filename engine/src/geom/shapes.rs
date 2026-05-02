@@ -1,5 +1,8 @@
+use strum::{AsRefStr, IntoStaticStr};
+
 use crate::MyVertex;
 
+#[derive(IntoStaticStr, Clone, Copy)]
 pub enum Shapes {
     Square([f32; 2]),
     Circle,

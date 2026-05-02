@@ -53,10 +53,7 @@ use winit::{
 };
 
 use crate::{
-    drw::drawable::{Children, DrawableGPU},
-    geom::matrix::Transform,
-    mv::{phys::movement::{PhysicsContext, PhysicsSpace}, transform::Position},
-    shaders::cube_shader::{cube_fs, cube_vs},
+    drw::drawable::{Children, DrawableGPU}, geom::matrix::Transform, mv::{phys::movement::{PhysicsContext, PhysicsSpace}, transform::Position}, res::cache::Cache, shaders::cube_shader::{cube_fs, cube_vs}
 };
 
 pub mod drw;
@@ -64,6 +61,7 @@ pub mod game;
 pub mod geom;
 pub mod mv;
 pub mod shaders;
+pub mod res;
 
 #[cfg(feature = "tracing")]
 #[global_allocator]
@@ -82,6 +80,7 @@ where
     rcx: Option<RenderContext>,
     pub(crate) physics_context: PhysicsContext,
     pub children: Children,
+    pub cache: Arc<Cache>,
     redraw: Redraw,
     start: Start,
 }
@@ -289,6 +288,7 @@ where
             rcx: None,
             physics_context: ph_context,
             children: Children::new(),
+            cache: Arc::new(Cache::new()),
             start: start,
             redraw: redraw,
         }
@@ -318,7 +318,7 @@ where
         let mut matrices: Vec<Transform> = Vec::new();
         let mut offsets: Vec<u32> = Vec::new();
 
-        // TODO: in the future I should think about join this iteration loops through abstractions or
+        // TODO: in the future I must think about join this iteration loops through abstractions or
         // compositing structures
         children.physics_drawables.iter_mut().for_each(|drawable| {
             let object = physics_context.rigid_body_set[drawable.rb_handle()].clone();

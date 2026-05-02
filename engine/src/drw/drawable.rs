@@ -1,7 +1,10 @@
+use std::sync::Arc;
+
 use rapier2d::{
     math::Vec2,
     prelude::{RigidBody, RigidBodyHandle},
 };
+use vulkano::pipeline::GraphicsPipeline;
 
 use crate::{
     MyVertex,
@@ -9,7 +12,7 @@ use crate::{
         matrix::Transform,
         shapes::{Shapes, get_vertex_from_shapes},
     },
-    mv::{phys::movement::PhysicsContext, transform::Entity},
+    mv::{phys::movement::PhysicsContext, transform::Entity}, res::cache::{Cache, PipelineHandle},
 };
 
 use color::Rgba8;
@@ -42,10 +45,12 @@ pub struct Drawable {
     transform: Transform,
     color: Rgba8,
     mesh: Mesh,
+    cache: Arc<Cache>
 }
 
 pub struct Mesh {
     vertex: Vec<MyVertex>,
+    pipeline: Arc<GraphicsPipeline>,
     /// ID need for find matrix in buffer
     id: u32,
 }
@@ -68,8 +73,8 @@ pub trait DrawableGPU {
 }
 
 impl Mesh {
-    pub fn new(ver: Vec<MyVertex>, id: u32) -> Self {
-        Mesh { vertex: ver, id }
+    pub fn new(ver: Vec<MyVertex>, id: u32, pipeline: Arc<GraphicsPipeline>) -> Self {
+        Mesh { vertex: ver, pipeline, id }
     }
 
     pub fn get_id(&self) -> &u32 {
@@ -78,7 +83,7 @@ impl Mesh {
 }
 
 impl Drawable {
-    pub fn new(vertex: Vec<MyVertex>, id: u32, position: Option<Vec2>) -> Self {
+    pub fn new(vertex: Vec<MyVertex>, id: u32, cache: Arc<Cache>, key: &'static str, position: Option<Vec2>) -> Self {
         let pos = position.unwrap_or(Vec2::new(1.0, 1.0));
         let transform = Transform {
             transform: [
@@ -90,13 +95,14 @@ impl Drawable {
         };
 
         Drawable {
-            mesh: Mesh::new(vertex, id),
+            mesh: Mesh::new(vertex, id, cache.get_pipeline(key).unwrap()),
             color: Rgba8 { r: 0, g: 0, b: 0, a: 255 },
             transform,
+            cache
         }
     }
 
-    pub fn new_with_color(vertex: Vec<MyVertex>, color: Rgba8, id: u32, position: Option<Vec2>) -> Self {
+    pub fn new_with_color(vertex: Vec<MyVertex>, color: Rgba8, id: u32, cache: Arc<Cache>, key: &'static str, position: Option<Vec2>) -> Self {
         let pos = position.unwrap_or(Vec2::new(1.0, 1.0));
         let transform = Transform {
             transform: [
@@ -108,14 +114,17 @@ impl Drawable {
         };
 
         Drawable {
-            mesh: Mesh::new(vertex, id),
+            mesh: Mesh::new(vertex, id, cache.get_pipeline(key).unwrap()), // TODO: in the future I
+                                                                           // must add custom
+                                                                           // pipelines
             color,
             transform,
+            cache
         }
     }
 
-    pub fn from_shape(shape: Shapes, col: Rgba8, id: u32, position: Option<Vec2>) -> Self {
-        Drawable::new_with_color(get_vertex_from_shapes(shape), col, id, position,)
+    pub fn from_shape(shape: Shapes, col: Rgba8, id: u32, cache: Arc<Cache>, position: Option<Vec2>) -> Self {
+        Drawable::new_with_color(get_vertex_from_shapes(shape.clone()), col, id, cache, shape.into(), position)
     }
 }
 
