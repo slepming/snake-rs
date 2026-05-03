@@ -108,7 +108,7 @@ impl PhysicsContext {
         position: Option<Vec2>,
         vertex: Vec<MyVertex>,
         id: u32,
-        cache: Arc<RwLock<Cache>>,
+        cache: Arc<Cache>,
         key: &'static str
     ) -> PhysicsDrawable {
         let mut rigid_body_builder = RigidBodyBuilder::dynamic();
@@ -135,7 +135,7 @@ impl PhysicsContext {
         mut rigid_body_builder: RigidBodyBuilder,
         size: Vec2,
         id: u32,
-        cache: Arc<RwLock<Cache>>,
+        cache: Arc<Cache>,
         position: Option<Vec2>,
     ) -> PhysicsDrawable {
         #[cfg(feature = "tracing")]

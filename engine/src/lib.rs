@@ -27,17 +27,9 @@ use vulkano::{
         AllocationCreateInfo, MemoryAllocator, MemoryTypeFilter, StandardMemoryAllocator,
     },
     pipeline::{
-        DynamicState, GraphicsPipeline, Pipeline, PipelineLayout, PipelineShaderStageCreateInfo,
-        graphics::{
-            GraphicsPipelineCreateInfo,
-            color_blend::{ColorBlendAttachmentState, ColorBlendState},
-            input_assembly::InputAssemblyState,
-            multisample::MultisampleState,
-            rasterization::RasterizationState,
-            vertex_input::{Vertex, VertexDefinition},
-            viewport::{Viewport, ViewportState},
-        },
-        layout::PipelineDescriptorSetLayoutCreateInfo,
+        DynamicState, GraphicsPipeline, Pipeline, PipelineLayout, PipelineShaderStageCreateInfo, graphics::{
+            GraphicsPipelineCreateInfo, color_blend::{ColorBlendAttachmentState, ColorBlendState}, input_assembly::InputAssemblyState, multisample::MultisampleState, rasterization::RasterizationState, vertex_input::{Vertex, VertexDefinition}, viewport::{Viewport, ViewportState}
+        }, layout::PipelineDescriptorSetLayoutCreateInfo
     },
     render_pass::{Framebuffer, FramebufferCreateInfo, RenderPass, Subpass},
     swapchain::{
@@ -46,10 +38,7 @@ use vulkano::{
     sync::{self, GpuFuture},
 };
 use winit::{
-    application::ApplicationHandler,
-    event::WindowEvent,
-    event_loop::{ActiveEventLoop, EventLoop},
-    window::{Window, WindowId},
+    application::ApplicationHandler, dpi::{PhysicalSize, Size}, event::WindowEvent, event_loop::{ActiveEventLoop, EventLoop}, platform::wayland::WindowAttributesExtWayland, window::{Fullscreen, Window, WindowId}
 };
 
 use crate::{
@@ -70,15 +59,15 @@ static GLOBAL: tracy_client::ProfiledAllocator<std::alloc::System> =
 
 pub struct EngineContext<Redraw, Start>
 where
-    Redraw: FnMut(&mut Children, &mut PhysicsContext, &WindowEvent, Arc<RwLock<Cache>>),
-    Start: FnMut(&ActiveEventLoop, &mut Children, &mut PhysicsContext, Arc<RwLock<Cache>>) -> Arc<Window>,
+    Redraw: FnMut(&mut Children, &mut PhysicsContext, &WindowEvent, Arc<Cache>),
+    Start: FnMut(&ActiveEventLoop, &mut Children, &mut PhysicsContext, Arc<Cache>),
 {
     instance: Arc<Instance>,
     device: Arc<Device>,
     queue: Arc<Queue>,
     memory: EngineMemory,
     rcx: Option<RenderContext>,
-    cache: Arc<RwLock<Cache>>,
+    cache: Arc<Cache>,
     pub(crate) physics_context: PhysicsContext,
     pub children: Children,
     pub frames: u64,
@@ -122,8 +111,8 @@ struct RenderContext {
 
 impl<Redraw, Start> EngineContext<Redraw, Start>
 where
-    Redraw: FnMut(&mut Children, &mut PhysicsContext, &WindowEvent, Arc<RwLock<Cache>>),
-    Start: FnMut(&ActiveEventLoop, &mut Children, &mut PhysicsContext, Arc<RwLock<Cache>>) -> Arc<Window>,
+    Redraw: FnMut(&mut Children, &mut PhysicsContext, &WindowEvent, Arc<Cache>),
+    Start: FnMut(&ActiveEventLoop, &mut Children, &mut PhysicsContext, Arc<Cache>),
 {
     pub fn new(event_loop: &EventLoop<()>, start: Start, redraw: Redraw) -> Self {
         tracing_subscriber::fmt::init();
@@ -289,7 +278,7 @@ where
             physics_context: ph_context,
             children: Children::new(),
             frames: 0,
-            cache: Arc::new(RwLock::new(Cache::new())),
+            cache: Arc::new(Cache::new()),
             start: start,
             redraw: redraw,
         }
@@ -376,8 +365,8 @@ where
 
 impl<Redraw, Start> ApplicationHandler for EngineContext<Redraw, Start>
 where
-    Redraw: FnMut(&mut Children, &mut PhysicsContext, &WindowEvent, Arc<RwLock<Cache>>),
-    Start: FnMut(&ActiveEventLoop, &mut Children, &mut PhysicsContext, Arc<RwLock<Cache>>) -> Arc<Window>,
+    Redraw: FnMut(&mut Children, &mut PhysicsContext, &WindowEvent, Arc<Cache>),
+    Start: FnMut(&ActiveEventLoop, &mut Children, &mut PhysicsContext, Arc<Cache>),
 {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         #[cfg(feature = "tracing")]
@@ -389,7 +378,21 @@ where
         // Before we can render to a window, we must first create a `vulkano::swapchain::Surface`
         // object from it, which represents the drawable surface of a window. For that we must wrap
         // the `winit::window::Window` in an `Arc`.
-        let window = (self.start)(&event_loop, &mut self.children, &mut self.physics_context, self.cache.clone());
+        let window = Arc::new(
+                event_loop.create_window(
+                    Window::default_attributes()
+                        .with_title("snake")
+                        .with_name("snake-engine", "snake-engine")
+                        .with_fullscreen(Some(Fullscreen::Borderless(None)))
+                        .with_min_inner_size(Size::Physical(PhysicalSize {
+                            width: 640,
+                            height: 480,
+                        }))
+                        .with_max_inner_size(event_loop.available_monitors().next().unwrap().size()),
+                )
+                .unwrap(),
+        );
+
         let surface = Surface::from_window(self.instance.clone(), window.clone()).unwrap();
         let window_size = window.inner_size();
 
@@ -525,6 +528,108 @@ where
         // Destroying the `GpuFuture` blocks until the GPU is finished executing it. In order to
         // avoid that, we store the submission of the previous frame here.
         let previous_frame_end = Some(sync::now(self.device.clone()).boxed());
+
+        // Before we draw, we have to create what is called a **pipeline**. A pipeline describes
+        // how a GPU operation is to be performed. It is similar to an OpenGL program, but it also
+        // contains many settings for customization, all baked into a single object. For drawing,
+        // we create a **graphics** pipeline, but there are also other types of pipeline.
+        let square_pipeline = {
+            // First, we load the shaders that the pipeline will use: the vertex shader and the
+            // fragment shader.
+            //
+            // A Vulkan shader can in theory contain multiple entry points, so we have to specify
+            // which one.
+            let vs = cube_vs::load(self.device.clone())
+                .unwrap()
+                .entry_point("main")
+                .unwrap();
+            let fs = cube_fs::load(self.device.clone())
+                .unwrap()
+                .entry_point("main")
+                .unwrap();
+
+            // Automatically generate a vertex input state from the vertex shader's input
+            // interface, that takes a single vertex buffer containing `Vertex` structs.
+            let vertex_input_state = MyVertex::per_vertex().definition(&vs).unwrap();
+
+            // Make a list of the shader stages that the pipeline will have.
+            let stages = [
+                PipelineShaderStageCreateInfo::new(vs),
+                PipelineShaderStageCreateInfo::new(fs),
+            ];
+
+            // We must now create a **pipeline layout** object, which describes the locations and
+            // types of descriptor sets and push constants used by the shaders in the pipeline.
+            //
+            // Multiple pipelines can share a common layout object, which is more efficient. The
+            // shaders in a pipeline must use a subset of the resources described in its pipeline
+            // layout, but the pipeline layout is allowed to contain resources that are not present
+            // in the shaders; they can be used by shaders in other pipelines that share the same
+            // layout. Thus, it is a good idea to design shaders so that many pipelines have common
+            // resource locations, which allows them to share pipeline layouts.
+            //
+            // Since we only have one pipeline in this example, and thus one pipeline layout, we
+            // automatically generate the layout from the resources used in the shaders. In a real
+            // application, you would specify this information manually so that you can re-use one
+            // layout in multiple pipelines.
+            let layout = PipelineLayout::new(
+                self.device.clone(),
+                PipelineDescriptorSetLayoutCreateInfo::from_stages(&stages)
+                    .into_pipeline_layout_create_info(self.device.clone())
+                    .unwrap(),
+            )
+            .unwrap();
+
+            dbg!(&layout);
+
+            // We have to indicate which subpass of which render pass this pipeline is going to be
+            // used in. The pipeline will only be usable from this particular subpass.
+            let subpass = Subpass::from(render_pass.clone(), 0).unwrap();
+
+            // Finally, create the pipeline.
+            GraphicsPipeline::new(
+                self.device.clone(),
+                None,
+                GraphicsPipelineCreateInfo {
+                    stages: stages.into_iter().collect(),
+                    // How vertex data is read from the vertex buffers into the vertex shader.
+                    vertex_input_state: Some(vertex_input_state),
+                    // How vertices are arranged into primitive shapes. The default primitive shape
+                    // is a triangle.
+                    input_assembly_state: Some(InputAssemblyState {
+                        topology: vulkano::pipeline::graphics::input_assembly::PrimitiveTopology::TriangleFan,
+                        ..Default::default()
+                    }),
+                    // How primitives are transformed and clipped to fit the framebuffer. We use a
+                    // resizable viewport, set to draw over the entire window.
+                    viewport_state: Some(ViewportState::default()),
+                    // How polygons are culled and converted into a raster of pixels. The default
+                    // value does not perform any culling.
+                    rasterization_state: Some(RasterizationState::default()),
+                    // How multiple fragment shader samples are converted to a single pixel value.
+                    // The default value does not perform any multisampling.
+                    multisample_state: Some(MultisampleState::default()),
+                    // How pixel values are combined with the values already present in the
+                    // framebuffer. The default value overwrites the old value with the new one,
+                    // without any blending.
+                    color_blend_state: Some(ColorBlendState {
+                        attachments: vec![ColorBlendAttachmentState::default()],
+                        ..Default::default()
+                    }),
+                    // Dynamic states allows us to specify parts of the pipeline settings when
+                    // recording the command buffer, before we perform drawing. Here, we specify
+                    // that the viewport should be dynamic.
+                    dynamic_state: [DynamicState::Viewport].into_iter().collect(),
+                    subpass: Some((subpass.clone()).into()),
+                    ..GraphicsPipelineCreateInfo::layout(layout.clone())
+                },
+            )
+            .unwrap()
+        };
+
+        self.cache.insert_pipeline("Square", square_pipeline);
+
+        (self.start)(&event_loop, &mut self.children, &mut self.physics_context, self.cache.clone());
 
         self.rcx = Some(RenderContext {
             scale: Vec2::new(

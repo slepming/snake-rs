@@ -17,7 +17,7 @@ impl Cache {
 
 pub(crate) trait PipelineHandle {
     fn get_pipeline(&self,key: &'static str) -> Option<Arc<GraphicsPipeline>>;
-    fn insert_pipeline(&mut self, key: &'static str, pipeline: Arc<GraphicsPipeline>) -> Arc<GraphicsPipeline>;
+    fn insert_pipeline(&self, key: &'static str, pipeline: Arc<GraphicsPipeline>) -> Option<Arc<GraphicsPipeline>>;
 }
 
 impl PipelineHandle for Cache {
@@ -25,7 +25,7 @@ impl PipelineHandle for Cache {
         self.pipelines.read().unwrap().get(key).cloned()
     }
 
-    fn insert_pipeline(&mut self, key: &'static str, pipeline: Arc<GraphicsPipeline>) -> Arc<GraphicsPipeline> {
-        self.pipelines.write().unwrap().insert(key, pipeline).unwrap()
+    fn insert_pipeline(&self, key: &'static str, pipeline: Arc<GraphicsPipeline>) -> Option<Arc<GraphicsPipeline>> {
+        self.pipelines.write().unwrap().insert(key, pipeline)
     }
 }

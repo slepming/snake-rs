@@ -22,11 +22,11 @@ pub struct Drawable {
     transform: Transform,
     color: Rgba8,
     mesh: Mesh,
-    cache: Arc<RwLock<Cache>>
+    cache: Arc<Cache>
 }
 
 pub struct DrawableCreateInfo {
-    pub cache: Arc<RwLock<Cache>>,
+    pub cache: Arc<Cache>,
     pub position: Option<Vec2>,
     pub size: Vec2,
     pub id: u32,
@@ -79,6 +79,9 @@ pub trait DrawableGPU {
     fn drawable(&self) -> &Drawable;
     fn drawable_mut(&mut self) -> &mut Drawable;
     fn get_colour(&self) -> &Rgba8;
+    /// Get pipeline clone
+    /// # Returns
+    /// Pipeline clone
     fn get_pipeline(&self) -> Arc<GraphicsPipeline>;
 }
 
@@ -93,7 +96,7 @@ impl Mesh {
 }
 
 impl Drawable {
-    pub fn new(vertex: Vec<MyVertex>, id: u32, cache: Arc<RwLock<Cache>>, key: &'static str, position: Option<Vec2>) -> Self {
+    pub fn new(vertex: Vec<MyVertex>, id: u32, cache: Arc<Cache>, key: &'static str, position: Option<Vec2>) -> Self {
         let pos = position.unwrap_or(Vec2::new(1.0, 1.0));
         let transform = Transform {
             transform: [
@@ -105,14 +108,14 @@ impl Drawable {
         };
 
         Drawable {
-            mesh: Mesh::new(vertex, id, cache.clone().read().unwrap().get_pipeline(key).unwrap()),
+            mesh: Mesh::new(vertex, id, cache.clone().get_pipeline(key).expect("pipeline cache haven't this shader")),
             color: Rgba8 { r: 0, g: 0, b: 0, a: 255 },
             transform,
             cache
         }
     }
 
-    pub fn new_with_color(vertex: Vec<MyVertex>, color: Rgba8, id: u32, cache: Arc<RwLock<Cache>>, key: &'static str, position: Option<Vec2>) -> Self {
+    pub fn new_with_color(vertex: Vec<MyVertex>, color: Rgba8, id: u32, cache: Arc<Cache>, key: &'static str, position: Option<Vec2>) -> Self {
         let pos = position.unwrap_or(Vec2::new(1.0, 1.0));
         let transform = Transform {
             transform: [
@@ -124,7 +127,7 @@ impl Drawable {
         };
 
         Drawable {
-            mesh: Mesh::new(vertex, id, cache.clone().read().unwrap().get_pipeline(key).expect("pipeline cache haven't this shader")), // TODO: in the future I
+            mesh: Mesh::new(vertex, id, cache.clone().get_pipeline(key).expect("pipeline cache haven't this shader")), // TODO: in the future I
                                                                            // must add custom
                                                                            // pipelines
             color,

@@ -21,7 +21,7 @@ fn main() -> Result<(), impl std::error::Error> {
     let event_loop = EventLoop::new().unwrap();
     let mut rng = rand::rng();
 
-    let mut window = |e: &ActiveEventLoop, ch: &mut Children, _pc: &mut PhysicsContext, cache: Arc<RwLock<Cache>>| {
+    let mut window = |e: &ActiveEventLoop, ch: &mut Children, _pc: &mut PhysicsContext, cache: Arc<Cache>| {
         let cache_clone = cache.clone();
         for i in 0..OBJECTS_COUNT {
             let (r,g,b) = (rng.random::<u8>(), rng.random::<u8>(), rng.random::<u8>());
@@ -36,24 +36,10 @@ fn main() -> Result<(), impl std::error::Error> {
                 }
             ));
         }
-        Arc::new(
-            e.create_window(
-                Window::default_attributes()
-                    .with_title("snake")
-                    .with_name("snake-engine", "snake-engine")
-                    .with_fullscreen(Some(Fullscreen::Borderless(None)))
-                    .with_min_inner_size(Size::Physical(PhysicalSize {
-                        width: 640,
-                        height: 480,
-                    }))
-                    .with_max_inner_size(e.available_monitors().next().unwrap().size()),
-            )
-            .unwrap(),
-        )
     };
 
     let redraw_closure =
-        |ch: &mut Children, pc: &mut PhysicsContext, event: &WindowEvent, cache: Arc<RwLock<Cache>>| match event {
+        |ch: &mut Children, pc: &mut PhysicsContext, event: &WindowEvent, cache: Arc<Cache>| match event {
             WindowEvent::KeyboardInput { event, .. } => {
                 let span = tracy_client::span!("Engine::Keyboard_input");
                 span.emit_color(0xFF0000);
