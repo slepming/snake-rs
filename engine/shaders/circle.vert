@@ -11,6 +11,10 @@ layout(push_constant) uniform Constants {
     uint rgba;
 } pc;
 
-void main() {
-    gl_Position = vec4(position, 0.0, 1.0) * pc.transform.transform;
+layout(location = 0) out vec2 st;
+
+void main()
+{
+    gl_Position = vec4(position, 0.0, 1.0);
+    st = position;
 }

@@ -65,7 +65,7 @@ use crate::{
         transform::Position,
     },
     res::cache::{Cache, PipelineHandle},
-    shaders::cube_shader::{cube_fs, cube_vs},
+    shaders::{circle_shader::{circle_fs, circle_vs}, cube_shader::{cube_fs, cube_vs}},
 };
 
 pub mod drw;
@@ -651,7 +651,62 @@ where
             .unwrap()
         };
 
-        self.cache.insert_pipeline("Square", square_pipeline);
+        let circle_pipeline = {
+            let vs = circle_vs::load(self.device.clone())
+                .unwrap()
+                .entry_point("main")
+                .unwrap();
+            let fs = circle_fs::load(self.device.clone())
+                .unwrap()
+                .entry_point("main")
+                .unwrap();
+
+            let vertex_input_state = MyVertex::per_vertex().definition(&vs).unwrap();
+
+            let stages = [
+                PipelineShaderStageCreateInfo::new(vs),
+                PipelineShaderStageCreateInfo::new(fs),
+            ];
+
+            let layout = PipelineLayout::new(
+                self.device.clone(),
+                PipelineDescriptorSetLayoutCreateInfo::from_stages(&stages)
+                    .into_pipeline_layout_create_info(self.device.clone())
+                    .unwrap(),
+            )
+            .unwrap();
+
+            dbg!(&layout);
+
+            let subpass = Subpass::from(render_pass.clone(), 0).unwrap();
+
+            GraphicsPipeline::new(
+                self.device.clone(),
+                None,
+                GraphicsPipelineCreateInfo {
+                    stages: stages.into_iter().collect(),
+                    vertex_input_state: Some(vertex_input_state),
+                    input_assembly_state: Some(InputAssemblyState {
+                        topology: vulkano::pipeline::graphics::input_assembly::PrimitiveTopology::TriangleFan,
+                        ..Default::default()
+                    }),
+                    viewport_state: Some(ViewportState::default()),
+                    rasterization_state: Some(RasterizationState::default()),
+                    multisample_state: Some(MultisampleState::default()),
+                    color_blend_state: Some(ColorBlendState {
+                        attachments: vec![ColorBlendAttachmentState::default()],
+                        ..Default::default()
+                    }),
+                    dynamic_state: [DynamicState::Viewport].into_iter().collect(),
+                    subpass: Some((subpass.clone()).into()),
+                    ..GraphicsPipelineCreateInfo::layout(layout.clone())
+                },
+            )
+            .unwrap()
+        };
+
+        self.cache.insert_pipeline("circle", circle_pipeline);
+        self.cache.insert_pipeline("square", square_pipeline);
 
         (self.start)(
             &event_loop,
@@ -849,9 +904,11 @@ where
                         (colour.r as u32)
                             | (colour.g as u32) << 8
                             | (colour.b as u32) << 16
-                            | (colour.a as u32) << 24,
+                            | (colour.a as u32) << 24, 
+                        rcx.window.inner_size().into()
                     );
                     let pipeline = item.get_pipeline();
+                    //dbg!(size_of::<Constants>());
                     //dbg!(((constants.1 >> 0) & 0xFF, (constants.1 >> 8) & 0xFF, (constants.1 >> 16) & 0xFF, (constants.1 >> 24) & 0xFF));
                     builder
                         .bind_pipeline_graphics(pipeline.clone())
@@ -938,7 +995,7 @@ pub struct MyVertex {
 
 #[derive(BufferContents, Clone, Copy, Debug)]
 #[repr(C)]
-struct Constants(Transform, u32);
+struct Constants(Transform, u32, [f32; 2]);
 
 fn window_size_dependent_setup(
     images: &[Arc<Image>],

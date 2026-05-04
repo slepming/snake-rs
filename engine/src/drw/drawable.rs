@@ -1,10 +1,9 @@
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 
 use rapier2d::{
     math::Vec2,
     prelude::{RigidBody, RigidBodyHandle},
 };
-use tracing::{debug, field::debug};
 use vulkano::pipeline::GraphicsPipeline;
 
 use crate::{
@@ -174,12 +173,14 @@ impl Drawable {
     }
 
     pub fn from_shape(shape: Shapes, drw: DrawableCreateInfo) -> Self {
+        let pipeline: &'static str = shape.into();
+        let p = Box::leak(pipeline.to_lowercase().into_boxed_str()); // Potential memory leak
         Drawable::new_with_color(
             get_vertex_from_shapes(shape.clone()),
             drw.color,
             drw.id,
             drw.cache,
-            shape.into(),
+            p,
             drw.position,
         )
     }

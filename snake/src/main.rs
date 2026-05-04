@@ -20,7 +20,7 @@ use winit::{
     window::{Fullscreen, Window},
 };
 
-const OBJECTS_COUNT: u32 = 5;
+const OBJECTS_COUNT: u32 = 1;
 
 fn main() -> Result<(), impl std::error::Error> {
     let event_loop = EventLoop::new().unwrap();
@@ -33,7 +33,7 @@ fn main() -> Result<(), impl std::error::Error> {
                 let (r, g, b) = (rng.random::<u8>(), rng.random::<u8>(), rng.random::<u8>());
                 //dbg!((r, g, b));
                 ch.add_drawable(Drawable::from_shape(
-                    snake_engine::geom::shapes::Shapes::Square([0.1, 0.1]),
+                    snake_engine::geom::shapes::Shapes::Circle([0.1, 0.1]),
                     DrawableCreateInfo {
                         size: Vec2::new(0.0, 0.0), // WARNING: Now this field is not used in engine
                         color: Rgba8 { r, g, b, a: 255 },
