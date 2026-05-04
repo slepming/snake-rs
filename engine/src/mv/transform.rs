@@ -1,6 +1,9 @@
 use rapier2d::prelude::{RigidBody, RigidBodyHandle};
 
-use crate::{drw::drawable::DrawableGPU, mv::phys::movement::{DynamicObject, PhysicsContext}};
+use crate::{
+    drw::drawable::DrawableGPU,
+    mv::phys::movement::{DynamicObject, PhysicsContext},
+};
 
 pub trait Position {
     fn get_matrix_mut(&mut self) -> &mut [[f32; 4]; 4];

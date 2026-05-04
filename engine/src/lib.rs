@@ -8,7 +8,10 @@ use rapier2d::{
     math::Vec2,
     prelude::{ColliderSet, RigidBodySet},
 };
-use std::{ops::RangeInclusive, sync::{Arc, RwLock}};
+use std::{
+    ops::RangeInclusive,
+    sync::{Arc, RwLock},
+};
 use tracing::debug;
 use vulkano::{
     Validated, VulkanError, VulkanLibrary,
@@ -27,9 +30,17 @@ use vulkano::{
         AllocationCreateInfo, MemoryAllocator, MemoryTypeFilter, StandardMemoryAllocator,
     },
     pipeline::{
-        DynamicState, GraphicsPipeline, Pipeline, PipelineLayout, PipelineShaderStageCreateInfo, graphics::{
-            GraphicsPipelineCreateInfo, color_blend::{ColorBlendAttachmentState, ColorBlendState}, input_assembly::InputAssemblyState, multisample::MultisampleState, rasterization::RasterizationState, vertex_input::{Vertex, VertexDefinition}, viewport::{Viewport, ViewportState}
-        }, layout::PipelineDescriptorSetLayoutCreateInfo
+        DynamicState, GraphicsPipeline, Pipeline, PipelineLayout, PipelineShaderStageCreateInfo,
+        graphics::{
+            GraphicsPipelineCreateInfo,
+            color_blend::{ColorBlendAttachmentState, ColorBlendState},
+            input_assembly::InputAssemblyState,
+            multisample::MultisampleState,
+            rasterization::RasterizationState,
+            vertex_input::{Vertex, VertexDefinition},
+            viewport::{Viewport, ViewportState},
+        },
+        layout::PipelineDescriptorSetLayoutCreateInfo,
     },
     render_pass::{Framebuffer, FramebufferCreateInfo, RenderPass, Subpass},
     swapchain::{
@@ -38,19 +49,31 @@ use vulkano::{
     sync::{self, GpuFuture},
 };
 use winit::{
-    application::ApplicationHandler, dpi::{PhysicalSize, Size}, event::WindowEvent, event_loop::{ActiveEventLoop, EventLoop}, platform::wayland::WindowAttributesExtWayland, window::{Fullscreen, Window, WindowId}
+    application::ApplicationHandler,
+    dpi::{PhysicalSize, Size},
+    event::WindowEvent,
+    event_loop::{ActiveEventLoop, EventLoop},
+    platform::wayland::WindowAttributesExtWayland,
+    window::{Fullscreen, Window, WindowId},
 };
 
 use crate::{
-    drw::drawable::{Children, DrawableGPU}, geom::matrix::Transform, mv::{phys::movement::{PhysicsContext, PhysicsSpace}, transform::Position}, res::cache::{Cache, PipelineHandle}, shaders::cube_shader::{cube_fs, cube_vs}
+    drw::drawable::{Children, DrawableGPU},
+    geom::matrix::Transform,
+    mv::{
+        phys::movement::{PhysicsContext, PhysicsSpace},
+        transform::Position,
+    },
+    res::cache::{Cache, PipelineHandle},
+    shaders::cube_shader::{cube_fs, cube_vs},
 };
 
 pub mod drw;
 pub mod game;
 pub mod geom;
 pub mod mv;
-pub mod shaders;
 pub mod res;
+pub mod shaders;
 
 #[cfg(feature = "tracing")]
 #[global_allocator]
@@ -260,7 +283,7 @@ where
         let memory = EngineMemory::new(device.clone());
 
         debug!("physics initialization");
-        
+
         // Create physics
         let rbs = RigidBodySet::new();
         let cds = ColliderSet::new();
@@ -327,7 +350,6 @@ where
             let matrics = drawable.get_transform_clone();
             let offset = vertices.len() as u32;
 
-
             offsets.push(offset);
             vertices.extend_from_slice(verts);
             matrices.push(matrics);
@@ -379,7 +401,8 @@ where
         // object from it, which represents the drawable surface of a window. For that we must wrap
         // the `winit::window::Window` in an `Arc`.
         let window = Arc::new(
-                event_loop.create_window(
+            event_loop
+                .create_window(
                     Window::default_attributes()
                         .with_title("snake")
                         .with_name("snake-engine", "snake-engine")
@@ -388,7 +411,9 @@ where
                             width: 640,
                             height: 480,
                         }))
-                        .with_max_inner_size(event_loop.available_monitors().next().unwrap().size()),
+                        .with_max_inner_size(
+                            event_loop.available_monitors().next().unwrap().size(),
+                        ),
                 )
                 .unwrap(),
         );
@@ -500,7 +525,6 @@ where
         // Since we need to draw to multiple images, we are going to create a different framebuffer
         // for each image.
         let framebuffers = window_size_dependent_setup(&images, &render_pass);
-
 
         // Dynamic viewports allow us to recreate just the viewport when the window is resized.
         // Otherwise we would have to recreate the whole pipeline.
@@ -629,7 +653,12 @@ where
 
         self.cache.insert_pipeline("Square", square_pipeline);
 
-        (self.start)(&event_loop, &mut self.children, &mut self.physics_context, self.cache.clone());
+        (self.start)(
+            &event_loop,
+            &mut self.children,
+            &mut self.physics_context,
+            self.cache.clone(),
+        );
 
         self.rcx = Some(RenderContext {
             scale: Vec2::new(
@@ -654,7 +683,12 @@ where
     ) {
         self.frames += 1;
         let rcx = self.rcx.as_mut().unwrap();
-        (self.redraw)(&mut self.children, &mut self.physics_context, &event, self.cache.clone());
+        (self.redraw)(
+            &mut self.children,
+            &mut self.physics_context,
+            &event,
+            self.cache.clone(),
+        );
 
         match event {
             WindowEvent::CloseRequested => {
@@ -810,7 +844,13 @@ where
 
                 all_items.enumerate().for_each(|(i, item)| {
                     let colour = item.get_colour().clone();
-                    let constants = Constants(matrices[i].clone(), (colour.r as u32) | (colour.g as u32) << 8 | (colour.b as u32) << 16 | (colour.a as u32) << 24);
+                    let constants = Constants(
+                        matrices[i].clone(),
+                        (colour.r as u32)
+                            | (colour.g as u32) << 8
+                            | (colour.b as u32) << 16
+                            | (colour.a as u32) << 24,
+                    );
                     let pipeline = item.get_pipeline();
                     //dbg!(((constants.1 >> 0) & 0xFF, (constants.1 >> 8) & 0xFF, (constants.1 >> 16) & 0xFF, (constants.1 >> 24) & 0xFF));
                     builder
