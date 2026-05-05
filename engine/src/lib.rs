@@ -58,7 +58,7 @@ use winit::{
 };
 
 use crate::{
-    drw::drawable::{Children, DrawableGPU},
+    drw::drawable::{Children, DrawableComponent, DrawableGPU},
     geom::matrix::Transform,
     mv::{
         phys::movement::{PhysicsContext, PhysicsSpace},
@@ -889,12 +889,12 @@ where
                     .children
                     .drawables
                     .iter()
-                    .map(|d| d.as_ref() as &dyn DrawableGPU)
+                    .map(|d| d.as_ref() as &dyn DrawableComponent)
                     .chain(
                         self.children
                             .physics_drawables
                             .iter()
-                            .map(|pd| pd.as_ref() as &dyn DrawableGPU),
+                            .map(|pd| pd.as_ref() as &dyn DrawableComponent),
                     );
 
                 all_items.enumerate().for_each(|(i, item)| {

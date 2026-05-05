@@ -35,7 +35,7 @@ fn main() -> Result<(), impl std::error::Error> {
                 ch.add_drawable(Drawable::from_shape(
                     snake_engine::geom::shapes::Shapes::Circle([0.1, 0.1]),
                     DrawableCreateInfo {
-                        size: Vec2::new(0.0, 0.0), // WARNING: Now this field is not used in engine
+                        size: Vec2::new(0.0, 0.0),
                         color: Rgba8 { r, g, b, a: 255 },
                         id: ch.physics_drawables.len() as u32 + ch.drawables.len() as u32 + 1,
                         cache: cache_clone.clone(),

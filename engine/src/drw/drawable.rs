@@ -36,7 +36,7 @@ pub struct DrawableCreateInfo {
 pub struct Children {
     // I think iterations through Vector with Box is very slowly operation, but I dont know how I to
     // make this faster
-    pub drawables: Vec<Box<dyn DrawableGPU>>,
+    pub drawables: Vec<Box<dyn DrawableComponent>>,
     pub physics_drawables: Vec<Box<dyn Entity>>,
 }
 
@@ -52,7 +52,7 @@ impl Children {
         self.physics_drawables.push(Box::new(item));
     }
 
-    pub fn add_drawable<T: DrawableGPU + 'static>(&mut self, item: T) {
+    pub fn add_drawable<T: DrawableComponent + 'static>(&mut self, item: T) {
         self.drawables.push(Box::new(item));
     }
 }
@@ -69,20 +69,29 @@ pub struct PhysicsDrawable {
     drawable: Drawable,
 }
 
-pub trait DrawableGPU {
+pub(crate) trait DrawableGPU {
     fn set_vertex(&mut self, vertex: Vec<MyVertex>);
-    fn get_transform(&self) -> &Transform;
-    fn get_transform_clone(&self) -> Transform;
     fn get_vertex_clone(&self) -> Vec<MyVertex>;
     fn get_vertex(&self) -> &Vec<MyVertex>;
-    fn set_transform(&mut self, transform: Transform);
-    fn drawable(&self) -> &Drawable;
-    fn drawable_mut(&mut self) -> &mut Drawable;
+    /// # Returns
+    /// Colour for shader
     fn get_colour(&self) -> &Rgba8;
     /// Get pipeline clone
     /// # Returns
     /// Pipeline clone
     fn get_pipeline(&self) -> Arc<GraphicsPipeline>;
+}
+
+pub trait DrawableComponent: DrawableGPU {
+    fn get_transform(&self) -> &Transform;
+    fn get_transform_clone(&self) -> Transform;
+    fn set_transform(&mut self, transform: Transform);
+    /// # Returns
+    /// Reference to drawable
+    fn drawable(&self) -> &Drawable;
+    /// # Returns
+    /// Mutable drawable
+    fn drawable_mut(&mut self) -> &mut Drawable;
 }
 
 impl Mesh {
@@ -186,17 +195,10 @@ impl Drawable {
     }
 }
 
-impl DrawableGPU for Drawable {
+impl DrawableGPU for Drawable
+{
     fn set_vertex(&mut self, vertex: Vec<MyVertex>) {
         self.mesh.vertex = vertex;
-    }
-
-    fn get_transform(&self) -> &Transform {
-        &self.transform
-    }
-
-    fn get_transform_clone(&self) -> Transform {
-        self.transform.clone() // TODO: This method not the best, but idk what function I need instead of this 
     }
 
     fn get_vertex_clone(&self) -> Vec<MyVertex> {
@@ -205,6 +207,24 @@ impl DrawableGPU for Drawable {
 
     fn get_vertex(&self) -> &Vec<MyVertex> {
         &self.mesh.vertex
+    }
+
+    fn get_colour(&self) -> &Rgba8 {
+        &self.color
+    }
+
+    fn get_pipeline(&self) -> Arc<GraphicsPipeline> {
+        self.mesh.pipeline.clone()
+    }
+}
+
+impl DrawableComponent for Drawable {
+    fn get_transform(&self) -> &Transform {
+        &self.transform
+    }
+
+    fn get_transform_clone(&self) -> Transform {
+        self.transform.clone() // TODO: This method not the best, but idk what function I need instead of this 
     }
 
     fn set_transform(&mut self, transform: Transform) {
@@ -218,27 +238,12 @@ impl DrawableGPU for Drawable {
     fn drawable_mut(&mut self) -> &mut Drawable {
         self
     }
-
-    fn get_colour(&self) -> &Rgba8 {
-        &self.color
-    }
-
-    fn get_pipeline(&self) -> Arc<GraphicsPipeline> {
-        self.mesh.pipeline.clone()
-    }
 }
 
-impl DrawableGPU for PhysicsDrawable {
+impl DrawableGPU for PhysicsDrawable 
+{
     fn set_vertex(&mut self, vertex: Vec<MyVertex>) {
         self.drawable.set_vertex(vertex);
-    }
-
-    fn get_transform(&self) -> &Transform {
-        self.drawable.get_transform()
-    }
-
-    fn get_transform_clone(&self) -> Transform {
-        self.drawable.get_transform_clone()
     }
 
     fn get_vertex_clone(&self) -> Vec<MyVertex> {
@@ -247,6 +252,24 @@ impl DrawableGPU for PhysicsDrawable {
 
     fn get_vertex(&self) -> &Vec<MyVertex> {
         self.drawable.get_vertex()
+    }
+
+    fn get_colour(&self) -> &Rgba8 {
+        &self.drawable.color
+    }
+
+    fn get_pipeline(&self) -> Arc<GraphicsPipeline> {
+        self.get_drawable().get_pipeline()
+    }
+}
+
+impl DrawableComponent for PhysicsDrawable {
+    fn get_transform(&self) -> &Transform {
+        self.drawable.get_transform()
+    }
+
+    fn get_transform_clone(&self) -> Transform {
+        self.drawable.get_transform_clone()
     }
 
     fn set_transform(&mut self, transform: Transform) {
@@ -259,14 +282,6 @@ impl DrawableGPU for PhysicsDrawable {
 
     fn drawable_mut(&mut self) -> &mut Drawable {
         self.get_mut_drawable()
-    }
-
-    fn get_colour(&self) -> &Rgba8 {
-        &self.drawable.color
-    }
-
-    fn get_pipeline(&self) -> Arc<GraphicsPipeline> {
-        self.get_drawable().get_pipeline()
     }
 }
 
