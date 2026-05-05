@@ -10,7 +10,7 @@ use rapier2d::{
 };
 use std::{
     ops::RangeInclusive,
-    sync::{Arc, RwLock},
+    sync::Arc,
 };
 use tracing::debug;
 use vulkano::{
@@ -34,7 +34,7 @@ use vulkano::{
         graphics::{
             GraphicsPipelineCreateInfo,
             color_blend::{ColorBlendAttachmentState, ColorBlendState},
-            input_assembly::InputAssemblyState,
+            input_assembly::{InputAssemblyState, PrimitiveTopology},
             multisample::MultisampleState,
             rasterization::RasterizationState,
             vertex_input::{Vertex, VertexDefinition},
@@ -687,7 +687,7 @@ where
                     stages: stages.into_iter().collect(),
                     vertex_input_state: Some(vertex_input_state),
                     input_assembly_state: Some(InputAssemblyState {
-                        topology: vulkano::pipeline::graphics::input_assembly::PrimitiveTopology::TriangleFan,
+                        topology: PrimitiveTopology::TriangleFan,
                         ..Default::default()
                     }),
                     viewport_state: Some(ViewportState::default()),
@@ -901,23 +901,29 @@ where
                     let colour = item.get_colour().clone();
                     let constants = Constants(
                         matrices[i].clone(),
+                        rcx.window.inner_size().into(),
                         (colour.r as u32)
                             | (colour.g as u32) << 8
                             | (colour.b as u32) << 16
                             | (colour.a as u32) << 24, 
-                        rcx.window.inner_size().into()
+                        200
                     );
                     let pipeline = item.get_pipeline();
-                    //dbg!(size_of::<Constants>());
-                    //dbg!(((constants.1 >> 0) & 0xFF, (constants.1 >> 8) & 0xFF, (constants.1 >> 16) & 0xFF, (constants.1 >> 24) & 0xFF));
-                    builder
-                        .bind_pipeline_graphics(pipeline.clone())
-                        .unwrap()
-                        .push_constants(pipeline.layout().clone(), 0, constants)
-                        .unwrap();
+                    let layout = pipeline.layout();
+                    if !layout.push_constant_ranges().is_empty(){
+                        //dbg!(size_of::<Constants>());
+                        //dbg!(((constants.1 >> 0) & 0xFF, (constants.1 >> 8) & 0xFF, (constants.1 >> 16) & 0xFF, (constants.1 >> 24) & 0xFF));
+                        builder
+                            .push_constants(pipeline.layout().clone(), 0, constants)
+                            .unwrap();
+                    }
 
                     let vertex_cursor = offsets[i] as u32;
                     let vertex_count = item.get_vertex().len() as u32;
+
+                    builder
+                        .bind_pipeline_graphics(pipeline.clone())
+                        .unwrap();
 
                     unsafe {
                         builder.draw(vertex_count, 1, vertex_cursor, 0).unwrap();
@@ -995,7 +1001,7 @@ pub struct MyVertex {
 
 #[derive(BufferContents, Clone, Copy, Debug)]
 #[repr(C)]
-struct Constants(Transform, u32, [f32; 2]);
+struct Constants(Transform, [f32; 2], u32, u32);
 
 fn window_size_dependent_setup(
     images: &[Arc<Image>],

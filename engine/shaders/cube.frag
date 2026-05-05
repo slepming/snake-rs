@@ -9,6 +9,7 @@ layout(push_constant) uniform Constants { // TODO: in the future I must move rgb
     Transform transform;
     vec2 u_resolution;
     uint rgba;
+    uint padding;
 } pc;
 
 void main() {

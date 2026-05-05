@@ -9,6 +9,7 @@ layout(push_constant) uniform Constants {
     Transform transform;
     vec2 u_resolution;
     uint rgba;
+    uint padding;
 } pc;
 
 layout(location = 0) out vec2 st;

@@ -11,25 +11,31 @@ layout(push_constant) uniform Constants {
     Transform transform;
     vec2 u_resolution;
     uint rgba;
+    uint padding;
 } pc;
 
-void main() {
-    vec2 st = st;
+void circle()
+{
+    vec2 corr_st = st;
     float aspect = pc.u_resolution.x / pc.u_resolution.y;
-    st.x *= aspect;
+    corr_st.x *= aspect;
 
     vec2 center = vec2(0.0);
-    float radius = 0.5;
-    float thickness = 0.02;
+    float radius = 0.05;
+    float thickness = 0.005;
 
-    float d = distance(st, center);
+    float d = distance(corr_st, center);
 
     float mask = smoothstep(radius, radius - thickness, d);
 
-    vec3 circleColor = vec3(0.2, 0.6, 1.0);
-    vec3 backgroundColor = vec3(1.0);
+    vec4 circleColor = vec4(1.0, 0.5, 0.0, 1.0);
+    vec4 backgroundColor = aspect < 5 ? vec4(1.0, 0.1, 0.1, 1.0) : vec4(0.1, 0.1, 0.1, 1.0);
 
-    vec3 finalColor = mix(backgroundColor, circleColor, mask);
+    vec4 finalColor = mix(backgroundColor, circleColor, mask);
 
-    outColor = vec4(finalColor, 1.0);
+    outColor = finalColor;
+}
+
+void main() {
+    circle();
 }
