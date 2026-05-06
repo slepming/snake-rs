@@ -11,22 +11,15 @@ use rapier2d::{
 use std::{ops::RangeInclusive, sync::Arc};
 use tracing::debug;
 use vulkano::{
-    Validated, VulkanError, VulkanLibrary,
-    buffer::{Buffer, BufferContents, BufferCreateInfo, BufferUsage, Subbuffer},
-    command_buffer::{
+    Validated, VulkanError, VulkanLibrary, buffer::{Buffer, BufferContents, BufferCreateInfo, BufferUsage, Subbuffer}, command_buffer::{
         AutoCommandBufferBuilder, CommandBufferUsage, RenderPassBeginInfo, SubpassBeginInfo,
         SubpassContents, allocator::StandardCommandBufferAllocator,
-    },
-    device::{
+    }, descriptor_set::{DescriptorSet, WriteDescriptorSet, allocator::StandardDescriptorSetAllocator}, device::{
         Device, DeviceCreateInfo, DeviceExtensions, Queue, QueueCreateInfo, QueueFlags,
         physical::PhysicalDeviceType,
-    },
-    image::{Image, ImageUsage, view::ImageView},
-    instance::{Instance, InstanceCreateFlags, InstanceCreateInfo, InstanceExtensions},
-    memory::allocator::{
+    }, image::{Image, ImageUsage, view::ImageView}, instance::{Instance, InstanceCreateFlags, InstanceCreateInfo, InstanceExtensions}, memory::allocator::{
         AllocationCreateInfo, MemoryAllocator, MemoryTypeFilter, StandardMemoryAllocator,
-    },
-    pipeline::{
+    }, pipeline::{
         DynamicState, GraphicsPipeline, Pipeline, PipelineLayout, PipelineShaderStageCreateInfo,
         graphics::{
             GraphicsPipelineCreateInfo,
@@ -38,12 +31,9 @@ use vulkano::{
             viewport::{Viewport, ViewportState},
         },
         layout::PipelineDescriptorSetLayoutCreateInfo,
-    },
-    render_pass::{Framebuffer, FramebufferCreateInfo, RenderPass, Subpass},
-    swapchain::{
+    }, render_pass::{Framebuffer, FramebufferCreateInfo, RenderPass, Subpass}, swapchain::{
         Surface, Swapchain, SwapchainCreateInfo, SwapchainPresentInfo, acquire_next_image,
-    },
-    sync::{self, GpuFuture},
+    }, sync::{self, GpuFuture}
 };
 use winit::{
     application::ApplicationHandler,
@@ -101,6 +91,7 @@ where
 struct EngineMemory {
     command_buffer_allocator: Arc<StandardCommandBufferAllocator>,
     memory_allocator: Arc<StandardMemoryAllocator>,
+    descriptor_allocator: Arc<StandardDescriptorSetAllocator>
 }
 
 impl EngineMemory {
@@ -114,7 +105,9 @@ impl EngineMemory {
             device.clone(),
             Default::default(),
         ));
+        let descriptor_set_allocator = Arc::new(StandardDescriptorSetAllocator::new(device.clone(), Default::default()));
         EngineMemory {
+            descriptor_allocator: descriptor_set_allocator,
             command_buffer_allocator,
             memory_allocator,
         }
@@ -680,7 +673,7 @@ where
 
             let subpass = Subpass::from(render_pass.clone(), 0).unwrap();
 
-            GraphicsPipeline::new(
+            let pipeline = GraphicsPipeline::new(
                 self.device.clone(),
                 None,
                 GraphicsPipelineCreateInfo {
@@ -702,7 +695,8 @@ where
                     ..GraphicsPipelineCreateInfo::layout(layout.clone())
                 },
             )
-            .unwrap()
+            .unwrap();
+            pipeline
         };
 
         self.cache.insert_pipeline("circle", circle_pipeline);

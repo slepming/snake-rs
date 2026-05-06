@@ -25,7 +25,7 @@ pub(crate) trait PipelineHandle {
         &self,
         key: &'static str,
         pipeline: Arc<GraphicsPipeline>,
-    ) -> Option<Arc<GraphicsPipeline>>;
+    ) -> &Self;
 }
 
 impl PipelineHandle for Cache {
@@ -37,7 +37,32 @@ impl PipelineHandle for Cache {
         &self,
         key: &'static str,
         pipeline: Arc<GraphicsPipeline>,
-    ) -> Option<Arc<GraphicsPipeline>> {
-        self.pipelines.write().unwrap().insert(key, pipeline)
+    ) -> &Self {
+        self.pipelines.write().unwrap().insert(key, pipeline);
+        self
+    }
+}
+
+pub(crate) trait DescriptorHandle {
+    fn get_descriptor(&self, key: &'static str) -> Option<Arc<DescriptorSet>>;
+    fn insert_descriptor_set(
+        &self,
+        key: &'static str,
+        descriptor_set: Arc<DescriptorSet>,
+    ) -> &Self;
+}
+
+impl DescriptorHandle for Cache {
+    fn get_descriptor(&self, key: &'static str) -> Option<Arc<DescriptorSet>> {
+        self.descriptors.read().unwrap().get(key).cloned()
+    }
+
+    fn insert_descriptor_set(
+        &self,
+        key: &'static str,
+        descriptor: Arc<DescriptorSet>,
+    ) -> &Self {
+        self.descriptors.write().unwrap().insert(key, descriptor);
+        self
     }
 }
