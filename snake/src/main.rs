@@ -10,14 +10,10 @@ use snake_engine::{
     res::cache::Cache,
 };
 use winit::{
-    dpi::{PhysicalSize, Size},
     event::{ElementState, WindowEvent},
     event_loop::{ActiveEventLoop, EventLoop},
     keyboard::{Key, NamedKey},
-    platform::{
-        modifier_supplement::KeyEventExtModifierSupplement, wayland::WindowAttributesExtWayland,
-    },
-    window::{Fullscreen, Window},
+    platform::modifier_supplement::KeyEventExtModifierSupplement,
 };
 
 const OBJECTS_COUNT: u32 = 1;

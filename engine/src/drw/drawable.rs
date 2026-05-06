@@ -21,8 +21,22 @@ use color::Rgba8;
 pub struct Drawable {
     transform: Transform,
     color: Rgba8,
-    mesh: Mesh,
     cache: Arc<Cache>,
+    pub(crate) render: RenderContext,
+}
+
+pub(crate) struct PipelineID {
+    id: &'static str,
+}
+
+pub(crate) struct DescriptorID {
+    id: &'static str,
+}
+
+pub(crate) struct RenderContext {
+    descriptor_id: DescriptorID,
+    pipeline_id: PipelineID,
+    mesh: Mesh,
 }
 
 pub struct DrawableCreateInfo {
@@ -35,7 +49,7 @@ pub struct DrawableCreateInfo {
 
 pub struct Children {
     // I think iterations through Vector with Box is very slowly operation, but I dont know how I to
-    // make this faster
+    // make this faster. And I must replace Box reference.
     pub drawables: Vec<Box<dyn DrawableComponent>>,
     pub physics_drawables: Vec<Box<dyn Entity>>,
 }
@@ -59,7 +73,6 @@ impl Children {
 
 pub struct Mesh {
     vertex: Vec<MyVertex>,
-    pipeline: Arc<GraphicsPipeline>,
     /// ID need for find matrix in buffer
     id: u32,
 }
@@ -82,6 +95,7 @@ pub(crate) trait DrawableGPU {
     fn get_pipeline(&self) -> Arc<GraphicsPipeline>;
 }
 
+// TODO: Remove DrawableGPU trait.
 pub trait DrawableComponent: DrawableGPU {
     fn get_transform(&self) -> &Transform;
     fn get_transform_clone(&self) -> Transform;
@@ -95,12 +109,8 @@ pub trait DrawableComponent: DrawableGPU {
 }
 
 impl Mesh {
-    pub fn new(ver: Vec<MyVertex>, id: u32, pipeline: Arc<GraphicsPipeline>) -> Self {
-        Mesh {
-            vertex: ver,
-            pipeline,
-            id,
-        }
+    pub fn new(ver: Vec<MyVertex>, id: u32) -> Self {
+        Mesh { vertex: ver, id }
     }
 
     pub fn get_id(&self) -> &u32 {
@@ -127,14 +137,6 @@ impl Drawable {
         };
 
         Drawable {
-            mesh: Mesh::new(
-                vertex,
-                id,
-                cache
-                    .clone()
-                    .get_pipeline(key)
-                    .expect("pipeline cache haven't this shader"),
-            ),
             color: Rgba8 {
                 r: 0,
                 g: 0,
@@ -143,6 +145,11 @@ impl Drawable {
             },
             transform,
             cache,
+            render: RenderContext {
+                descriptor_id: DescriptorID { id: key },
+                pipeline_id: PipelineID { id: key },
+                mesh: Mesh::new(vertex, id),
+            },
         }
     }
 
@@ -165,19 +172,14 @@ impl Drawable {
         };
 
         Drawable {
-            mesh: Mesh::new(
-                vertex,
-                id,
-                cache
-                    .clone()
-                    .get_pipeline(key)
-                    .expect("pipeline cache haven't this shader"),
-            ), // TODO: in the future I
-            // must add custom
-            // pipelines
             color,
             transform,
             cache,
+            render: RenderContext {
+                descriptor_id: DescriptorID { id: key },
+                pipeline_id: PipelineID { id: key },
+                mesh: Mesh::new(vertex, id),
+            },
         }
     }
 
@@ -195,18 +197,17 @@ impl Drawable {
     }
 }
 
-impl DrawableGPU for Drawable
-{
+impl DrawableGPU for Drawable {
     fn set_vertex(&mut self, vertex: Vec<MyVertex>) {
-        self.mesh.vertex = vertex;
+        self.render.mesh.vertex = vertex;
     }
 
     fn get_vertex_clone(&self) -> Vec<MyVertex> {
-        self.mesh.vertex.clone()
+        self.render.mesh.vertex.clone()
     }
 
     fn get_vertex(&self) -> &Vec<MyVertex> {
-        &self.mesh.vertex
+        &self.render.mesh.vertex
     }
 
     fn get_colour(&self) -> &Rgba8 {
@@ -214,7 +215,7 @@ impl DrawableGPU for Drawable
     }
 
     fn get_pipeline(&self) -> Arc<GraphicsPipeline> {
-        self.mesh.pipeline.clone()
+        self.cache.get_pipeline(self.render.pipeline_id.id).unwrap()
     }
 }
 
@@ -240,8 +241,7 @@ impl DrawableComponent for Drawable {
     }
 }
 
-impl DrawableGPU for PhysicsDrawable 
-{
+impl DrawableGPU for PhysicsDrawable {
     fn set_vertex(&mut self, vertex: Vec<MyVertex>) {
         self.drawable.set_vertex(vertex);
     }

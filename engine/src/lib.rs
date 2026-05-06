@@ -8,10 +8,7 @@ use rapier2d::{
     math::Vec2,
     prelude::{ColliderSet, RigidBodySet},
 };
-use std::{
-    ops::RangeInclusive,
-    sync::Arc,
-};
+use std::{ops::RangeInclusive, sync::Arc};
 use tracing::debug;
 use vulkano::{
     Validated, VulkanError, VulkanLibrary,
@@ -65,7 +62,10 @@ use crate::{
         transform::Position,
     },
     res::cache::{Cache, PipelineHandle},
-    shaders::{circle_shader::{circle_fs, circle_vs}, cube_shader::{cube_fs, cube_vs}},
+    shaders::{
+        circle_shader::{circle_fs, circle_vs},
+        cube_shader::{cube_fs, cube_vs},
+    },
 };
 
 pub mod drw;
@@ -905,12 +905,11 @@ where
                         (colour.r as u32)
                             | (colour.g as u32) << 8
                             | (colour.b as u32) << 16
-                            | (colour.a as u32) << 24, 
-                        200
+                            | (colour.a as u32) << 24,
                     );
                     let pipeline = item.get_pipeline();
                     let layout = pipeline.layout();
-                    if !layout.push_constant_ranges().is_empty(){
+                    if !layout.push_constant_ranges().is_empty() {
                         //dbg!(size_of::<Constants>());
                         //dbg!(((constants.1 >> 0) & 0xFF, (constants.1 >> 8) & 0xFF, (constants.1 >> 16) & 0xFF, (constants.1 >> 24) & 0xFF));
                         builder
@@ -921,9 +920,7 @@ where
                     let vertex_cursor = offsets[i] as u32;
                     let vertex_count = item.get_vertex().len() as u32;
 
-                    builder
-                        .bind_pipeline_graphics(pipeline.clone())
-                        .unwrap();
+                    builder.bind_pipeline_graphics(pipeline.clone()).unwrap();
 
                     unsafe {
                         builder.draw(vertex_count, 1, vertex_cursor, 0).unwrap();
@@ -1001,7 +998,7 @@ pub struct MyVertex {
 
 #[derive(BufferContents, Clone, Copy, Debug)]
 #[repr(C)]
-struct Constants(Transform, [f32; 2], u32, u32);
+struct Constants(Transform, [f32; 2], u32);
 
 fn window_size_dependent_setup(
     images: &[Arc<Image>],

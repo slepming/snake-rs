@@ -5,7 +5,7 @@ use crate::MyVertex;
 #[derive(IntoStaticStr, Clone, Copy)]
 pub enum Shapes {
     Square([f32; 2]),
-    Circle([f32; 2])
+    Circle([f32; 2]),
 }
 
 pub fn get_vertex_from_shapes(shape: Shapes) -> Vec<MyVertex> {

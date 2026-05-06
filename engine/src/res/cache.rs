@@ -3,16 +3,18 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-use vulkano::pipeline::GraphicsPipeline;
+use vulkano::{descriptor_set::DescriptorSet, pipeline::GraphicsPipeline};
 
 pub struct Cache {
     pipelines: RwLock<HashMap<&'static str, Arc<GraphicsPipeline>>>,
+    descriptors: RwLock<HashMap<&'static str, Arc<DescriptorSet>>>,
 }
 
 impl Cache {
     pub fn new() -> Self {
         Self {
             pipelines: RwLock::new(HashMap::new()),
+            descriptors: RwLock::new(HashMap::new()),
         }
     }
 }
