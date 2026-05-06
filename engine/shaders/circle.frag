@@ -11,8 +11,12 @@ layout(push_constant) uniform Constants {
     Transform transform;
     vec2 u_resolution;
     uint rgba;
-    uint padding;
 } pc;
+
+layout(set = 0, binding = 0) uniform CircleData {
+    float radius;
+    float thickness;
+} data;
 
 void circle()
 {
@@ -21,15 +25,15 @@ void circle()
     corr_st.x *= aspect;
 
     vec2 center = vec2(0.0);
-    float radius = 0.05;
-    float thickness = 0.005;
+    float radius = data.radius;
+    float thickness = data.thickness;
 
     float d = distance(corr_st, center);
 
     float mask = smoothstep(radius, radius - thickness, d);
 
     vec4 circleColor = vec4(1.0, 0.5, 0.0, 1.0);
-    vec4 backgroundColor = aspect < 5 ? vec4(1.0, 0.1, 0.1, 1.0) : vec4(0.1, 0.1, 0.1, 1.0);
+    vec4 backgroundColor = vec4(0.0);
 
     vec4 finalColor = mix(backgroundColor, circleColor, mask);
 
