@@ -31,8 +31,12 @@ void circle()
     float d = distance(corr_st, center);
 
     float mask = smoothstep(radius, radius - thickness, d);
+    float r = ((pc.rgba >> 0) & 0xFF) / 255.0;
+    float g = ((pc.rgba >> 8) & 0xFF) / 255.0;
+    float b = ((pc.rgba >> 16) & 0xFF) / 255.0;
+    float a = ((pc.rgba >> 24) & 0xFF) / 255.0;
+    vec4 circleColor = vec4(r, g, b, a);
 
-    vec4 circleColor = vec4(1.0, 0.5, 0.0, 1.0);
     vec4 backgroundColor = vec4(0.0);
 
     vec4 finalColor = mix(backgroundColor, circleColor, mask);

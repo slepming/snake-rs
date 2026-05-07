@@ -4,37 +4,41 @@ use rapier2d::{
     math::Vec2,
     prelude::{RigidBody, RigidBodyHandle},
 };
-use vulkano::pipeline::GraphicsPipeline;
+use vulkano::pipeline::{GraphicsPipeline, Pipeline};
 
 use crate::{
     MyVertex,
     geom::{
         matrix::Transform,
-        shapes::{Shapes, get_vertex_from_shapes},
+        shapes::Shapes,
     },
     mv::{phys::movement::PhysicsContext, transform::Entity},
     res::cache::{Cache, PipelineHandle},
 };
 
 use color::Rgba8;
+use vulkano::descriptor_set::DescriptorSet;
+use crate::res::cache::DescriptorHandle;
+
+
 
 pub struct Drawable {
     transform: Transform,
     color: Rgba8,
-    cache: Arc<Cache>,
-    pub(crate) render: RenderContext,
+    pub(crate) cache: Arc<Cache>,
+    pub(crate) render: DrawableRenderContext,
 }
 
 pub(crate) struct PipelineID {
-    id: &'static str,
+    pub id: String,
 }
 
 pub(crate) struct DescriptorID {
-    id: &'static str,
+    pub id: String,
 }
 
-pub(crate) struct RenderContext {
-    descriptor_id: DescriptorID,
+pub(crate) struct DrawableRenderContext {
+    pub(crate) descriptor_id: DescriptorID,
     pipeline_id: PipelineID,
     mesh: Mesh,
 }
@@ -145,9 +149,9 @@ impl Drawable {
             },
             transform,
             cache,
-            render: RenderContext {
-                descriptor_id: DescriptorID { id: key },
-                pipeline_id: PipelineID { id: key },
+            render: DrawableRenderContext {
+                descriptor_id: DescriptorID { id: key.to_string() },
+                pipeline_id: PipelineID { id: key.to_string() },
                 mesh: Mesh::new(vertex, id),
             },
         }
@@ -160,6 +164,7 @@ impl Drawable {
         cache: Arc<Cache>,
         key: &'static str,
         position: Option<Vec2>,
+        descriptor_set: Option<Arc<DescriptorSet>>,
     ) -> Self {
         let pos = position.unwrap_or(Vec2::new(1.0, 1.0));
         let transform = Transform {
@@ -171,28 +176,38 @@ impl Drawable {
             ],
         };
 
-        Drawable {
+        let mut drawable = Drawable {
             color,
             transform,
-            cache,
-            render: RenderContext {
-                descriptor_id: DescriptorID { id: key },
-                pipeline_id: PipelineID { id: key },
+            cache: cache.clone(),
+            render: DrawableRenderContext {
+                descriptor_id: DescriptorID { id: key.to_string() },
+                pipeline_id: PipelineID { id: key.to_string() },
                 mesh: Mesh::new(vertex, id),
             },
+        };
+
+        if let Some(desc) = descriptor_set {
+            let desc_key = format!("{}_{}", key, id);
+            cache.insert_descriptor_set(desc_key.clone(), desc);
+            drawable.render.descriptor_id.id = desc_key;
         }
+
+        drawable
     }
 
     pub fn from_shape(shape: Shapes, drw: DrawableCreateInfo) -> Self {
         let pipeline: &'static str = shape.into();
         let p = Box::leak(pipeline.to_lowercase().into_boxed_str()); // Potential memory leak
+        let (vertex, desc) = shape.get_vertex_and_descriptor(&drw.cache);
         Drawable::new_with_color(
-            get_vertex_from_shapes(shape.clone()),
+            vertex,
             drw.color,
             drw.id,
             drw.cache,
             p,
             drw.position,
+            desc,
         )
     }
 }
@@ -215,7 +230,7 @@ impl DrawableGPU for Drawable {
     }
 
     fn get_pipeline(&self) -> Arc<GraphicsPipeline> {
-        self.cache.get_pipeline(self.render.pipeline_id.id).unwrap()
+        self.cache.get_pipeline(&self.render.pipeline_id.id).unwrap()
     }
 }
 

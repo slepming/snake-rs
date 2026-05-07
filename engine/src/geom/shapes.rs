@@ -1,6 +1,20 @@
+use std::sync::Arc;
 use strum::IntoStaticStr;
+use tracing::warn;
+use vulkano::buffer::{Buffer, BufferCreateInfo, BufferUsage};
+use vulkano::memory::allocator::{AllocationCreateInfo, MemoryTypeFilter};
+use vulkano::descriptor_set::{DescriptorSet, WriteDescriptorSet};
+use vulkano::pipeline::Pipeline;
 
 use crate::MyVertex;
+use crate::res::cache::{Cache, PipelineHandle};
+
+#[derive(vulkano::buffer::BufferContents, Clone, Copy)]
+#[repr(C)]
+pub struct CircleData {
+    pub radius: f32,
+    pub thickness: f32,
+}
 
 #[derive(IntoStaticStr, Clone, Copy)]
 pub enum Shapes {
@@ -8,39 +22,60 @@ pub enum Shapes {
     Circle([f32; 2]),
 }
 
-pub fn get_vertex_from_shapes(shape: Shapes) -> Vec<MyVertex> {
-    match shape {
-        Shapes::Square(size) => {
-            vec![
-                MyVertex {
-                    position: [-size[0], -size[1]], // x0 -> y0
-                },
-                MyVertex {
-                    position: [size[0], -size[1]], // x1 -> y0
-                },
-                MyVertex {
-                    position: [size[0], size[1]], // x1 -> y1
-                },
-                MyVertex {
-                    position: [-size[0], size[1]], // x0 -> y1
-                },
-            ]
-        }
-        Shapes::Circle(size) => {
-            vec![
-                MyVertex {
-                    position: [-size[0], -size[1]], // x0 -> y0
-                },
-                MyVertex {
-                    position: [size[0], -size[1]], // x1 -> y0
-                },
-                MyVertex {
-                    position: [size[0], size[1]], // x1 -> y1
-                },
-                MyVertex {
-                    position: [-size[0], size[1]], // x0 -> y1
-                },
-            ]
+impl Shapes {
+    pub fn get_vertex_and_descriptor(
+        &self,
+        cache: &Arc<Cache>,
+    ) -> (Vec<MyVertex>, Option<Arc<DescriptorSet>>) {
+        match self {
+            Shapes::Square(size) => {
+                let verts = vec![
+                    MyVertex { position: [-size[0], -size[1]] },
+                    MyVertex { position: [size[0], -size[1]] },
+                    MyVertex { position: [size[0], size[1]] },
+                    MyVertex { position: [-size[0], size[1]] },
+                ];
+                (verts, None)
+            }
+            Shapes::Circle(size) => {
+                let verts = vec![
+                    MyVertex { position: [-size[0], -size[1]] },
+                    MyVertex { position: [size[0], -size[1]] },
+                    MyVertex { position: [size[0], size[1]] },
+                    MyVertex { position: [-size[0], size[1]] },
+                ];
+
+                let memory_allocator = cache.memory_allocator.as_ref().unwrap();
+                let descriptor_allocator = cache.descriptor_allocator.as_ref().unwrap();
+                let pipeline = cache.get_pipeline("circle").unwrap();
+                
+                let buffer = Buffer::from_data(
+                    memory_allocator.clone(),
+                    BufferCreateInfo {
+                        usage: BufferUsage::UNIFORM_BUFFER,
+                        ..Default::default()
+                    },
+                    AllocationCreateInfo {
+                        memory_type_filter: MemoryTypeFilter::PREFER_DEVICE | MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
+                        ..Default::default()
+                    },
+                    CircleData { radius: 0.05, thickness: 0.001 },
+                ).unwrap();
+
+                let layout = pipeline.layout().set_layouts().get(0).unwrap().clone();
+                if layout.bindings().is_empty() {
+                    warn!("Pipeline 'circle' has no bindings. Did you forget to compile shaders?");
+                }
+                
+                let descriptor_set = DescriptorSet::new(
+                    descriptor_allocator.clone(),
+                    layout,
+                    [WriteDescriptorSet::buffer(0, buffer)],
+                    [],
+                ).unwrap();
+
+                (verts, Some(descriptor_set))
+            }
         }
     }
 }

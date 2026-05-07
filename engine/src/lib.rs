@@ -1,7 +1,5 @@
 // TODO:
-// * Dependency container for get data from anywhere
 // * Translate matrix from physics matrix to vulkan matrix at the Drawable level
-// * Create game storage for cache-files
 
 //use log::debug;
 use rapier2d::{
@@ -9,7 +7,7 @@ use rapier2d::{
     prelude::{ColliderSet, RigidBodySet},
 };
 use std::{ops::RangeInclusive, sync::Arc};
-use tracing::debug;
+use tracing::info;
 use vulkano::{
     Validated, VulkanError, VulkanLibrary, buffer::{Buffer, BufferContents, BufferCreateInfo, BufferUsage, Subbuffer}, command_buffer::{
         AutoCommandBufferBuilder, CommandBufferUsage, RenderPassBeginInfo, SubpassBeginInfo,
@@ -135,10 +133,10 @@ where
         #[cfg(feature = "tracing")]
         let _span = tracy_client::span!("Engine::new");
 
-        debug!("vulkan init");
+        info!("Initializing Vulkan library");
         let library = VulkanLibrary::new().unwrap();
 
-        debug!("creating extensions");
+        info!("Gathering required Vulkan extensions for windowing");
         // The first step of any Vulkan program is to create an instance.
         //
         // When we create an instance, we have to pass a list of extensions that we want to enable.
@@ -148,7 +146,7 @@ where
         // to a window.
         let required_extensions = Surface::required_extensions(event_loop).unwrap();
 
-        debug!("creating vulkan instance");
+        info!("Creating Vulkan instance");
         // Now creating the instance.
         let instance = Instance::new(
             library.clone(),
@@ -172,7 +170,7 @@ where
             ..DeviceExtensions::empty()
         };
 
-        debug!("choosing gpu for vulkan");
+        info!("Selecting physical device (GPU)");
         // We then choose which physical device to use. First, we enumerate all the available
         // physical devices, then apply filters to narrow them down to those that can support our
         // needs.
@@ -236,11 +234,11 @@ where
             })
             .expect("no suitable physical device found");
 
-        debug!(
-            "Using device: {:?} (type: {:?}); max push constant size: {}",
-            physical_device.properties().device_name,
-            physical_device.properties().device_type,
-            physical_device.properties().max_push_constants_size
+        info!(
+            device_name = ?physical_device.properties().device_name,
+            device_type = ?physical_device.properties().device_type,
+            max_push_constants_size = physical_device.properties().max_push_constants_size,
+            "Selected physical device"
         );
 
         // Now initializing the device. This is probably the most important object of Vulkan.
@@ -274,8 +272,9 @@ where
         let queue = queues.next().unwrap();
 
         let memory = EngineMemory::new(device.clone());
+        let cache = Arc::new(Cache::new(Some(memory.memory_allocator.clone()), Some(memory.descriptor_allocator.clone())));
 
-        debug!("physics initialization");
+        info!("Initializing physics context (RigidBodySet, ColliderSet, Space)");
 
         // Create physics
         let rbs = RigidBodySet::new();
@@ -294,7 +293,7 @@ where
             physics_context: ph_context,
             children: Children::new(),
             frames: 0,
-            cache: Arc::new(Cache::new()),
+            cache,
             start: start,
             redraw: redraw,
         }
@@ -386,7 +385,7 @@ where
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         #[cfg(feature = "tracing")]
         let _span = tracy_client::span!("Engine::resumed");
-        debug!("creating window");
+        info!("Creating window: snake-engine");
         // The objective of this example is to draw a triangle on a window. To do so, we first need
         // to create the window. We use the `WindowBuilder` from the `winit` crate to do that here.
         //
@@ -596,7 +595,6 @@ where
                     .unwrap(),
             )
             .unwrap();
-
             dbg!(&layout);
 
             // We have to indicate which subpass of which render pass this pipeline is going to be
@@ -668,8 +666,6 @@ where
                     .unwrap(),
             )
             .unwrap();
-
-            dbg!(&layout);
 
             let subpass = Subpass::from(render_pass.clone(), 0).unwrap();
 
@@ -808,6 +804,8 @@ where
                 //
                 // This function can block if no image is available. The parameter is an optional
                 // timeout after which the function call will return an error.
+                #[cfg(feature = "tracing")]
+                let span_acquire = tracy_client::span!("GPU: Acquire Next Image");
                 let (image_index, suboptimal, acquire_future) = match acquire_next_image(
                     rcx.swapchain.clone(),
                     None,
@@ -821,6 +819,8 @@ where
                     }
                     Err(e) => panic!("failed to acquire next image: {e}"),
                 };
+                #[cfg(feature = "tracing")]
+                drop(span_acquire);
 
                 // `acquire_next_image` can be successful, but suboptimal. This means that the
                 // swapchain image will still work, but it may not display correctly. With some
@@ -839,6 +839,8 @@ where
                 //
                 // Note that we have to pass a queue family when we create the command buffer. The
                 // command buffer will only be executable on that given queue family.
+                #[cfg(feature = "tracing")]
+                let span_cmd = tracy_client::span!("GPU: Record Command Buffer");
                 let mut builder = AutoCommandBufferBuilder::primary(
                     self.memory.command_buffer_allocator.clone(),
                     self.queue.queue_family_index(),
@@ -892,6 +894,8 @@ where
                     );
 
                 all_items.enumerate().for_each(|(i, item)| {
+                    #[cfg(feature = "tracing")]
+                    let _span_draw = tracy_client::span!("GPU: Draw Item");
                     let colour = item.get_colour().clone();
                     let constants = Constants(
                         matrices[i].clone(),
@@ -916,6 +920,16 @@ where
 
                     builder.bind_pipeline_graphics(pipeline.clone()).unwrap();
 
+                    use crate::res::cache::DescriptorHandle;
+                    if let Some(desc) = item.drawable().cache.get_descriptor(&item.drawable().render.descriptor_id.id) {
+                        builder.bind_descriptor_sets(
+                            vulkano::pipeline::PipelineBindPoint::Graphics,
+                            pipeline.layout().clone(),
+                            0,
+                            desc.clone(),
+                        ).unwrap();
+                    }
+
                     unsafe {
                         builder.draw(vertex_count, 1, vertex_cursor, 0).unwrap();
                     }
@@ -929,7 +943,11 @@ where
 
                 // Finish recording the command buffer by calling `end`.
                 let command_buffer = builder.build().unwrap();
+                #[cfg(feature = "tracing")]
+                drop(span_cmd);
 
+                #[cfg(feature = "tracing")]
+                let span_submit = tracy_client::span!("GPU: Submit & Present");
                 let future = rcx
                     .previous_frame_end
                     .take()
@@ -967,6 +985,8 @@ where
                         // previous_frame_end = Some(sync::now(&device).boxed());
                     }
                 }
+                #[cfg(feature = "tracing")]
+                drop(span_submit);
                 self.physics_context.step();
                 #[cfg(feature = "tracing")]
                 tracy_client::Client::running().unwrap().frame_mark();
