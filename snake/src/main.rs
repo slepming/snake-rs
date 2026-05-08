@@ -46,11 +46,13 @@ fn main() -> Result<(), impl std::error::Error> {
                     ch.add_drawable(Drawable::from_shape(
                         snake_engine::geom::shapes::Shapes::Circle(),
                         DrawableCreateInfo {
-                            size: Vec2::new(100.0, 100.0),
+                            size: Vec2::new(1000.0, 1000.0),
                             color: Rgba8 { r, g, b, a: 255 },
                             id: ch.physics_drawables.len() as u32 + ch.drawables.len() as u32 + 1,
                             cache: Some(cache_clone.clone()),
                             position: Some(Vec2::new(300.0 * i as f32, monitor_size.height as f32 / 2.0)),
+                            thickness: 0.5,
+                            radius: 1.0,
                             ..Default::default()
                         },
                     ));

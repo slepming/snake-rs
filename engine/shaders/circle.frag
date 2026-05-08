@@ -20,28 +20,23 @@ layout(set = 0, binding = 0) uniform CircleData {
 
 void circle()
 {
-    vec2 corr_st = st;
-    float aspect = pc.u_resolution.x / pc.u_resolution.y;
-    corr_st.x *= aspect;
+    float d = length(st);
 
-    vec2 center = vec2(0.0);
-    float radius = data.radius;
-    float thickness = data.thickness;
+    float mask = smoothstep(data.radius, data.radius - data.thickness, d);
 
-    float d = distance(corr_st, center);
+    if (mask <= 0.0) {
+        discard;
+    }
 
-    float mask = smoothstep(radius, radius - thickness, d);
     float r = ((pc.rgba >> 0) & 0xFF) / 255.0;
     float g = ((pc.rgba >> 8) & 0xFF) / 255.0;
     float b = ((pc.rgba >> 16) & 0xFF) / 255.0;
     float a = ((pc.rgba >> 24) & 0xFF) / 255.0;
+
     vec4 circleColor = vec4(r, g, b, a);
+    circleColor.a *= mask;
 
-    vec4 backgroundColor = vec4(0.0);
-
-    vec4 finalColor = mix(backgroundColor, circleColor, mask);
-
-    outColor = finalColor;
+    outColor = circleColor;
 }
 
 void main() {
