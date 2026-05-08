@@ -164,9 +164,9 @@ impl PhysicsContext {
             &mut self.rigid_body_set,
         );
         let drawable = Drawable::from_shape(
-            Shapes::Square(size.into()),
+            Shapes::Square(),
             crate::drw::drawable::DrawableCreateInfo {
-                cache,
+                cache: Some(cache),
                 position,
                 size,
                 id,
@@ -176,6 +176,7 @@ impl PhysicsContext {
                     b: 0,
                     a: 255,
                 },
+                ..Default::default()
             },
         );
         debug!(

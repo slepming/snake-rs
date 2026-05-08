@@ -1,4 +1,7 @@
 #version 450
+#extension GL_GOOGLE_include_directive : require
+
+#include "math.glsl"
 
 struct Transform {
     mat4 transform;
@@ -15,6 +18,7 @@ layout(location = 0) out vec2 st;
 
 void main()
 {
-    gl_Position = vec4(position, 0.0, 1.0);
+    mat4 matrix = pixelMatrixToNDC(pc.transform.transform, pc.u_resolution);
+    gl_Position = matrix * vec4(position, 0.0, 1.0);
     st = position;
 }

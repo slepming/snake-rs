@@ -16,7 +16,7 @@ use winit::{
     platform::modifier_supplement::KeyEventExtModifierSupplement,
 };
 
-const OBJECTS_COUNT: u32 = 1;
+const OBJECTS_COUNT: u32 = 5;
 
 fn main() -> Result<(), impl std::error::Error> {
     let event_loop = EventLoop::new().unwrap();
@@ -25,19 +25,36 @@ fn main() -> Result<(), impl std::error::Error> {
     let mut window =
         |e: &ActiveEventLoop, ch: &mut Children, _pc: &mut PhysicsContext, cache: Arc<Cache>| {
             let cache_clone = cache.clone();
+            let monitor_size = e.available_monitors().next().unwrap().size();
             for i in 0..OBJECTS_COUNT {
                 let (r, g, b) = (rng.random::<u8>(), rng.random::<u8>(), rng.random::<u8>());
                 //dbg!((r, g, b));
-                ch.add_drawable(Drawable::from_shape(
-                    snake_engine::geom::shapes::Shapes::Circle([0.1, 0.1]),
-                    DrawableCreateInfo {
-                        size: Vec2::new(0.0, 0.0),
-                        color: Rgba8 { r, g, b, a: 255 },
-                        id: ch.physics_drawables.len() as u32 + ch.drawables.len() as u32 + 1,
-                        cache: cache_clone.clone(),
-                        position: Some(Vec2::new(2.0 / i as f32, 0.0)),
-                    },
-                ));
+                if i % 2 == 0 {
+                    ch.add_drawable(Drawable::from_shape(
+                        snake_engine::geom::shapes::Shapes::Square(),
+                        DrawableCreateInfo {
+                            size: Vec2::new(100.0, 100.0),
+                            color: Rgba8 { r, g, b, a: 255 },
+                            id: ch.physics_drawables.len() as u32 + ch.drawables.len() as u32 + 1,
+                            cache: Some(cache_clone.clone()),
+                            position: Some(Vec2::new(300.0 * i as f32, monitor_size.height as f32 / 2.0)),
+                            ..Default::default()
+                        },
+                    ));
+                }
+                else {
+                    ch.add_drawable(Drawable::from_shape(
+                        snake_engine::geom::shapes::Shapes::Circle(),
+                        DrawableCreateInfo {
+                            size: Vec2::new(100.0, 100.0),
+                            color: Rgba8 { r, g, b, a: 255 },
+                            id: ch.physics_drawables.len() as u32 + ch.drawables.len() as u32 + 1,
+                            cache: Some(cache_clone.clone()),
+                            position: Some(Vec2::new(300.0 * i as f32, monitor_size.height as f32 / 2.0)),
+                            ..Default::default()
+                        },
+                    ));
+                }
             }
         };
 

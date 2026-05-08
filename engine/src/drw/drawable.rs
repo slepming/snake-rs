@@ -44,11 +44,19 @@ pub(crate) struct DrawableRenderContext {
 }
 
 pub struct DrawableCreateInfo {
-    pub cache: Arc<Cache>,
+    pub cache: Option<Arc<Cache>>,
     pub position: Option<Vec2>,
+    pub radius: f32,
+    pub thickness: f32,
     pub size: Vec2,
     pub id: u32,
     pub color: Rgba8,
+}
+
+impl Default for DrawableCreateInfo {
+    fn default() -> Self {
+        Self { cache: Default::default(), position: Default::default(), radius: Default::default(), thickness: Default::default(), size: Default::default(), id: Default::default(), color: Rgba8 { r: 0, g: 0, b: 0, a: 1 } }
+    }
 }
 
 pub struct Children {
@@ -133,10 +141,10 @@ impl Drawable {
         let pos = position.unwrap_or(Vec2::new(1.0, 1.0));
         let transform = Transform {
             transform: [
-                [1.0, 0.0, 0.0, pos[0]],
-                [0.0, 1.0, 0.0, pos[1]],
-                [0.0, 0.0, 1.0, 0.0],
-                [0.0, 0.0, 0.0, 1.0],
+                [1.0,   0.0,   0.0,   0.0],
+                [0.0,   1.0,   0.0,   0.0],
+                [0.0,   0.0,   1.0,   0.0],
+                [pos[0], pos[1], 0.0, 1.0],
             ],
         };
 
@@ -158,38 +166,35 @@ impl Drawable {
     }
 
     pub fn new_with_color(
-        vertex: Vec<MyVertex>,
-        color: Rgba8,
-        id: u32,
-        cache: Arc<Cache>,
+        drawable_info: DrawableCreateInfo,
         key: &'static str,
-        position: Option<Vec2>,
+        vertex: Vec<MyVertex>,
         descriptor_set: Option<Arc<DescriptorSet>>,
     ) -> Self {
-        let pos = position.unwrap_or(Vec2::new(1.0, 1.0));
+        let pos = drawable_info.position.unwrap_or(Vec2::new(1.0, 1.0));
         let transform = Transform {
             transform: [
-                [1.0, 0.0, 0.0, pos[0]],
-                [0.0, 1.0, 0.0, pos[1]],
-                [0.0, 0.0, 1.0, 0.0],
-                [0.0, 0.0, 0.0, 1.0],
+                [drawable_info.size[0],   0.0,   0.0,   0.0],
+                [0.0,   drawable_info.size[1],   0.0,   0.0],
+                [0.0,   0.0,   1.0,   0.0],
+                [pos[0], pos[1], 0.0, 1.0],
             ],
         };
 
         let mut drawable = Drawable {
-            color,
+            color: drawable_info.color,
             transform,
-            cache: cache.clone(),
+            cache: drawable_info.cache.as_ref().unwrap().clone(),
             render: DrawableRenderContext {
                 descriptor_id: DescriptorID { id: key.to_string() },
                 pipeline_id: PipelineID { id: key.to_string() },
-                mesh: Mesh::new(vertex, id),
+                mesh: Mesh::new(vertex, drawable_info.id),
             },
         };
 
         if let Some(desc) = descriptor_set {
-            let desc_key = format!("{}_{}", key, id);
-            cache.insert_descriptor_set(desc_key.clone(), desc);
+            let desc_key = format!("{}_{}", key, drawable_info.id);
+            drawable_info.cache.as_ref().unwrap().insert_descriptor_set(desc_key.clone(), desc);
             drawable.render.descriptor_id.id = desc_key;
         }
 
@@ -198,17 +203,9 @@ impl Drawable {
 
     pub fn from_shape(shape: Shapes, drw: DrawableCreateInfo) -> Self {
         let pipeline: &'static str = shape.into();
-        let p = Box::leak(pipeline.to_lowercase().into_boxed_str()); // Potential memory leak
-        let (vertex, desc) = shape.get_vertex_and_descriptor(&drw.cache);
-        Drawable::new_with_color(
-            vertex,
-            drw.color,
-            drw.id,
-            drw.cache,
-            p,
-            drw.position,
-            desc,
-        )
+        let key = Box::leak(pipeline.to_lowercase().into_boxed_str()); // Potential memory leak
+        let (vertex, desc) = shape.get_vertex_and_descriptor(drw.cache.as_ref().unwrap());
+        Drawable::new_with_color(drw, key, vertex, desc)
     }
 }
 

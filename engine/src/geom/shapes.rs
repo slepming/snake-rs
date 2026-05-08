@@ -18,31 +18,34 @@ pub struct CircleData {
 
 #[derive(IntoStaticStr, Clone, Copy)]
 pub enum Shapes {
-    Square([f32; 2]),
-    Circle([f32; 2]),
+    Square(),
+    Circle(),
 }
 
 impl Shapes {
+    /// Creates vertices and descriptor set
+    /// # Returns
+    /// Vertex and optional descriptor set
     pub fn get_vertex_and_descriptor(
         &self,
         cache: &Arc<Cache>,
     ) -> (Vec<MyVertex>, Option<Arc<DescriptorSet>>) {
         match self {
-            Shapes::Square(size) => {
+            Shapes::Square() => {
                 let verts = vec![
-                    MyVertex { position: [-size[0], -size[1]] },
-                    MyVertex { position: [size[0], -size[1]] },
-                    MyVertex { position: [size[0], size[1]] },
-                    MyVertex { position: [-size[0], size[1]] },
+                    MyVertex { position: [-1.0, -1.0] },
+                    MyVertex { position: [1.0, -1.0] },
+                    MyVertex { position: [1.0, 1.0] },
+                    MyVertex { position: [-1.0, 1.0] },
                 ];
                 (verts, None)
             }
-            Shapes::Circle(size) => {
+            Shapes::Circle() => {
                 let verts = vec![
-                    MyVertex { position: [-size[0], -size[1]] },
-                    MyVertex { position: [size[0], -size[1]] },
-                    MyVertex { position: [size[0], size[1]] },
-                    MyVertex { position: [-size[0], size[1]] },
+                    MyVertex { position: [-1.0, -1.0] },
+                    MyVertex { position: [1.0, -1.0] },
+                    MyVertex { position: [1.0, 1.0] },
+                    MyVertex { position: [-1.0, 1.0] },
                 ];
 
                 let memory_allocator = cache.memory_allocator.as_ref().unwrap();
