@@ -2,8 +2,8 @@ use std::sync::Arc;
 use strum::IntoStaticStr;
 use tracing::warn;
 use vulkano::buffer::{Buffer, BufferCreateInfo, BufferUsage};
-use vulkano::memory::allocator::{AllocationCreateInfo, MemoryTypeFilter};
 use vulkano::descriptor_set::{DescriptorSet, WriteDescriptorSet};
+use vulkano::memory::allocator::{AllocationCreateInfo, MemoryTypeFilter};
 use vulkano::pipeline::Pipeline;
 
 use crate::MyVertex;
@@ -33,25 +33,41 @@ impl Shapes {
         match self {
             Shapes::Square() => {
                 let verts = vec![
-                    MyVertex { position: [-1.0, -1.0] },
-                    MyVertex { position: [1.0, -1.0] },
-                    MyVertex { position: [1.0, 1.0] },
-                    MyVertex { position: [-1.0, 1.0] },
+                    MyVertex {
+                        position: [-1.0, -1.0],
+                    },
+                    MyVertex {
+                        position: [1.0, -1.0],
+                    },
+                    MyVertex {
+                        position: [1.0, 1.0],
+                    },
+                    MyVertex {
+                        position: [-1.0, 1.0],
+                    },
                 ];
                 (verts, None)
             }
             Shapes::Circle() => {
                 let verts = vec![
-                    MyVertex { position: [-1.0, -1.0] },
-                    MyVertex { position: [1.0, -1.0] },
-                    MyVertex { position: [1.0, 1.0] },
-                    MyVertex { position: [-1.0, 1.0] },
+                    MyVertex {
+                        position: [-1.0, -1.0],
+                    },
+                    MyVertex {
+                        position: [1.0, -1.0],
+                    },
+                    MyVertex {
+                        position: [1.0, 1.0],
+                    },
+                    MyVertex {
+                        position: [-1.0, 1.0],
+                    },
                 ];
 
                 let memory_allocator = cache.memory_allocator.as_ref().unwrap();
                 let descriptor_allocator = cache.descriptor_allocator.as_ref().unwrap();
                 let pipeline = cache.get_pipeline("circle").unwrap();
-                
+
                 let buffer = Buffer::from_data(
                     memory_allocator.clone(),
                     BufferCreateInfo {
@@ -59,23 +75,29 @@ impl Shapes {
                         ..Default::default()
                     },
                     AllocationCreateInfo {
-                        memory_type_filter: MemoryTypeFilter::PREFER_DEVICE | MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
+                        memory_type_filter: MemoryTypeFilter::PREFER_DEVICE
+                            | MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
                         ..Default::default()
                     },
-                    CircleData { radius: 0.05, thickness: 0.001 },
-                ).unwrap();
+                    CircleData {
+                        radius: 0.05,
+                        thickness: 0.001,
+                    },
+                )
+                .unwrap();
 
                 let layout = pipeline.layout().set_layouts().get(0).unwrap().clone();
                 if layout.bindings().is_empty() {
                     warn!("Pipeline 'circle' has no bindings. Did you forget to compile shaders?");
                 }
-                
+
                 let descriptor_set = DescriptorSet::new(
                     descriptor_allocator.clone(),
                     layout,
                     [WriteDescriptorSet::buffer(0, buffer)],
                     [],
-                ).unwrap();
+                )
+                .unwrap();
 
                 (verts, Some(descriptor_set))
             }

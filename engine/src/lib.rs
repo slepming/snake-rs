@@ -9,15 +9,25 @@ use rapier2d::{
 use std::{ops::RangeInclusive, sync::Arc};
 use tracing::info;
 use vulkano::{
-    Validated, VulkanError, VulkanLibrary, buffer::{Buffer, BufferContents, BufferCreateInfo, BufferUsage, Subbuffer}, command_buffer::{
+    Validated, VulkanError, VulkanLibrary,
+    buffer::{Buffer, BufferContents, BufferCreateInfo, BufferUsage, Subbuffer},
+    command_buffer::{
         AutoCommandBufferBuilder, CommandBufferUsage, RenderPassBeginInfo, SubpassBeginInfo,
         SubpassContents, allocator::StandardCommandBufferAllocator,
-    }, descriptor_set::{DescriptorSet, WriteDescriptorSet, allocator::StandardDescriptorSetAllocator}, device::{
+    },
+    descriptor_set::{
+        DescriptorSet, WriteDescriptorSet, allocator::StandardDescriptorSetAllocator,
+    },
+    device::{
         Device, DeviceCreateInfo, DeviceExtensions, Queue, QueueCreateInfo, QueueFlags,
         physical::PhysicalDeviceType,
-    }, image::{Image, ImageUsage, view::ImageView}, instance::{Instance, InstanceCreateFlags, InstanceCreateInfo, InstanceExtensions}, memory::allocator::{
+    },
+    image::{Image, ImageUsage, view::ImageView},
+    instance::{Instance, InstanceCreateFlags, InstanceCreateInfo, InstanceExtensions},
+    memory::allocator::{
         AllocationCreateInfo, MemoryAllocator, MemoryTypeFilter, StandardMemoryAllocator,
-    }, pipeline::{
+    },
+    pipeline::{
         DynamicState, GraphicsPipeline, Pipeline, PipelineLayout, PipelineShaderStageCreateInfo,
         graphics::{
             GraphicsPipelineCreateInfo,
@@ -29,9 +39,12 @@ use vulkano::{
             viewport::{Viewport, ViewportState},
         },
         layout::PipelineDescriptorSetLayoutCreateInfo,
-    }, render_pass::{Framebuffer, FramebufferCreateInfo, RenderPass, Subpass}, swapchain::{
+    },
+    render_pass::{Framebuffer, FramebufferCreateInfo, RenderPass, Subpass},
+    swapchain::{
         Surface, Swapchain, SwapchainCreateInfo, SwapchainPresentInfo, acquire_next_image,
-    }, sync::{self, GpuFuture}
+    },
+    sync::{self, GpuFuture},
 };
 use winit::{
     application::ApplicationHandler,
@@ -89,7 +102,7 @@ where
 struct EngineMemory {
     command_buffer_allocator: Arc<StandardCommandBufferAllocator>,
     memory_allocator: Arc<StandardMemoryAllocator>,
-    descriptor_allocator: Arc<StandardDescriptorSetAllocator>
+    descriptor_allocator: Arc<StandardDescriptorSetAllocator>,
 }
 
 impl EngineMemory {
@@ -103,7 +116,10 @@ impl EngineMemory {
             device.clone(),
             Default::default(),
         ));
-        let descriptor_set_allocator = Arc::new(StandardDescriptorSetAllocator::new(device.clone(), Default::default()));
+        let descriptor_set_allocator = Arc::new(StandardDescriptorSetAllocator::new(
+            device.clone(),
+            Default::default(),
+        ));
         EngineMemory {
             descriptor_allocator: descriptor_set_allocator,
             command_buffer_allocator,
@@ -272,7 +288,10 @@ where
         let queue = queues.next().unwrap();
 
         let memory = EngineMemory::new(device.clone());
-        let cache = Arc::new(Cache::new(Some(memory.memory_allocator.clone()), Some(memory.descriptor_allocator.clone())));
+        let cache = Arc::new(Cache::new(
+            Some(memory.memory_allocator.clone()),
+            Some(memory.descriptor_allocator.clone()),
+        ));
 
         info!("Initializing physics context (RigidBodySet, ColliderSet, Space)");
 
@@ -921,13 +940,19 @@ where
                     builder.bind_pipeline_graphics(pipeline.clone()).unwrap();
 
                     use crate::res::cache::DescriptorHandle;
-                    if let Some(desc) = item.drawable().cache.get_descriptor(&item.drawable().render.descriptor_id.id) {
-                        builder.bind_descriptor_sets(
-                            vulkano::pipeline::PipelineBindPoint::Graphics,
-                            pipeline.layout().clone(),
-                            0,
-                            desc.clone(),
-                        ).unwrap();
+                    if let Some(desc) = item
+                        .drawable()
+                        .cache
+                        .get_descriptor(&item.drawable().render.descriptor_id.id)
+                    {
+                        builder
+                            .bind_descriptor_sets(
+                                vulkano::pipeline::PipelineBindPoint::Graphics,
+                                pipeline.layout().clone(),
+                                0,
+                                desc.clone(),
+                            )
+                            .unwrap();
                     }
 
                     unsafe {

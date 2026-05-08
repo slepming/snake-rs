@@ -8,19 +8,14 @@ use vulkano::pipeline::{GraphicsPipeline, Pipeline};
 
 use crate::{
     MyVertex,
-    geom::{
-        matrix::Transform,
-        shapes::Shapes,
-    },
+    geom::{matrix::Transform, shapes::Shapes},
     mv::{phys::movement::PhysicsContext, transform::Entity},
     res::cache::{Cache, PipelineHandle},
 };
 
+use crate::res::cache::DescriptorHandle;
 use color::Rgba8;
 use vulkano::descriptor_set::DescriptorSet;
-use crate::res::cache::DescriptorHandle;
-
-
 
 pub struct Drawable {
     transform: Transform,
@@ -55,7 +50,20 @@ pub struct DrawableCreateInfo {
 
 impl Default for DrawableCreateInfo {
     fn default() -> Self {
-        Self { cache: Default::default(), position: Default::default(), radius: Default::default(), thickness: Default::default(), size: Default::default(), id: Default::default(), color: Rgba8 { r: 0, g: 0, b: 0, a: 1 } }
+        Self {
+            cache: Default::default(),
+            position: Default::default(),
+            radius: Default::default(),
+            thickness: Default::default(),
+            size: Default::default(),
+            id: Default::default(),
+            color: Rgba8 {
+                r: 0,
+                g: 0,
+                b: 0,
+                a: 1,
+            },
+        }
     }
 }
 
@@ -141,9 +149,9 @@ impl Drawable {
         let pos = position.unwrap_or(Vec2::new(1.0, 1.0));
         let transform = Transform {
             transform: [
-                [1.0,   0.0,   0.0,   0.0],
-                [0.0,   1.0,   0.0,   0.0],
-                [0.0,   0.0,   1.0,   0.0],
+                [1.0, 0.0, 0.0, 0.0],
+                [0.0, 1.0, 0.0, 0.0],
+                [0.0, 0.0, 1.0, 0.0],
                 [pos[0], pos[1], 0.0, 1.0],
             ],
         };
@@ -158,8 +166,12 @@ impl Drawable {
             transform,
             cache,
             render: DrawableRenderContext {
-                descriptor_id: DescriptorID { id: key.to_string() },
-                pipeline_id: PipelineID { id: key.to_string() },
+                descriptor_id: DescriptorID {
+                    id: key.to_string(),
+                },
+                pipeline_id: PipelineID {
+                    id: key.to_string(),
+                },
                 mesh: Mesh::new(vertex, id),
             },
         }
@@ -174,9 +186,9 @@ impl Drawable {
         let pos = drawable_info.position.unwrap_or(Vec2::new(1.0, 1.0));
         let transform = Transform {
             transform: [
-                [drawable_info.size[0],   0.0,   0.0,   0.0],
-                [0.0,   drawable_info.size[1],   0.0,   0.0],
-                [0.0,   0.0,   1.0,   0.0],
+                [drawable_info.size[0], 0.0, 0.0, 0.0],
+                [0.0, drawable_info.size[1], 0.0, 0.0],
+                [0.0, 0.0, 1.0, 0.0],
                 [pos[0], pos[1], 0.0, 1.0],
             ],
         };
@@ -186,15 +198,23 @@ impl Drawable {
             transform,
             cache: drawable_info.cache.as_ref().unwrap().clone(),
             render: DrawableRenderContext {
-                descriptor_id: DescriptorID { id: key.to_string() },
-                pipeline_id: PipelineID { id: key.to_string() },
+                descriptor_id: DescriptorID {
+                    id: key.to_string(),
+                },
+                pipeline_id: PipelineID {
+                    id: key.to_string(),
+                },
                 mesh: Mesh::new(vertex, drawable_info.id),
             },
         };
 
         if let Some(desc) = descriptor_set {
             let desc_key = format!("{}_{}", key, drawable_info.id);
-            drawable_info.cache.as_ref().unwrap().insert_descriptor_set(desc_key.clone(), desc);
+            drawable_info
+                .cache
+                .as_ref()
+                .unwrap()
+                .insert_descriptor_set(desc_key.clone(), desc);
             drawable.render.descriptor_id.id = desc_key;
         }
 
@@ -227,7 +247,9 @@ impl DrawableGPU for Drawable {
     }
 
     fn get_pipeline(&self) -> Arc<GraphicsPipeline> {
-        self.cache.get_pipeline(&self.render.pipeline_id.id).unwrap()
+        self.cache
+            .get_pipeline(&self.render.pipeline_id.id)
+            .unwrap()
     }
 }
 

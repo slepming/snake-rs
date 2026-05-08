@@ -37,12 +37,14 @@ fn main() -> Result<(), impl std::error::Error> {
                             color: Rgba8 { r, g, b, a: 255 },
                             id: ch.physics_drawables.len() as u32 + ch.drawables.len() as u32 + 1,
                             cache: Some(cache_clone.clone()),
-                            position: Some(Vec2::new(300.0 * i as f32, monitor_size.height as f32 / 2.0)),
+                            position: Some(Vec2::new(
+                                300.0 * i as f32,
+                                monitor_size.height as f32 / 2.0,
+                            )),
                             ..Default::default()
                         },
                     ));
-                }
-                else {
+                } else {
                     ch.add_drawable(Drawable::from_shape(
                         snake_engine::geom::shapes::Shapes::Circle(),
                         DrawableCreateInfo {
@@ -50,9 +52,12 @@ fn main() -> Result<(), impl std::error::Error> {
                             color: Rgba8 { r, g, b, a: 255 },
                             id: ch.physics_drawables.len() as u32 + ch.drawables.len() as u32 + 1,
                             cache: Some(cache_clone.clone()),
-                            position: Some(Vec2::new(300.0 * i as f32, monitor_size.height as f32 / 2.0)),
-                            thickness: 0.5,
-                            radius: 1.0,
+                            position: Some(Vec2::new(
+                                300.0 * i as f32,
+                                monitor_size.height as f32 / 2.0,
+                            )),
+                            thickness: 15.0,
+                            radius: 50.0,
                             ..Default::default()
                         },
                     ));
@@ -63,7 +68,7 @@ fn main() -> Result<(), impl std::error::Error> {
     let redraw_closure = |ch: &mut Children,
                           pc: &mut PhysicsContext,
                           event: &WindowEvent,
-                          cache: Arc<Cache>| match event {
+                          _cache: Arc<Cache>| match event {
         WindowEvent::KeyboardInput { event, .. } => {
             let span = tracy_client::span!("Engine::Keyboard_input");
             span.emit_color(0xFF0000);
