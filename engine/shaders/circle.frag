@@ -33,10 +33,7 @@ void circle()
     float b = ((pc.rgba >> 16) & 0xFF) / 255.0;
     float a = ((pc.rgba >> 24) & 0xFF) / 255.0;
 
-    vec4 circleColor = vec4(r, g, b, a);
-    circleColor.a *= mask;
-
-    outColor = circleColor;
+    outColor = vec4(r, g, b, a * mask);
 }
 
 void main() {

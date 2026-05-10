@@ -4,7 +4,7 @@ use rapier2d::{
     math::Vec2,
     prelude::{RigidBody, RigidBodyHandle},
 };
-use vulkano::pipeline::{GraphicsPipeline, Pipeline};
+use vulkano::pipeline::GraphicsPipeline;
 
 use crate::{
     MyVertex,
@@ -103,7 +103,9 @@ pub struct PhysicsDrawable {
 }
 
 pub(crate) trait DrawableGPU {
+    #[allow(dead_code)]
     fn set_vertex(&mut self, vertex: Vec<MyVertex>);
+    #[allow(dead_code)]
     fn get_vertex_clone(&self) -> Vec<MyVertex>;
     fn get_vertex(&self) -> &Vec<MyVertex>;
     /// # Returns

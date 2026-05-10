@@ -15,9 +15,7 @@ use vulkano::{
         AutoCommandBufferBuilder, CommandBufferUsage, RenderPassBeginInfo, SubpassBeginInfo,
         SubpassContents, allocator::StandardCommandBufferAllocator,
     },
-    descriptor_set::{
-        DescriptorSet, WriteDescriptorSet, allocator::StandardDescriptorSetAllocator,
-    },
+    descriptor_set::allocator::StandardDescriptorSetAllocator,
     device::{
         Device, DeviceCreateInfo, DeviceExtensions, Queue, QueueCreateInfo, QueueFlags,
         physical::PhysicalDeviceType,
@@ -31,7 +29,7 @@ use vulkano::{
         DynamicState, GraphicsPipeline, Pipeline, PipelineLayout, PipelineShaderStageCreateInfo,
         graphics::{
             GraphicsPipelineCreateInfo,
-            color_blend::{ColorBlendAttachmentState, ColorBlendState},
+            color_blend::{AttachmentBlend, ColorBlendAttachmentState, ColorBlendState},
             input_assembly::{InputAssemblyState, PrimitiveTopology},
             multisample::MultisampleState,
             rasterization::RasterizationState,
@@ -702,7 +700,7 @@ where
                     rasterization_state: Some(RasterizationState::default()),
                     multisample_state: Some(MultisampleState::default()),
                     color_blend_state: Some(ColorBlendState {
-                        attachments: vec![ColorBlendAttachmentState::default()],
+                        attachments: vec![ColorBlendAttachmentState {blend: Some(AttachmentBlend::alpha()), ..Default::default()}],
                         ..Default::default()
                     }),
                     dynamic_state: [DynamicState::Viewport].into_iter().collect(),

@@ -1,8 +1,8 @@
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 
 use color::Rgba8;
-use rand::{RngExt, rng};
-use rapier2d::{math::Vec2, prelude::RigidBodyBuilder};
+use rand::RngExt;
+use rapier2d::math::Vec2;
 use snake_engine::{
     EngineContext,
     drw::drawable::{Children, Drawable, DrawableCreateInfo},
@@ -16,7 +16,7 @@ use winit::{
     platform::modifier_supplement::KeyEventExtModifierSupplement,
 };
 
-const OBJECTS_COUNT: u32 = 5;
+const OBJECTS_COUNT: u32 = 6;
 
 fn main() -> Result<(), impl std::error::Error> {
     let event_loop = EventLoop::new().unwrap();
@@ -56,8 +56,8 @@ fn main() -> Result<(), impl std::error::Error> {
                                 300.0 * i as f32,
                                 monitor_size.height as f32 / 2.0,
                             )),
-                            thickness: 15.0,
-                            radius: 50.0,
+                            thickness: 0.0,
+                            radius: 0.0,
                             ..Default::default()
                         },
                     ));
