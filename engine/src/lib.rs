@@ -7,7 +7,7 @@ use rapier2d::{
     prelude::{ColliderSet, RigidBodySet},
 };
 use std::{ops::RangeInclusive, sync::Arc};
-use tracing::info;
+use tracing::{debug, info};
 use vulkano::{
     Validated, VulkanError, VulkanLibrary,
     buffer::{Buffer, BufferContents, BufferCreateInfo, BufferUsage, Subbuffer},
@@ -50,6 +50,7 @@ use winit::{
     event::WindowEvent,
     event_loop::{ActiveEventLoop, EventLoop},
     platform::wayland::WindowAttributesExtWayland,
+    raw_window_handle::HasDisplayHandle,
     window::{Fullscreen, Window, WindowId},
 };
 
@@ -182,101 +183,7 @@ where
             ..DeviceExtensions::empty()
         };
 
-        info!("Selecting physical device (GPU)");
-        // We then choose which physical device to use. First, we enumerate all the available
-        // physical devices, then apply filters to narrow them down to those that can support our
-        // needs.
-        let (physical_device, queue_family_index) = instance
-            .enumerate_physical_devices()
-            .unwrap()
-            .filter(|p| {
-                // Some devices may not support the extensions or features that your application,
-                // or report properties and limits that are not sufficient for your application.
-                // These should be filtered out here.
-                p.supported_extensions().contains(&device_extensions)
-            })
-            .filter_map(|p| {
-                // For each physical device, we try to find a suitable queue family that will
-                // execute our draw commands.
-                //
-                // Devices can provide multiple queues to run commands in parallel (for example a
-                // draw queue and a compute queue), similar to CPU threads. This is
-                // something you have to have to manage manually in Vulkan. Queues
-                // of the same type belong to the same queue family.
-                //
-                // Here, we look for a single queue family that is suitable for our purposes. In a
-                // real-world application, you may want to use a separate dedicated transfer queue
-                // to handle data transfers in parallel with graphics operations.
-                // You may also need a separate queue for compute operations, if
-                // your application uses those.
-                p.queue_family_properties()
-                    .iter()
-                    .enumerate()
-                    .position(|(i, q)| {
-                        // We select a queue family that supports graphics operations. When drawing
-                        // to a window surface, as we do in this example, we also need to check
-                        // that queues in this queue family are capable of presenting images to the
-                        // surface.
-                        q.queue_flags.intersects(QueueFlags::GRAPHICS)
-                            && p.presentation_support(i as u32, event_loop).unwrap()
-                    })
-                    // The code here searches for the first queue family that is suitable. If none
-                    // is found, `None` is returned to `filter_map`, which
-                    // disqualifies this physical device.
-                    .map(|i| (p, i as u32))
-            })
-            // All the physical devices that pass the filters above are suitable for the
-            // application. However, not every device is equal, some are preferred over others.
-            // Now, we assign each physical device a score, and pick the device with the lowest
-            // ("best") score.
-            //
-            // In this example, we simply select the best-scoring device to use in the application.
-            // In a real-world setting, you may want to use the best-scoring device only as a
-            // "default" or "recommended" device, and let the user choose the device themself.
-            .min_by_key(|(p, _)| {
-                // We assign a lower score to device types that are likely to be faster/better.
-                match p.properties().device_type {
-                    PhysicalDeviceType::DiscreteGpu => 0,
-                    PhysicalDeviceType::IntegratedGpu => 1,
-                    PhysicalDeviceType::VirtualGpu => 2,
-                    PhysicalDeviceType::Cpu => 3,
-                    PhysicalDeviceType::Other => 4,
-                    _ => 5,
-                }
-            })
-            .expect("no suitable physical device found");
-
-        info!(
-            device_name = ?physical_device.properties().device_name,
-            device_type = ?physical_device.properties().device_type,
-            max_push_constants_size = physical_device.properties().max_push_constants_size,
-            "Selected physical device"
-        );
-
-        // Now initializing the device. This is probably the most important object of Vulkan.
-        //
-        // An iterator of created queues is returned by the function alongside the device.
-        let (device, mut queues) = Device::new(
-            // Which physical device to connect to.
-            physical_device.clone(),
-            DeviceCreateInfo {
-                // A list of optional features and extensions that our program needs to work
-                // correctly. Some parts of the Vulkan specs are optional and must be enabled
-                // manually at device creation. In this example the only thing we are going to need
-                // is the `khr_swapchain` extension that allows us to draw to a window.
-                enabled_extensions: device_extensions.clone(),
-
-                // The list of queues that we are going to use. Here we only use one queue, from
-                // the previously chosen queue family.
-                queue_create_infos: vec![QueueCreateInfo {
-                    queue_family_index,
-                    ..Default::default()
-                }],
-
-                ..Default::default()
-            },
-        )
-        .unwrap();
+        let (device, mut queues) = select_render_device(instance.clone(), &device_extensions, event_loop);
 
         // Since we can request multiple queues, the `queues` variable is in fact an iterator. We
         // only use one queue in this example, so we just retrieve the first and only element of
@@ -340,27 +247,27 @@ where
 
         // TODO: in the future I must think about join this iteration loops through abstractions or
         // compositing structures
-       // children.physics_drawables.iter_mut().for_each(|drawable| {
-       //     let object = physics_context.rigid_body_set[drawable.rb_handle()].clone();
-       //     let mut transform = drawable.drawable().get_transform_clone();
+        // children.physics_drawables.iter_mut().for_each(|drawable| {
+        //     let object = physics_context.rigid_body_set[drawable.rb_handle()].clone();
+        //     let mut transform = drawable.drawable().get_transform_clone();
 
-       //     let ndc_x = object.translation().x * rcx.scale[0] - 1.0;
-       //     let ndc_y = object.translation().y * rcx.scale[1];
+        //     let ndc_x = object.translation().x * rcx.scale[0] - 1.0;
+        //     let ndc_y = object.translation().y * rcx.scale[1];
 
-       //     transform.get_matrix_mut()[0][3] = ndc_x;
-       //     transform.get_matrix_mut()[1][3] = -ndc_y;
+        //     transform.get_matrix_mut()[0][3] = ndc_x;
+        //     transform.get_matrix_mut()[1][3] = -ndc_y;
 
-       //     drawable.set_transform(transform);
+        //     drawable.set_transform(transform);
 
-       //     let drawable = drawable.drawable();
-       //     let verts = drawable.get_vertex();
-       //     let matrics = drawable.get_transform_clone();
-       //     let offset = vertices.len() as u32;
+        //     let drawable = drawable.drawable();
+        //     let verts = drawable.get_vertex();
+        //     let matrics = drawable.get_transform_clone();
+        //     let offset = vertices.len() as u32;
 
-       //     offsets.push(offset);
-       //     vertices.extend_from_slice(verts);
-       //     matrices.push(matrics);
-       // });
+        //     offsets.push(offset);
+        //     vertices.extend_from_slice(verts);
+        //     matrices.push(matrics);
+        // });
 
         children.drawables.iter().for_each(|drawable| {
             let verts = drawable.get_vertex();
@@ -699,7 +606,10 @@ where
                     rasterization_state: Some(RasterizationState::default()),
                     multisample_state: Some(MultisampleState::default()),
                     color_blend_state: Some(ColorBlendState {
-                        attachments: vec![ColorBlendAttachmentState {blend: Some(AttachmentBlend::alpha()), ..Default::default()}],
+                        attachments: vec![ColorBlendAttachmentState {
+                            blend: Some(AttachmentBlend::alpha()),
+                            ..Default::default()
+                        }],
                         ..Default::default()
                     }),
                     dynamic_state: [DynamicState::Viewport].into_iter().collect(),
@@ -897,10 +807,7 @@ where
                     .bind_vertex_buffers(0, vertex_buffer.clone())
                     .unwrap();
 
-                let all_items = self
-                    .children
-                    .drawables
-                    .iter();
+                let all_items = self.children.drawables.iter();
 
                 all_items.enumerate().for_each(|(i, item)| {
                     #[cfg(feature = "tracing")]
@@ -1048,4 +955,114 @@ fn window_size_dependent_setup(
             .unwrap()
         })
         .collect()
+}
+
+fn select_render_device(
+    instance: Arc<Instance>,
+    device_extensions: &DeviceExtensions,
+    event_loop: &impl HasDisplayHandle,
+) -> (Arc<Device>, impl ExactSizeIterator<Item = Arc<Queue>>)
+{
+    info!("Selecting physical device (GPU)");
+    // We then choose which physical device to use. First, we enumerate all the available
+    // physical devices, then apply filters to narrow them down to those that can support our
+    // needs.
+    let (physical_device, queue_family_index) = instance
+        .enumerate_physical_devices()
+        .unwrap()
+        .filter(|p| {
+            // Some devices may not support the extensions or features that your application,
+            // or report properties and limits that are not sufficient for your application.
+            // These should be filtered out here.
+            p.supported_extensions().contains(device_extensions)
+        })
+        .filter_map(|p| {
+            // For each physical device, we try to find a suitable queue family that will
+            // execute our draw commands.
+            //
+            // Devices can provide multiple queues to run commands in parallel (for example a
+            // draw queue and a compute queue), similar to CPU threads. This is
+            // something you have to have to manage manually in Vulkan. Queues
+            // of the same type belong to the same queue family.
+            //
+            // Here, we look for a single queue family that is suitable for our purposes. In a
+            // real-world application, you may want to use a separate dedicated transfer queue
+            // to handle data transfers in parallel with graphics operations.
+            // You may also need a separate queue for compute operations, if
+            // your application uses those.
+            p.queue_family_properties()
+                .iter()
+                .enumerate()
+                .position(|(i, q)| {
+                    // We select a queue family that supports graphics operations. When drawing
+                    // to a window surface, as we do in this example, we also need to check
+                    // that queues in this queue family are capable of presenting images to the
+                    // surface.
+                    q.queue_flags.intersects(QueueFlags::GRAPHICS)
+                        && p.presentation_support(i as u32, event_loop).unwrap()
+                })
+                // The code here searches for the first queue family that is suitable. If none
+                // is found, `None` is returned to `filter_map`, which
+                // disqualifies this physical device.
+                .map(|i| (p, i as u32))
+        })
+        // All the physical devices that pass the filters above are suitable for the
+        // application. However, not every device is equal, some are preferred over others.
+        // Now, we assign each physical device a score, and pick the device with the lowest
+        // ("best") score.
+        //
+        // In this example, we simply select the best-scoring device to use in the application.
+        // In a real-world setting, you may want to use the best-scoring device only as a
+        // "default" or "recommended" device, and let the user choose the device themself.
+        .min_by_key(|(p, _)| {
+            // We assign a lower score to device types that are likely to be faster/better.
+            match p.properties().device_type {
+                PhysicalDeviceType::DiscreteGpu => 0,
+                PhysicalDeviceType::IntegratedGpu => 1,
+                PhysicalDeviceType::VirtualGpu => 2,
+                PhysicalDeviceType::Cpu => 3,
+                PhysicalDeviceType::Other => 4,
+                _ => 5,
+            }
+        })
+        .expect("no suitable physical device found");
+
+    info!(
+        device_name = ?physical_device.properties().device_name,
+        device_type = ?physical_device.properties().device_type,
+        max_push_constants_size = physical_device.properties().max_push_constants_size,
+        "Selected physical device"
+    );
+
+    // Now initializing the device. This is probably the most important object of Vulkan.
+    //
+    // An iterator of created queues is returned by the function alongside the device.
+    let (device, queues) = Device::new(
+        // Which physical device to connect to.
+        physical_device.clone(),
+        DeviceCreateInfo {
+            // A list of optional features and extensions that our program needs to work
+            // correctly. Some parts of the Vulkan specs are optional and must be enabled
+            // manually at device creation. In this example the only thing we are going to need
+            // is the `khr_swapchain` extension that allows us to draw to a window.
+            enabled_extensions: device_extensions.clone(),
+
+            // The list of queues that we are going to use. Here we only use one queue, from
+            // the previously chosen queue family.
+            queue_create_infos: vec![QueueCreateInfo {
+                queue_family_index,
+                ..Default::default()
+            }],
+
+            ..Default::default()
+        },
+    )
+    .unwrap();
+
+    // TODO: in the future I must create async compute ability
+    for (i, queue) in device.physical_device().queue_family_properties().iter().enumerate() {
+        debug!(support_queues = ?queue.queue_flags, index = ?i);
+    }
+    
+    (device, queues)
 }
