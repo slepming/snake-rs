@@ -23,7 +23,7 @@ fn main() -> Result<(), impl std::error::Error> {
     let mut rng = rand::rng();
 
     let mut window =
-        |e: &ActiveEventLoop, ch: &mut Children, _pc: &mut PhysicsContext, cache: Arc<Cache>| {
+        |e: &ActiveEventLoop, ch: &mut Children<Drawable>, _pc: &mut PhysicsContext, cache: Arc<Cache>| {
             let cache_clone = cache.clone();
             let monitor_size = e.available_monitors().next().unwrap().size();
             for i in 0..OBJECTS_COUNT {
@@ -35,7 +35,7 @@ fn main() -> Result<(), impl std::error::Error> {
                         DrawableCreateInfo {
                             size: Vec2::new(100.0, 100.0),
                             color: Rgba8 { r, g, b, a: 255 },
-                            id: ch.physics_drawables.len() as u32 + ch.drawables.len() as u32 + 1,
+                            id: ch.drawables.len() as u32 + 1,
                             cache: Some(cache_clone.clone()),
                             position: Some(Vec2::new(
                                 300.0 * i as f32,
@@ -50,7 +50,7 @@ fn main() -> Result<(), impl std::error::Error> {
                         DrawableCreateInfo {
                             size: Vec2::new(1000.0, 1000.0),
                             color: Rgba8 { r, g, b, a: 255 },
-                            id: ch.physics_drawables.len() as u32 + ch.drawables.len() as u32 + 1,
+                            id: ch.drawables.len() as u32 + 1,
                             cache: Some(cache_clone.clone()),
                             position: Some(Vec2::new(
                                 300.0 * i as f32,
@@ -65,8 +65,8 @@ fn main() -> Result<(), impl std::error::Error> {
             }
         };
 
-    let redraw_closure = |ch: &mut Children,
-                          pc: &mut PhysicsContext,
+    let redraw_closure = |_ch: &mut Children<Drawable>,
+                          _pc: &mut PhysicsContext,
                           event: &WindowEvent,
                           _cache: Arc<Cache>| match event {
         WindowEvent::KeyboardInput { event, .. } => {
@@ -75,18 +75,18 @@ fn main() -> Result<(), impl std::error::Error> {
             if event.state == ElementState::Pressed && !event.repeat {
                 match event.key_without_modifiers().as_ref() {
                     Key::Named(NamedKey::Escape) => {
-                        ch.physics_drawables.iter_mut().for_each(|r| {
-                            if r.rigid_body(pc).is_dynamic() {
-                                let object = pc.rigid_body_set[r.rb_handle()].clone();
-                                r.teleport(
-                                    pc,
-                                    Vec2::new(
-                                        object.translation().x,
-                                        object.translation().y + 1000.0,
-                                    ),
-                                );
-                            }
-                        });
+                        //ch.physics_drawables.iter_mut().for_each(|r| {
+                        //    if r.rigid_body(pc).is_dynamic() {
+                        //        let object = pc.rigid_body_set[r.rb_handle()].clone();
+                        //        r.teleport(
+                        //            pc,
+                        //            Vec2::new(
+                        //                object.translation().x,
+                        //                object.translation().y + 1000.0,
+                        //            ),
+                        //        );
+                        //    }
+                        //});
                     }
                     _ => {}
                 }

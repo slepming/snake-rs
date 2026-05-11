@@ -54,12 +54,9 @@ use winit::{
 };
 
 use crate::{
-    drw::drawable::{Children, DrawableComponent, DrawableGPU},
+    drw::drawable::{Children, DrawableComponent},
     geom::matrix::Transform,
-    mv::{
-        phys::movement::{PhysicsContext, PhysicsSpace},
-        transform::Position,
-    },
+    mv::phys::movement::{PhysicsContext, PhysicsSpace},
     res::cache::{Cache, PipelineHandle},
     shaders::{
         circle_shader::{circle_fs, circle_vs},
@@ -68,7 +65,6 @@ use crate::{
 };
 
 pub mod drw;
-pub mod game;
 pub mod geom;
 pub mod mv;
 pub mod res;
@@ -79,10 +75,11 @@ pub mod shaders;
 static GLOBAL: tracy_client::ProfiledAllocator<std::alloc::System> =
     tracy_client::ProfiledAllocator::new(std::alloc::System, 100);
 
-pub struct EngineContext<Redraw, Start>
+pub struct EngineContext<Drw, Redraw, Start>
 where
-    Redraw: FnMut(&mut Children, &mut PhysicsContext, &WindowEvent, Arc<Cache>),
-    Start: FnMut(&ActiveEventLoop, &mut Children, &mut PhysicsContext, Arc<Cache>),
+    Drw: DrawableComponent + 'static,
+    Redraw: FnMut(&mut Children<Drw>, &mut PhysicsContext, &WindowEvent, Arc<Cache>),
+    Start: FnMut(&ActiveEventLoop, &mut Children<Drw>, &mut PhysicsContext, Arc<Cache>),
 {
     instance: Arc<Instance>,
     device: Arc<Device>,
@@ -91,7 +88,7 @@ where
     rcx: Option<RenderContext>,
     cache: Arc<Cache>,
     pub(crate) physics_context: PhysicsContext,
-    pub children: Children,
+    pub children: Children<Drw>,
     pub frames: u64,
     redraw: Redraw,
     start: Start,
@@ -137,10 +134,11 @@ struct RenderContext {
     scale: Vec2,
 }
 
-impl<Redraw, Start> EngineContext<Redraw, Start>
+impl<Drw, Redraw, Start> EngineContext<Drw, Redraw, Start>
 where
-    Redraw: FnMut(&mut Children, &mut PhysicsContext, &WindowEvent, Arc<Cache>),
-    Start: FnMut(&ActiveEventLoop, &mut Children, &mut PhysicsContext, Arc<Cache>),
+    Drw: DrawableComponent + 'static,
+    Redraw: FnMut(&mut Children<Drw>, &mut PhysicsContext, &WindowEvent, Arc<Cache>),
+    Start: FnMut(&ActiveEventLoop, &mut Children<Drw>, &mut PhysicsContext, Arc<Cache>),
 {
     pub fn new(event_loop: &EventLoop<()>, start: Start, redraw: Redraw) -> Self {
         tracing_subscriber::fmt::init();
@@ -308,7 +306,7 @@ where
             queue,
             rcx: None,
             physics_context: ph_context,
-            children: Children::new(),
+            children: Children::<Drw>::new(),
             frames: 0,
             cache,
             start: start,
@@ -330,9 +328,9 @@ where
     /// tuple with buffer for vertices, matrices, offsets vectors
     pub(crate) fn calculate_drawables(
         memory_allocator: Arc<dyn MemoryAllocator>,
-        physics_context: &PhysicsContext,
-        children: &mut Children,
-        rcx: &mut RenderContext,
+        _physics_context: &PhysicsContext,
+        children: &mut Children<Drw>,
+        _rcx: &mut RenderContext,
     ) -> (Subbuffer<[MyVertex]>, Vec<Transform>, Vec<u32>) {
         #[cfg(feature = "tracing")]
         let _span = tracy_client::span!("Engine::calculate_drawables");
@@ -342,27 +340,27 @@ where
 
         // TODO: in the future I must think about join this iteration loops through abstractions or
         // compositing structures
-        children.physics_drawables.iter_mut().for_each(|drawable| {
-            let object = physics_context.rigid_body_set[drawable.rb_handle()].clone();
-            let mut transform = drawable.drawable().get_transform_clone();
+       // children.physics_drawables.iter_mut().for_each(|drawable| {
+       //     let object = physics_context.rigid_body_set[drawable.rb_handle()].clone();
+       //     let mut transform = drawable.drawable().get_transform_clone();
 
-            let ndc_x = object.translation().x * rcx.scale[0] - 1.0;
-            let ndc_y = object.translation().y * rcx.scale[1];
+       //     let ndc_x = object.translation().x * rcx.scale[0] - 1.0;
+       //     let ndc_y = object.translation().y * rcx.scale[1];
 
-            transform.get_matrix_mut()[0][3] = ndc_x;
-            transform.get_matrix_mut()[1][3] = -ndc_y;
+       //     transform.get_matrix_mut()[0][3] = ndc_x;
+       //     transform.get_matrix_mut()[1][3] = -ndc_y;
 
-            drawable.set_transform(transform);
+       //     drawable.set_transform(transform);
 
-            let drawable = drawable.drawable();
-            let verts = drawable.get_vertex();
-            let matrics = drawable.get_transform_clone();
-            let offset = vertices.len() as u32;
+       //     let drawable = drawable.drawable();
+       //     let verts = drawable.get_vertex();
+       //     let matrics = drawable.get_transform_clone();
+       //     let offset = vertices.len() as u32;
 
-            offsets.push(offset);
-            vertices.extend_from_slice(verts);
-            matrices.push(matrics);
-        });
+       //     offsets.push(offset);
+       //     vertices.extend_from_slice(verts);
+       //     matrices.push(matrics);
+       // });
 
         children.drawables.iter().for_each(|drawable| {
             let verts = drawable.get_vertex();
@@ -394,10 +392,11 @@ where
     }
 }
 
-impl<Redraw, Start> ApplicationHandler for EngineContext<Redraw, Start>
+impl<Drw, Redraw, Start> ApplicationHandler for EngineContext<Drw, Redraw, Start>
 where
-    Redraw: FnMut(&mut Children, &mut PhysicsContext, &WindowEvent, Arc<Cache>),
-    Start: FnMut(&ActiveEventLoop, &mut Children, &mut PhysicsContext, Arc<Cache>),
+    Drw: DrawableComponent + 'static,
+    Redraw: FnMut(&mut Children<Drw>, &mut PhysicsContext, &WindowEvent, Arc<Cache>),
+    Start: FnMut(&ActiveEventLoop, &mut Children<Drw>, &mut PhysicsContext, Arc<Cache>),
 {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         #[cfg(feature = "tracing")]
@@ -807,7 +806,7 @@ where
                 }
 
                 let (vertex_buffer, matrices, offsets) =
-                    EngineContext::<Redraw, Start>::calculate_drawables(
+                    EngineContext::<Drw, Redraw, Start>::calculate_drawables(
                         self.memory.memory_allocator.clone(),
                         &self.physics_context,
                         &mut self.children,
@@ -901,14 +900,7 @@ where
                 let all_items = self
                     .children
                     .drawables
-                    .iter()
-                    .map(|d| d.as_ref() as &dyn DrawableComponent)
-                    .chain(
-                        self.children
-                            .physics_drawables
-                            .iter()
-                            .map(|pd| pd.as_ref() as &dyn DrawableComponent),
-                    );
+                    .iter();
 
                 all_items.enumerate().for_each(|(i, item)| {
                     #[cfg(feature = "tracing")]

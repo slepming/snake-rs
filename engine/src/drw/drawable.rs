@@ -67,27 +67,21 @@ impl Default for DrawableCreateInfo {
     }
 }
 
-pub struct Children {
+pub struct Children<D: DrawableComponent + 'static> {
     // I think iterations through Vector with Box is very slowly operation, but I dont know how I to
     // make this faster. And I must replace Box reference.
-    pub drawables: Vec<Box<dyn DrawableComponent>>,
-    pub physics_drawables: Vec<Box<dyn Entity>>,
+    pub drawables: Vec<D>,
 }
 
-impl Children {
+impl<D: DrawableComponent> Children<D> {
     pub fn new() -> Self {
         Children {
             drawables: Vec::new(),
-            physics_drawables: Vec::new(),
         }
     }
 
-    pub fn add_physics<T: Entity + 'static>(&mut self, item: T) {
-        self.physics_drawables.push(Box::new(item));
-    }
-
-    pub fn add_drawable<T: DrawableComponent + 'static>(&mut self, item: T) {
-        self.drawables.push(Box::new(item));
+    pub fn add_drawable(&mut self, item: D) {
+        self.drawables.push(item);
     }
 }
 
@@ -102,7 +96,7 @@ pub struct PhysicsDrawable {
     drawable: Drawable,
 }
 
-pub(crate) trait DrawableGPU {
+pub trait DrawableGPU {
     #[allow(dead_code)]
     fn set_vertex(&mut self, vertex: Vec<MyVertex>);
     #[allow(dead_code)]
@@ -117,7 +111,6 @@ pub(crate) trait DrawableGPU {
     fn get_pipeline(&self) -> Arc<GraphicsPipeline>;
 }
 
-// TODO: Remove DrawableGPU trait.
 pub trait DrawableComponent: DrawableGPU {
     fn get_transform(&self) -> &Transform;
     fn get_transform_clone(&self) -> Transform;
