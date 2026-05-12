@@ -80,7 +80,7 @@ pub struct EngineContext<Drw, Redraw, Start>
 where
     Drw: DrawableComponent + 'static,
     Redraw: FnMut(&mut Children<Drw>, &mut PhysicsContext, &WindowEvent, Arc<Cache>),
-    Start: FnMut(&ActiveEventLoop, &mut Children<Drw>, &mut PhysicsContext, Arc<Cache>),
+    Start: FnMut(&ActiveEventLoop, &mut Children<Drw>, Arc<Window>, Arc<Cache>)
 {
     instance: Arc<Instance>,
     device: Arc<Device>,
@@ -139,7 +139,7 @@ impl<Drw, Redraw, Start> EngineContext<Drw, Redraw, Start>
 where
     Drw: DrawableComponent + 'static,
     Redraw: FnMut(&mut Children<Drw>, &mut PhysicsContext, &WindowEvent, Arc<Cache>),
-    Start: FnMut(&ActiveEventLoop, &mut Children<Drw>, &mut PhysicsContext, Arc<Cache>),
+    Start: FnMut(&ActiveEventLoop, &mut Children<Drw>, Arc<Window>, Arc<Cache>)
 {
     pub fn new(event_loop: &EventLoop<()>, start: Start, redraw: Redraw) -> Self {
         tracing_subscriber::fmt::init();
@@ -303,18 +303,12 @@ impl<Drw, Redraw, Start> ApplicationHandler for EngineContext<Drw, Redraw, Start
 where
     Drw: DrawableComponent + 'static,
     Redraw: FnMut(&mut Children<Drw>, &mut PhysicsContext, &WindowEvent, Arc<Cache>),
-    Start: FnMut(&ActiveEventLoop, &mut Children<Drw>, &mut PhysicsContext, Arc<Cache>),
+    Start: FnMut(&ActiveEventLoop, &mut Children<Drw>, Arc<Window>, Arc<Cache>)
 {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         #[cfg(feature = "tracing")]
         let _span = tracy_client::span!("Engine::resumed");
-        info!("Creating window: snake-engine");
-        // The objective of this example is to draw a triangle on a window. To do so, we first need
-        // to create the window. We use the `WindowBuilder` from the `winit` crate to do that here.
-        //
-        // Before we can render to a window, we must first create a `vulkano::swapchain::Surface`
-        // object from it, which represents the drawable surface of a window. For that we must wrap
-        // the `winit::window::Window` in an `Arc`.
+        info!("Creating window");
         let window = Arc::new(
             event_loop
                 .create_window(
@@ -627,7 +621,7 @@ where
         (self.start)(
             &event_loop,
             &mut self.children,
-            &mut self.physics_context,
+            window.clone(),
             self.cache.clone(),
         );
 

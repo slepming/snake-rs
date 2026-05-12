@@ -13,7 +13,7 @@ use winit::{
     event::{ElementState, WindowEvent},
     event_loop::{ActiveEventLoop, EventLoop},
     keyboard::{Key, NamedKey},
-    platform::modifier_supplement::KeyEventExtModifierSupplement,
+    platform::modifier_supplement::KeyEventExtModifierSupplement, window::Window,
 };
 
 const OBJECTS_COUNT: u32 = 6;
@@ -24,10 +24,11 @@ fn main() -> Result<(), impl std::error::Error> {
 
     let mut window = |e: &ActiveEventLoop,
                       ch: &mut Children<Drawable>,
-                      _pc: &mut PhysicsContext,
+                      wind: Arc<Window>,
                       cache: Arc<Cache>| {
         let cache_clone = cache.clone();
         let monitor_size = e.available_monitors().next().unwrap().size();
+        wind.set_title("snake");
         for i in 0..OBJECTS_COUNT {
             let (r, g, b) = (rng.random::<u8>(), rng.random::<u8>(), rng.random::<u8>());
             //dbg!((r, g, b));
