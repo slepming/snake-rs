@@ -34,31 +34,25 @@ fn main() -> Result<(), impl std::error::Error> {
                 //dbg!((r, g, b));
                 if i % 2 == 0 {
                     ch.add_drawable(Drawable::from_shape(
-                        Shapes::Square(),
+                        Shapes::Square,
                         DrawableCreateInfo {
                             size: Vec2::new(100.0, 100.0),
                             color: Rgba8 { r, g, b, a: 255 },
                             id: ch.drawables.len() as u32 + 1,
                             cache: Some(cache_clone.clone()),
-                            position: Vec2::new(
-                                300.0 * i as f32,
-                                monitor_size.height as f32 / 2.0,
-                            ),
+                            position: Vec2::new(300.0 * i as f32, monitor_size.height as f32 / 2.0),
                             ..Default::default()
                         },
                     ));
                 } else {
                     ch.add_drawable(Drawable::from_shape(
-                        Shapes::Circle(),
+                        Shapes::Circle,
                         DrawableCreateInfo {
                             size: Vec2::new(1000.0, 1000.0),
                             color: Rgba8 { r, g, b, a: 255 },
                             id: ch.drawables.len() as u32 + 1,
                             cache: Some(cache_clone.clone()),
-                            position: Vec2::new(
-                                300.0 * i as f32,
-                                monitor_size.height as f32 / 2.0,
-                            ),
+                            position: Vec2::new(300.0 * i as f32, monitor_size.height as f32 / 2.0),
                             thickness: 0.0,
                             radius: 0.0,
                             ..Default::default()

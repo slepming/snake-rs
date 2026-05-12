@@ -20,7 +20,11 @@ use vulkano::{
         Device, DeviceCreateInfo, DeviceExtensions, Queue, QueueCreateInfo, QueueFlags,
         physical::PhysicalDeviceType,
     },
-    image::{Image, ImageUsage, view::ImageView},
+    image::{
+        Image, ImageUsage,
+        sampler::{Sampler, SamplerCreateInfo},
+        view::ImageView,
+    },
     instance::{Instance, InstanceCreateFlags, InstanceCreateInfo, InstanceExtensions},
     memory::allocator::{
         AllocationCreateInfo, MemoryAllocator, MemoryTypeFilter, StandardMemoryAllocator,
@@ -189,9 +193,17 @@ where
         let queue = queues.next().unwrap();
 
         let memory = EngineMemory::new(device.clone());
+        let sampler = Sampler::new(
+            device.clone(),
+            SamplerCreateInfo {
+                ..Default::default()
+            },
+        )
+        .unwrap();
         let cache = Arc::new(Cache::new(
             Some(memory.memory_allocator.clone()),
             Some(memory.descriptor_allocator.clone()),
+            sampler,
         ));
 
         info!("Initializing Rigidbody set");

@@ -267,7 +267,7 @@ impl Drawable {
     }
 
     pub fn from_shape(shape: Shapes, drw: DrawableCreateInfo) -> Self {
-        let pipeline: &'static str = shape.into();
+        let pipeline: &'static str = shape.clone().into();
         let key = Box::leak(pipeline.to_lowercase().into_boxed_str()); // Potential memory leak
         let (vertex, desc) = shape.get_vertex_and_descriptor(drw.cache.as_ref().unwrap());
         Drawable::new_with_color(drw, key, vertex, desc)

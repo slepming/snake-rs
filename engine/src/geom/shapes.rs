@@ -3,8 +3,8 @@ use strum::IntoStaticStr;
 use tracing::warn;
 use vulkano::buffer::{Buffer, BufferCreateInfo, BufferUsage};
 use vulkano::descriptor_set::{DescriptorSet, WriteDescriptorSet};
-use vulkano::image::{Image, ImageCreateInfo};
 use vulkano::image::view::{ImageView, ImageViewCreateInfo};
+use vulkano::image::{Image, ImageCreateInfo};
 use vulkano::memory::allocator::{AllocationCreateInfo, MemoryTypeFilter};
 use vulkano::pipeline::Pipeline;
 
@@ -23,7 +23,7 @@ pub struct CircleData {
 pub enum Shapes {
     Square,
     Circle,
-    Image(Texture)
+    Image(Texture),
 }
 
 impl Shapes {
@@ -105,7 +105,7 @@ impl Shapes {
 
                 (verts, Some(descriptor_set))
             }
-            Shapes::Image(t)  => {
+            Shapes::Image(t) => {
                 let verts = vec![
                     MyVertex {
                         position: [-1.0, -1.0],
@@ -148,7 +148,12 @@ impl Shapes {
                     warn!("Pipeline 'image' has no bindings. Did you forget to compile shaders?");
                 }
 
-                let image = Image::new(cache.memory_allocator.clone().unwrap(), ImageCreateInfo::default(), AllocationCreateInfo::default()).unwrap();
+                let image = Image::new(
+                    cache.memory_allocator.clone().unwrap(),
+                    ImageCreateInfo::default(),
+                    AllocationCreateInfo::default(),
+                )
+                .unwrap();
                 let image_view = ImageView::new(image, ImageViewCreateInfo::default()).unwrap();
 
                 let descriptor_set = DescriptorSet::new(
@@ -156,11 +161,11 @@ impl Shapes {
                     layout,
                     [
                         WriteDescriptorSet::sampler(0, cache.sampler.clone()), // TODO: I must
-                                                                               // create sampler in
-                                                                               // lib.rs and use
-                                                                               // sampler with Arc
-                                                                               // clone 
-                        WriteDescriptorSet::image_view(1, image_view)
+                        // create sampler in
+                        // lib.rs and use
+                        // sampler with Arc
+                        // clone
+                        WriteDescriptorSet::image_view(1, image_view),
                     ],
                     [],
                 )
