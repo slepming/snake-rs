@@ -9,7 +9,7 @@ use vulkano::memory::allocator::{AllocationCreateInfo, MemoryTypeFilter};
 use vulkano::pipeline::Pipeline;
 
 use crate::MyVertex;
-use crate::drw::drawable::Texture;
+use crate::drw::texture::Texture;
 use crate::res::cache::{Cache, PipelineHandle};
 
 #[derive(vulkano::buffer::BufferContents, Clone, Copy)]

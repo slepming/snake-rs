@@ -7,10 +7,7 @@ use rapier2d::{
 use vulkano::pipeline::GraphicsPipeline;
 
 use crate::{
-    MyVertex,
-    geom::{matrix::Transform, shapes::Shapes},
-    mv::{phys::movement::PhysicsContext, transform::Entity},
-    res::cache::{Cache, PipelineHandle},
+    MyVertex, drw::texture::Texture, geom::{matrix::Transform, shapes::Shapes}, mv::{phys::movement::PhysicsContext, transform::Entity}, res::cache::{Cache, PipelineHandle}
 };
 
 use crate::res::cache::DescriptorHandle;
@@ -36,11 +33,6 @@ pub(crate) struct DrawableRenderContext {
     pub(crate) descriptor_id: DescriptorID,
     pipeline_id: PipelineID,
     mesh: Mesh,
-}
-
-#[derive(Clone)]
-pub struct Texture {
-    bytes: Vec<u8>,
 }
 
 pub struct DrawableCreateInfo {
@@ -177,49 +169,6 @@ impl Drawable {
                 mesh: Mesh::new(vertex, id),
             },
         }
-    }
-
-    pub fn new_with_texture(
-        drawable_info: DrawableCreateInfo,
-        key: &'static str,
-        vertex: Vec<MyVertex>,
-        descriptor_set: Option<Arc<DescriptorSet>>,
-    ) -> Self {
-        let pos = drawable_info.position;
-        let transform = Transform {
-            transform: [
-                [drawable_info.size[0], 0.0, 0.0, 0.0],
-                [0.0, drawable_info.size[1], 0.0, 0.0],
-                [0.0, 0.0, 1.0, 0.0],
-                [pos[0], pos[1], 0.0, 1.0],
-            ],
-        };
-
-        let mut drawable = Drawable {
-            color: drawable_info.color,
-            transform,
-            cache: drawable_info.cache.as_ref().unwrap().clone(),
-            render: DrawableRenderContext {
-                descriptor_id: DescriptorID {
-                    id: key.to_string(),
-                },
-                pipeline_id: PipelineID {
-                    id: key.to_string(),
-                },
-                mesh: Mesh::new(vertex, drawable_info.id),
-            },
-        };
-        if let Some(desc) = descriptor_set {
-            let desc_key = format!("{}_{}", key, drawable_info.id);
-            drawable_info
-                .cache
-                .as_ref()
-                .unwrap()
-                .insert_descriptor_set(desc_key.clone(), desc);
-            drawable.render.descriptor_id.id = desc_key;
-        }
-
-        drawable
     }
 
     pub fn new_with_color(
