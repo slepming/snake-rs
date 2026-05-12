@@ -80,7 +80,7 @@ pub struct EngineContext<Drw, Redraw, Start>
 where
     Drw: DrawableComponent + 'static,
     Redraw: FnMut(&mut Children<Drw>, &mut PhysicsContext, &WindowEvent, Arc<Cache>),
-    Start: FnMut(&ActiveEventLoop, &mut Children<Drw>, Arc<Window>, Arc<Cache>)
+    Start: FnMut(&ActiveEventLoop, &mut Children<Drw>, Arc<Window>, Arc<Cache>),
 {
     instance: Arc<Instance>,
     device: Arc<Device>,
@@ -139,7 +139,7 @@ impl<Drw, Redraw, Start> EngineContext<Drw, Redraw, Start>
 where
     Drw: DrawableComponent + 'static,
     Redraw: FnMut(&mut Children<Drw>, &mut PhysicsContext, &WindowEvent, Arc<Cache>),
-    Start: FnMut(&ActiveEventLoop, &mut Children<Drw>, Arc<Window>, Arc<Cache>)
+    Start: FnMut(&ActiveEventLoop, &mut Children<Drw>, Arc<Window>, Arc<Cache>),
 {
     pub fn new(event_loop: &EventLoop<()>, start: Start, redraw: Redraw) -> Self {
         tracing_subscriber::fmt::init();
@@ -182,7 +182,8 @@ where
             ..DeviceExtensions::empty()
         };
 
-        let (device, mut queues) = select_render_device(instance.clone(), device_extensions, event_loop);
+        let (device, mut queues) =
+            select_render_device(instance.clone(), device_extensions, event_loop);
 
         // TODO: Save queues in HashMap with keys: GRAPHICS, COMPUTE, VIDEO_DECODE, VIDEO_ENCODE
         let queue = queues.next().unwrap();
@@ -303,7 +304,7 @@ impl<Drw, Redraw, Start> ApplicationHandler for EngineContext<Drw, Redraw, Start
 where
     Drw: DrawableComponent + 'static,
     Redraw: FnMut(&mut Children<Drw>, &mut PhysicsContext, &WindowEvent, Arc<Cache>),
-    Start: FnMut(&ActiveEventLoop, &mut Children<Drw>, Arc<Window>, Arc<Cache>)
+    Start: FnMut(&ActiveEventLoop, &mut Children<Drw>, Arc<Window>, Arc<Cache>),
 {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         #[cfg(feature = "tracing")]
@@ -955,8 +956,7 @@ fn select_render_device(
     instance: Arc<Instance>,
     device_extensions: DeviceExtensions,
     event_loop: &impl HasDisplayHandle,
-) -> (Arc<Device>, impl ExactSizeIterator<Item = Arc<Queue>>)
-{
+) -> (Arc<Device>, impl ExactSizeIterator<Item = Arc<Queue>>) {
     info!("Selecting physical device (GPU)");
     // We then choose which physical device to use. First, we enumerate all the available
     // physical devices, then apply filters to narrow them down to those that can support our
@@ -1054,9 +1054,14 @@ fn select_render_device(
     .unwrap();
 
     // TODO: in the future I must create async compute ability
-    for (i, queue) in device.physical_device().queue_family_properties().iter().enumerate() {
+    for (i, queue) in device
+        .physical_device()
+        .queue_family_properties()
+        .iter()
+        .enumerate()
+    {
         debug!(support_queues = ?queue.queue_flags, index = ?i);
     }
-    
+
     (device, queues)
 }

@@ -38,9 +38,15 @@ pub(crate) struct DrawableRenderContext {
     mesh: Mesh,
 }
 
+#[derive(Clone)]
+pub struct Texture {
+    bytes: Vec<u8>,
+}
+
 pub struct DrawableCreateInfo {
     pub cache: Option<Arc<Cache>>,
-    pub position: Option<Vec2>,
+    pub position: Vec2,
+    pub texture: Option<Texture>,
     pub radius: f32,
     pub thickness: f32,
     pub size: Vec2,
@@ -52,6 +58,7 @@ impl Default for DrawableCreateInfo {
     fn default() -> Self {
         Self {
             cache: Default::default(),
+            texture: Default::default(),
             position: Default::default(),
             radius: Default::default(),
             thickness: Default::default(),
@@ -172,13 +179,56 @@ impl Drawable {
         }
     }
 
+    pub fn new_with_texture(
+        drawable_info: DrawableCreateInfo,
+        key: &'static str,
+        vertex: Vec<MyVertex>,
+        descriptor_set: Option<Arc<DescriptorSet>>,
+    ) -> Self {
+        let pos = drawable_info.position;
+        let transform = Transform {
+            transform: [
+                [drawable_info.size[0], 0.0, 0.0, 0.0],
+                [0.0, drawable_info.size[1], 0.0, 0.0],
+                [0.0, 0.0, 1.0, 0.0],
+                [pos[0], pos[1], 0.0, 1.0],
+            ],
+        };
+
+        let mut drawable = Drawable {
+            color: drawable_info.color,
+            transform,
+            cache: drawable_info.cache.as_ref().unwrap().clone(),
+            render: DrawableRenderContext {
+                descriptor_id: DescriptorID {
+                    id: key.to_string(),
+                },
+                pipeline_id: PipelineID {
+                    id: key.to_string(),
+                },
+                mesh: Mesh::new(vertex, drawable_info.id),
+            },
+        };
+        if let Some(desc) = descriptor_set {
+            let desc_key = format!("{}_{}", key, drawable_info.id);
+            drawable_info
+                .cache
+                .as_ref()
+                .unwrap()
+                .insert_descriptor_set(desc_key.clone(), desc);
+            drawable.render.descriptor_id.id = desc_key;
+        }
+
+        drawable
+    }
+
     pub fn new_with_color(
         drawable_info: DrawableCreateInfo,
         key: &'static str,
         vertex: Vec<MyVertex>,
         descriptor_set: Option<Arc<DescriptorSet>>,
     ) -> Self {
-        let pos = drawable_info.position.unwrap_or(Vec2::new(1.0, 1.0));
+        let pos = drawable_info.position;
         let transform = Transform {
             transform: [
                 [drawable_info.size[0], 0.0, 0.0, 0.0],

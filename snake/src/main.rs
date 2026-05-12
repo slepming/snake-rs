@@ -6,6 +6,7 @@ use rapier2d::math::Vec2;
 use snake_engine::{
     EngineContext,
     drw::drawable::{Children, Drawable, DrawableCreateInfo},
+    geom::shapes::Shapes,
     mv::phys::movement::PhysicsContext,
     res::cache::Cache,
 };
@@ -13,7 +14,8 @@ use winit::{
     event::{ElementState, WindowEvent},
     event_loop::{ActiveEventLoop, EventLoop},
     keyboard::{Key, NamedKey},
-    platform::modifier_supplement::KeyEventExtModifierSupplement, window::Window,
+    platform::modifier_supplement::KeyEventExtModifierSupplement,
+    window::Window,
 };
 
 const OBJECTS_COUNT: u32 = 6;
@@ -22,51 +24,49 @@ fn main() -> Result<(), impl std::error::Error> {
     let event_loop = EventLoop::new().unwrap();
     let mut rng = rand::rng();
 
-    let mut window = |e: &ActiveEventLoop,
-                      ch: &mut Children<Drawable>,
-                      wind: Arc<Window>,
-                      cache: Arc<Cache>| {
-        let cache_clone = cache.clone();
-        let monitor_size = e.available_monitors().next().unwrap().size();
-        wind.set_title("snake");
-        for i in 0..OBJECTS_COUNT {
-            let (r, g, b) = (rng.random::<u8>(), rng.random::<u8>(), rng.random::<u8>());
-            //dbg!((r, g, b));
-            if i % 2 == 0 {
-                ch.add_drawable(Drawable::from_shape(
-                    snake_engine::geom::shapes::Shapes::Square(),
-                    DrawableCreateInfo {
-                        size: Vec2::new(100.0, 100.0),
-                        color: Rgba8 { r, g, b, a: 255 },
-                        id: ch.drawables.len() as u32 + 1,
-                        cache: Some(cache_clone.clone()),
-                        position: Some(Vec2::new(
-                            300.0 * i as f32,
-                            monitor_size.height as f32 / 2.0,
-                        )),
-                        ..Default::default()
-                    },
-                ));
-            } else {
-                ch.add_drawable(Drawable::from_shape(
-                    snake_engine::geom::shapes::Shapes::Circle(),
-                    DrawableCreateInfo {
-                        size: Vec2::new(1000.0, 1000.0),
-                        color: Rgba8 { r, g, b, a: 255 },
-                        id: ch.drawables.len() as u32 + 1,
-                        cache: Some(cache_clone.clone()),
-                        position: Some(Vec2::new(
-                            300.0 * i as f32,
-                            monitor_size.height as f32 / 2.0,
-                        )),
-                        thickness: 0.0,
-                        radius: 0.0,
-                        ..Default::default()
-                    },
-                ));
+    let mut window =
+        |e: &ActiveEventLoop, ch: &mut Children<Drawable>, wind: Arc<Window>, cache: Arc<Cache>| {
+            let cache_clone = cache.clone();
+            let monitor_size = e.available_monitors().next().unwrap().size();
+            wind.set_title("snake");
+            for i in 0..OBJECTS_COUNT {
+                let (r, g, b) = (rng.random::<u8>(), rng.random::<u8>(), rng.random::<u8>());
+                //dbg!((r, g, b));
+                if i % 2 == 0 {
+                    ch.add_drawable(Drawable::from_shape(
+                        Shapes::Square(),
+                        DrawableCreateInfo {
+                            size: Vec2::new(100.0, 100.0),
+                            color: Rgba8 { r, g, b, a: 255 },
+                            id: ch.drawables.len() as u32 + 1,
+                            cache: Some(cache_clone.clone()),
+                            position: Vec2::new(
+                                300.0 * i as f32,
+                                monitor_size.height as f32 / 2.0,
+                            ),
+                            ..Default::default()
+                        },
+                    ));
+                } else {
+                    ch.add_drawable(Drawable::from_shape(
+                        Shapes::Circle(),
+                        DrawableCreateInfo {
+                            size: Vec2::new(1000.0, 1000.0),
+                            color: Rgba8 { r, g, b, a: 255 },
+                            id: ch.drawables.len() as u32 + 1,
+                            cache: Some(cache_clone.clone()),
+                            position: Vec2::new(
+                                300.0 * i as f32,
+                                monitor_size.height as f32 / 2.0,
+                            ),
+                            thickness: 0.0,
+                            radius: 0.0,
+                            ..Default::default()
+                        },
+                    ));
+                }
             }
-        }
-    };
+        };
 
     let redraw_closure = |_ch: &mut Children<Drawable>,
                           _pc: &mut PhysicsContext,
