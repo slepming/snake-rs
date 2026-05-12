@@ -13,7 +13,7 @@ The graphics library selected is **Vulkano**, providing high-level abstractions 
 | Window Management | `winit`                   | Window creation and event handling |
 | Logging           | `tracing`                 | Structured logging                 |
 | Physics           | `rapier2d`                | 2D physics simulation              |
-| Image Processing  | `png`, `image`            | Font parsing (future use)          |
+| Image Processing  | `ffmpeg-next`             | Image encode and decode            |
 | Profiling         | `tracy_client`            | Performance tracking and leaks     |
 
 ## Development Process

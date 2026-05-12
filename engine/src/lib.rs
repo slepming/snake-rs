@@ -160,7 +160,6 @@ where
         let required_extensions = Surface::required_extensions(event_loop).unwrap();
 
         info!("Creating Vulkan instance");
-        // Now creating the instance.
         let instance = Instance::new(
             library.clone(),
             InstanceCreateInfo {
@@ -183,11 +182,9 @@ where
             ..DeviceExtensions::empty()
         };
 
-        let (device, mut queues) = select_render_device(instance.clone(), &device_extensions, event_loop);
+        let (device, mut queues) = select_render_device(instance.clone(), device_extensions, event_loop);
 
-        // Since we can request multiple queues, the `queues` variable is in fact an iterator. We
-        // only use one queue in this example, so we just retrieve the first and only element of
-        // the iterator.
+        // TODO: Save queues in HashMap with keys: GRAPHICS, COMPUTE, VIDEO_DECODE, VIDEO_ENCODE
         let queue = queues.next().unwrap();
 
         let memory = EngineMemory::new(device.clone());
@@ -196,14 +193,17 @@ where
             Some(memory.descriptor_allocator.clone()),
         ));
 
-        info!("Initializing physics context (RigidBodySet, ColliderSet, Space)");
+        info!("Initializing Rigidbody set");
 
         // Create physics
         let rbs = RigidBodySet::new();
+        info!("Initializing Collider set");
         let cds = ColliderSet::new();
 
+        info!("Initializing Physics space");
         let space = PhysicsSpace::new();
 
+        info!("Initializing Physics context");
         let ph_context = PhysicsContext::new(rbs, cds, space);
 
         Self {
@@ -279,8 +279,8 @@ where
             matrices.push(matrix);
         });
 
+        // NOTE: Panic when vertices capacity is empty
         let vertex_buffer = Buffer::from_iter(
-            // NOTE: Panic when iter vertices is empty
             memory_allocator,
             BufferCreateInfo {
                 usage: BufferUsage::VERTEX_BUFFER,
@@ -959,7 +959,7 @@ fn window_size_dependent_setup(
 
 fn select_render_device(
     instance: Arc<Instance>,
-    device_extensions: &DeviceExtensions,
+    device_extensions: DeviceExtensions,
     event_loop: &impl HasDisplayHandle,
 ) -> (Arc<Device>, impl ExactSizeIterator<Item = Arc<Queue>>)
 {
@@ -974,7 +974,7 @@ fn select_render_device(
             // Some devices may not support the extensions or features that your application,
             // or report properties and limits that are not sufficient for your application.
             // These should be filtered out here.
-            p.supported_extensions().contains(device_extensions)
+            p.supported_extensions().contains(&device_extensions)
         })
         .filter_map(|p| {
             // For each physical device, we try to find a suitable queue family that will
