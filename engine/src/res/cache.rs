@@ -10,6 +10,7 @@ use vulkano::{
     pipeline::GraphicsPipeline,
 };
 
+/// Basic cache structure
 pub struct Cache {
     pipelines: RwLock<HashMap<&'static str, Arc<GraphicsPipeline>>>,
     descriptors: RwLock<HashMap<String, Arc<DescriptorSet>>>,
