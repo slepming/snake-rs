@@ -5,7 +5,7 @@ use rand::RngExt;
 use rapier2d::math::Vec2;
 use snake_engine::{
     EngineContext,
-    drw::drawable::{Children, Drawable, DrawableCreateInfo},
+    drw::{drawable::{Children, Drawable, DrawableCreateInfo}, texture::Texture},
     geom::shapes::Shapes,
     mv::phys::movement::PhysicsContext,
     res::cache::Cache,
@@ -59,19 +59,19 @@ fn main() -> Result<(), impl std::error::Error> {
                         },
                     ));
                 } else {
-                    ch.add_drawable(Drawable::from_shape(
-                        Shapes::Image(),
-                        DrawableCreateInfo {
-                            size: Vec2::new(1000.0, 1000.0),
-                            color: Rgba8 { r, g, b, a: 255 },
-                            id: ch.drawables.len() as u32 + 1,
-                            cache: Some(cache_clone.clone()),
-                            position: Vec2::new(300.0 * i as f32, monitor_size.height as f32 / 2.0),
-                            thickness: 0.0,
-                            radius: 0.0,
-                            ..Default::default()
-                        },
-                    ));
+                    //ch.add_drawable(Drawable::from_shape(
+                    //    Shapes::Image(Texture::from),
+                    //    DrawableCreateInfo {
+                    //        size: Vec2::new(1000.0, 1000.0),
+                    //        color: Rgba8 { r, g, b, a: 255 },
+                    //        id: ch.drawables.len() as u32 + 1,
+                    //        cache: Some(cache_clone.clone()),
+                    //        position: Vec2::new(300.0 * i as f32, monitor_size.height as f32 / 2.0),
+                    //        thickness: 0.0,
+                    //        radius: 0.0,
+                    //        ..Default::default()
+                    //    },
+                    //));
                 }
             }
         };
