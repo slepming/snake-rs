@@ -61,6 +61,7 @@ use winit::{
 use crate::{
     drw::drawable::{Children, DrawableComponent, DrawableGPU},
     geom::matrix::Transform,
+    mem::engine_memory::EngineMemory,
     mv::phys::movement::{PhysicsContext, PhysicsSpace},
     res::cache::{Cache, PipelineHandle},
     shaders::{
@@ -71,6 +72,7 @@ use crate::{
 
 pub mod drw;
 pub mod geom;
+pub mod mem;
 pub mod mv;
 pub mod res;
 pub mod shaders;
@@ -80,6 +82,11 @@ pub mod shaders;
 static GLOBAL: tracy_client::ProfiledAllocator<std::alloc::System> =
     tracy_client::ProfiledAllocator::new(std::alloc::System, 100);
 
+/// The main entry point into the engine
+/// # Generics
+/// `Drw` -> Drw(Draw) type is drawable component which render into screen
+/// `Redraw` -> Event generic which calls every frame
+/// `Start` -> Event generic which calls after window, pipelines, swapchain initialization
 pub struct EngineContext<Drw, Redraw, Start>
 where
     Drw: DrawableComponent + DrawableGPU + 'static,
@@ -87,7 +94,9 @@ where
     Start: FnMut(&ActiveEventLoop, &mut Children<Drw>, Arc<Window>, Arc<Cache>),
 {
     instance: Arc<Instance>,
+    /// One of the most important parts of the engine - vulkan context
     device: Arc<Device>,
+    /// GPU possible queues(Currently is first GRAPHICS queue)
     queue: Arc<Queue>,
     memory: EngineMemory,
     rcx: Option<RenderContext>,
@@ -97,35 +106,6 @@ where
     pub frames: u64,
     redraw: Redraw,
     start: Start,
-}
-
-struct EngineMemory {
-    command_buffer_allocator: Arc<StandardCommandBufferAllocator>,
-    memory_allocator: Arc<StandardMemoryAllocator>,
-    descriptor_allocator: Arc<StandardDescriptorSetAllocator>,
-}
-
-impl EngineMemory {
-    pub fn new(device: Arc<Device>) -> Self {
-        let memory_allocator = Arc::new(StandardMemoryAllocator::new_default(device.clone()));
-
-        // Before we can start creating and recording command buffers, we need a way of allocating
-        // them. Vulkano provides a command buffer allocator, which manages raw Vulkan command
-        // pools underneath and provides a safe interface for them.
-        let command_buffer_allocator = Arc::new(StandardCommandBufferAllocator::new(
-            device.clone(),
-            Default::default(),
-        ));
-        let descriptor_set_allocator = Arc::new(StandardDescriptorSetAllocator::new(
-            device.clone(),
-            Default::default(),
-        ));
-        EngineMemory {
-            descriptor_allocator: descriptor_set_allocator,
-            command_buffer_allocator,
-            memory_allocator,
-        }
-    }
 }
 
 struct RenderContext {
@@ -232,14 +212,6 @@ where
             start: start,
             redraw: redraw,
         }
-    }
-
-    pub fn bind_redraw(&mut self, redraw: Redraw) {
-        self.redraw = redraw;
-    }
-
-    pub fn bind_start(&mut self, start: Start) {
-        self.start = start;
     }
 
     /// Calculates Vertex buffer, matrices vector and offsets vector for draw in Vulkano
@@ -916,7 +888,7 @@ where
                 }
                 #[cfg(feature = "tracing")]
                 drop(span_submit);
-                self.physics_context.step();
+                //self.physics_context.step(); TODO: In the future I must uncomment this code block
                 #[cfg(feature = "tracing")]
                 tracy_client::Client::running().unwrap().frame_mark();
             }

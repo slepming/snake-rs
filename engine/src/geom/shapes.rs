@@ -4,7 +4,7 @@ use tracing::warn;
 use vulkano::buffer::{Buffer, BufferCreateInfo, BufferUsage};
 use vulkano::descriptor_set::{DescriptorSet, WriteDescriptorSet};
 use vulkano::image::view::{ImageView, ImageViewCreateInfo};
-use vulkano::image::{Image, ImageCreateInfo};
+use vulkano::image::{Image, ImageCreateInfo, ImageSubresourceRange, ImageUsage};
 use vulkano::memory::allocator::{AllocationCreateInfo, MemoryTypeFilter};
 use vulkano::pipeline::Pipeline;
 
@@ -105,7 +105,10 @@ impl Shapes {
 
                 (verts, Some(descriptor_set))
             }
-            Shapes::Image(t) => {
+            Shapes::Image(texture) => {
+                if texture.dimensions.0 == 0 || texture.dimensions.1 == 0 {
+                    warn!("Texture dimension is zero");
+                }
                 let verts = vec![
                     MyVertex {
                         position: [-1.0, -1.0],
@@ -121,27 +124,8 @@ impl Shapes {
                     },
                 ];
 
-                let memory_allocator = cache.memory_allocator.as_ref().unwrap();
                 let descriptor_allocator = cache.descriptor_allocator.as_ref().unwrap();
                 let pipeline = cache.get_pipeline("circle").unwrap();
-
-                let buffer = Buffer::from_data(
-                    memory_allocator.clone(),
-                    BufferCreateInfo {
-                        usage: BufferUsage::UNIFORM_BUFFER,
-                        ..Default::default()
-                    },
-                    AllocationCreateInfo {
-                        memory_type_filter: MemoryTypeFilter::PREFER_DEVICE
-                            | MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
-                        ..Default::default()
-                    },
-                    CircleData {
-                        radius: 0.05,
-                        thickness: 0.001,
-                    },
-                )
-                .unwrap();
 
                 let layout = pipeline.layout().set_layouts().get(0).unwrap().clone();
                 if layout.bindings().is_empty() {
@@ -150,21 +134,23 @@ impl Shapes {
 
                 let image = Image::new(
                     cache.memory_allocator.clone().unwrap(),
-                    ImageCreateInfo::default(),
+                    ImageCreateInfo {
+                        image_type: vulkano::image::ImageType::Dim2d,
+                        format: vulkano::format::Format::R8G8B8A8_UNORM,
+                        extent: [texture.dimensions.0, texture.dimensions.1, 1],
+                        usage: ImageUsage::TRANSFER_DST | ImageUsage::SAMPLED,
+                        ..Default::default()
+                    },
                     AllocationCreateInfo::default(),
                 )
                 .unwrap();
-                let image_view = ImageView::new(image, ImageViewCreateInfo::default()).unwrap();
+                let image_view = ImageView::new_default(image).unwrap();
 
                 let descriptor_set = DescriptorSet::new(
                     descriptor_allocator.clone(),
                     layout,
                     [
-                        WriteDescriptorSet::sampler(0, cache.sampler.clone()), // TODO: I must
-                        // create sampler in
-                        // lib.rs and use
-                        // sampler with Arc
-                        // clone
+                        WriteDescriptorSet::sampler(0, cache.sampler.clone()),
                         WriteDescriptorSet::image_view(1, image_view),
                     ],
                     [],
