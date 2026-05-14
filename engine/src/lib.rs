@@ -13,9 +13,8 @@ use vulkano::{
     buffer::{Buffer, BufferContents, BufferCreateInfo, BufferUsage, Subbuffer},
     command_buffer::{
         AutoCommandBufferBuilder, CommandBufferUsage, RenderPassBeginInfo, SubpassBeginInfo,
-        SubpassContents, allocator::StandardCommandBufferAllocator,
+        SubpassContents,
     },
-    descriptor_set::allocator::StandardDescriptorSetAllocator,
     device::{
         Device, DeviceCreateInfo, DeviceExtensions, Queue, QueueCreateInfo, QueueFlags,
         physical::PhysicalDeviceType,
@@ -394,7 +393,6 @@ where
                     // `samples: 1` means that we ask the GPU to use one sample to determine the
                     // value of each pixel in the color attachment. We could use a larger value
                     // (multisampling) for antialiasing. An example of this can be found in
-                    // msaa-renderpass.rs.
                     samples: 1,
                     // `load_op: Clear` means that we ask the GPU to clear the content of this
                     // attachment at the start of the drawing.
@@ -447,158 +445,34 @@ where
         // avoid that, we store the submission of the previous frame here.
         let previous_frame_end = Some(sync::now(self.device.clone()).boxed());
 
-        // Before we draw, we have to create what is called a **pipeline**. A pipeline describes
-        // how a GPU operation is to be performed. It is similar to an OpenGL program, but it also
-        // contains many settings for customization, all baked into a single object. For drawing,
-        // we create a **graphics** pipeline, but there are also other types of pipeline.
-        let square_pipeline = {
-            // First, we load the shaders that the pipeline will use: the vertex shader and the
-            // fragment shader.
-            //
-            // A Vulkan shader can in theory contain multiple entry points, so we have to specify
-            // which one.
-            let vs = cube_vs::load(self.device.clone())
-                .unwrap()
-                .entry_point("main")
-                .unwrap();
-            let fs = cube_fs::load(self.device.clone())
-                .unwrap()
-                .entry_point("main")
-                .unwrap();
+        let vs_cube = cube_vs::load(self.device.clone()).unwrap();
+        let fs_cube = cube_fs::load(self.device.clone()).unwrap();
+        let square_pipeline = create_pipeline(
+            self.device.clone(),
+            render_pass.clone(),
+            vs_cube.entry_point("main").unwrap(),
+            fs_cube.entry_point("main").unwrap(),
+            ColorBlendState {
+                attachments: vec![ColorBlendAttachmentState::default()],
+                ..Default::default()
+            },
+        );
 
-            // Automatically generate a vertex input state from the vertex shader's input
-            // interface, that takes a single vertex buffer containing `Vertex` structs.
-            let vertex_input_state = MyVertex::per_vertex().definition(&vs).unwrap();
-
-            // Make a list of the shader stages that the pipeline will have.
-            let stages = [
-                PipelineShaderStageCreateInfo::new(vs),
-                PipelineShaderStageCreateInfo::new(fs),
-            ];
-
-            // We must now create a **pipeline layout** object, which describes the locations and
-            // types of descriptor sets and push constants used by the shaders in the pipeline.
-            //
-            // Multiple pipelines can share a common layout object, which is more efficient. The
-            // shaders in a pipeline must use a subset of the resources described in its pipeline
-            // layout, but the pipeline layout is allowed to contain resources that are not present
-            // in the shaders; they can be used by shaders in other pipelines that share the same
-            // layout. Thus, it is a good idea to design shaders so that many pipelines have common
-            // resource locations, which allows them to share pipeline layouts.
-            //
-            // Since we only have one pipeline in this example, and thus one pipeline layout, we
-            // automatically generate the layout from the resources used in the shaders. In a real
-            // application, you would specify this information manually so that you can re-use one
-            // layout in multiple pipelines.
-            let layout = PipelineLayout::new(
-                self.device.clone(),
-                PipelineDescriptorSetLayoutCreateInfo::from_stages(&stages)
-                    .into_pipeline_layout_create_info(self.device.clone())
-                    .unwrap(),
-            )
-            .unwrap();
-            dbg!(&layout);
-
-            // We have to indicate which subpass of which render pass this pipeline is going to be
-            // used in. The pipeline will only be usable from this particular subpass.
-            let subpass = Subpass::from(render_pass.clone(), 0).unwrap();
-
-            // Finally, create the pipeline.
-            GraphicsPipeline::new(
-                self.device.clone(),
-                None,
-                GraphicsPipelineCreateInfo {
-                    stages: stages.into_iter().collect(),
-                    // How vertex data is read from the vertex buffers into the vertex shader.
-                    vertex_input_state: Some(vertex_input_state),
-                    // How vertices are arranged into primitive shapes. The default primitive shape
-                    // is a triangle.
-                    input_assembly_state: Some(InputAssemblyState {
-                        topology: vulkano::pipeline::graphics::input_assembly::PrimitiveTopology::TriangleFan,
-                        ..Default::default()
-                    }),
-                    // How primitives are transformed and clipped to fit the framebuffer. We use a
-                    // resizable viewport, set to draw over the entire window.
-                    viewport_state: Some(ViewportState::default()),
-                    // How polygons are culled and converted into a raster of pixels. The default
-                    // value does not perform any culling.
-                    rasterization_state: Some(RasterizationState::default()),
-                    // How multiple fragment shader samples are converted to a single pixel value.
-                    // The default value does not perform any multisampling.
-                    multisample_state: Some(MultisampleState::default()),
-                    // How pixel values are combined with the values already present in the
-                    // framebuffer. The default value overwrites the old value with the new one,
-                    // without any blending.
-                    color_blend_state: Some(ColorBlendState {
-                        attachments: vec![ColorBlendAttachmentState::default()],
-                        ..Default::default()
-                    }),
-                    // Dynamic states allows us to specify parts of the pipeline settings when
-                    // recording the command buffer, before we perform drawing. Here, we specify
-                    // that the viewport should be dynamic.
-                    dynamic_state: [DynamicState::Viewport].into_iter().collect(),
-                    subpass: Some((subpass.clone()).into()),
-                    ..GraphicsPipelineCreateInfo::layout(layout.clone())
-                },
-            )
-            .unwrap()
-        };
-
-        let circle_pipeline = {
-            let vs = circle_vs::load(self.device.clone())
-                .unwrap()
-                .entry_point("main")
-                .unwrap();
-            let fs = circle_fs::load(self.device.clone())
-                .unwrap()
-                .entry_point("main")
-                .unwrap();
-
-            let vertex_input_state = MyVertex::per_vertex().definition(&vs).unwrap();
-
-            let stages = [
-                PipelineShaderStageCreateInfo::new(vs),
-                PipelineShaderStageCreateInfo::new(fs),
-            ];
-
-            let layout = PipelineLayout::new(
-                self.device.clone(),
-                PipelineDescriptorSetLayoutCreateInfo::from_stages(&stages)
-                    .into_pipeline_layout_create_info(self.device.clone())
-                    .unwrap(),
-            )
-            .unwrap();
-
-            let subpass = Subpass::from(render_pass.clone(), 0).unwrap();
-
-            let pipeline = GraphicsPipeline::new(
-                self.device.clone(),
-                None,
-                GraphicsPipelineCreateInfo {
-                    stages: stages.into_iter().collect(),
-                    vertex_input_state: Some(vertex_input_state),
-                    input_assembly_state: Some(InputAssemblyState {
-                        topology: PrimitiveTopology::TriangleFan,
-                        ..Default::default()
-                    }),
-                    viewport_state: Some(ViewportState::default()),
-                    rasterization_state: Some(RasterizationState::default()),
-                    multisample_state: Some(MultisampleState::default()),
-                    color_blend_state: Some(ColorBlendState {
-                        attachments: vec![ColorBlendAttachmentState {
-                            blend: Some(AttachmentBlend::alpha()),
-                            ..Default::default()
-                        }],
-                        ..Default::default()
-                    }),
-                    dynamic_state: [DynamicState::Viewport].into_iter().collect(),
-                    subpass: Some((subpass.clone()).into()),
-                    ..GraphicsPipelineCreateInfo::layout(layout.clone())
-                },
-            )
-            .unwrap();
-            pipeline
-        };
+        let vs_circle = circle_vs::load(self.device.clone()).unwrap();
+        let fs_circle = circle_fs::load(self.device.clone()).unwrap();
+        let circle_pipeline = create_pipeline(
+            self.device.clone(),
+            render_pass.clone(),
+            vs_circle.entry_point("main").unwrap(),
+            fs_circle.entry_point("main").unwrap(),
+            ColorBlendState {
+                attachments: vec![ColorBlendAttachmentState {
+                    blend: Some(AttachmentBlend::alpha()),
+                    ..Default::default()
+                }],
+                ..Default::default()
+            },
+        );
 
         self.cache.insert_pipeline("circle", circle_pipeline);
         self.cache.insert_pipeline("square", square_pipeline);
@@ -1048,4 +922,50 @@ fn select_render_device(
     }
 
     (device, queues)
+}
+// Before we draw, we have to create what is called a **pipeline**. A pipeline describes
+// how a GPU operation is to be performed. It is similar to an OpenGL program, but it also
+// contains many settings for customization, all baked into a single object. For drawing,
+// we create a **graphics** pipeline, but there are also other types of pipeline.
+fn create_pipeline(
+    device: Arc<Device>,
+    render_pass: Arc<RenderPass>,
+    vs: vulkano::shader::EntryPoint,
+    fs: vulkano::shader::EntryPoint,
+    blend_state: ColorBlendState,
+) -> Arc<GraphicsPipeline> {
+    let vertex_input_state = MyVertex::per_vertex().definition(&vs).unwrap();
+    let stages = [
+        PipelineShaderStageCreateInfo::new(vs),
+        PipelineShaderStageCreateInfo::new(fs),
+    ];
+    let layout = PipelineLayout::new(
+        device.clone(),
+        PipelineDescriptorSetLayoutCreateInfo::from_stages(&stages)
+            .into_pipeline_layout_create_info(device.clone())
+            .unwrap(),
+    )
+    .unwrap();
+    let subpass = Subpass::from(render_pass, 0).unwrap();
+
+    GraphicsPipeline::new(
+        device,
+        None,
+        GraphicsPipelineCreateInfo {
+            stages: stages.into_iter().collect(),
+            vertex_input_state: Some(vertex_input_state),
+            input_assembly_state: Some(InputAssemblyState {
+                topology: PrimitiveTopology::TriangleFan,
+                ..Default::default()
+            }),
+            viewport_state: Some(ViewportState::default()),
+            rasterization_state: Some(RasterizationState::default()),
+            multisample_state: Some(MultisampleState::default()),
+            color_blend_state: Some(blend_state),
+            dynamic_state: [DynamicState::Viewport].into_iter().collect(),
+            subpass: Some(subpass.into()),
+            ..GraphicsPipelineCreateInfo::layout(layout)
+        },
+    )
+    .unwrap()
 }
