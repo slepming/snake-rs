@@ -1,0 +1,45 @@
+use image::GenericImageView;
+use rust_embed::Embed;
+
+#[derive(Embed)]
+#[folder = "assets/"]
+pub(crate) struct Asset;
+
+/// Texture image struct which storage image in vector bytes and metadata
+#[derive(Clone)]
+pub struct Texture {
+    pub(crate) image: Vec<u8>,
+    pub dimensions: (u32, u32),
+}
+
+impl Texture {
+    /// Retrives texture from image file
+    /// # Returns
+    /// Texture struct
+    pub fn from_file(path: &str) -> Option<Self> {
+        match image::open(path).ok() {
+            Some(img) => Some(Self {
+                image: img.clone().into_rgba8().into_raw().to_vec(),
+                dimensions: img.dimensions(),
+            }),
+            None => None,
+        }
+    }
+
+    /// Retrives texture from internal asset directory
+    /// # Returns
+    /// Texture struct
+    pub fn from_internal_assets(filename: &str) -> Option<Self> {
+        match Asset::get(filename) {
+            Some(f) => {
+                let img = image::load_from_memory(f.data.as_ref()).unwrap();
+                let dimensions = img.dimensions();
+                Some(Self {
+                    image: img.into_rgba8().as_raw().to_vec(),
+                    dimensions,
+                })
+            }
+            None => None,
+        }
+    }
+}

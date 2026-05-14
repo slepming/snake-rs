@@ -8,6 +8,7 @@ use vulkano::pipeline::GraphicsPipeline;
 
 use crate::{
     MyVertex,
+    drw::texture::Texture,
     geom::{matrix::Transform, shapes::Shapes},
     mv::{phys::movement::PhysicsContext, transform::Entity},
     res::cache::{Cache, PipelineHandle},
@@ -40,7 +41,8 @@ pub(crate) struct DrawableRenderContext {
 
 pub struct DrawableCreateInfo {
     pub cache: Option<Arc<Cache>>,
-    pub position: Option<Vec2>,
+    pub position: Vec2,
+    pub texture: Option<Texture>,
     pub radius: f32,
     pub thickness: f32,
     pub size: Vec2,
@@ -52,6 +54,7 @@ impl Default for DrawableCreateInfo {
     fn default() -> Self {
         Self {
             cache: Default::default(),
+            texture: Default::default(),
             position: Default::default(),
             radius: Default::default(),
             thickness: Default::default(),
@@ -178,7 +181,7 @@ impl Drawable {
         vertex: Vec<MyVertex>,
         descriptor_set: Option<Arc<DescriptorSet>>,
     ) -> Self {
-        let pos = drawable_info.position.unwrap_or(Vec2::new(1.0, 1.0));
+        let pos = drawable_info.position;
         let transform = Transform {
             transform: [
                 [drawable_info.size[0], 0.0, 0.0, 0.0],
@@ -217,7 +220,7 @@ impl Drawable {
     }
 
     pub fn from_shape(shape: Shapes, drw: DrawableCreateInfo) -> Self {
-        let pipeline: &'static str = shape.into();
+        let pipeline: &'static str = shape.clone().into();
         let key = Box::leak(pipeline.to_lowercase().into_boxed_str()); // Potential memory leak
         let (vertex, desc) = shape.get_vertex_and_descriptor(drw.cache.as_ref().unwrap());
         Drawable::new_with_color(drw, key, vertex, desc)

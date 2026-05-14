@@ -5,27 +5,32 @@ use std::{
 
 use vulkano::{
     descriptor_set::{DescriptorSet, allocator::StandardDescriptorSetAllocator},
+    image::sampler::Sampler,
     memory::allocator::StandardMemoryAllocator,
     pipeline::GraphicsPipeline,
 };
 
+/// Basic cache structure
 pub struct Cache {
     pipelines: RwLock<HashMap<&'static str, Arc<GraphicsPipeline>>>,
     descriptors: RwLock<HashMap<String, Arc<DescriptorSet>>>,
     pub memory_allocator: Option<Arc<StandardMemoryAllocator>>,
     pub descriptor_allocator: Option<Arc<StandardDescriptorSetAllocator>>,
+    pub(crate) sampler: Arc<Sampler>,
 }
 
 impl Cache {
     pub fn new(
         memory_allocator: Option<Arc<StandardMemoryAllocator>>,
         descriptor_allocator: Option<Arc<StandardDescriptorSetAllocator>>,
+        sampler: Arc<Sampler>,
     ) -> Self {
         Self {
             pipelines: RwLock::new(HashMap::new()),
             descriptors: RwLock::new(HashMap::new()),
             memory_allocator,
             descriptor_allocator,
+            sampler,
         }
     }
 }

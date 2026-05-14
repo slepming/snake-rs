@@ -148,13 +148,11 @@ impl PhysicsContext {
         size: Vec2,
         id: u32,
         cache: Arc<Cache>,
-        position: Option<Vec2>,
+        position: Vec2,
     ) -> PhysicsDrawable {
         #[cfg(feature = "tracing")]
         let _span = tracy_client::span!("PhysicsContext::create_phys_square");
-        if let Some(pos) = position {
-            rigid_body_builder = rigid_body_builder.translation(pos);
-        }
+        rigid_body_builder = rigid_body_builder.translation(position);
         let rigid_body = rigid_body_builder.build();
         let collider = ColliderBuilder::cuboid(size[0], size[1]).build();
         let rb_h = self.rigid_body_set.insert(rigid_body.clone());
@@ -164,7 +162,7 @@ impl PhysicsContext {
             &mut self.rigid_body_set,
         );
         let drawable = Drawable::from_shape(
-            Shapes::Square(),
+            Shapes::Square,
             crate::drw::drawable::DrawableCreateInfo {
                 cache: Some(cache),
                 position,

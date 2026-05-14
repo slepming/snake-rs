@@ -13,14 +13,17 @@ use vulkano::{
     buffer::{Buffer, BufferContents, BufferCreateInfo, BufferUsage, Subbuffer},
     command_buffer::{
         AutoCommandBufferBuilder, CommandBufferUsage, RenderPassBeginInfo, SubpassBeginInfo,
-        SubpassContents, allocator::StandardCommandBufferAllocator,
+        SubpassContents,
     },
-    descriptor_set::allocator::StandardDescriptorSetAllocator,
     device::{
         Device, DeviceCreateInfo, DeviceExtensions, Queue, QueueCreateInfo, QueueFlags,
         physical::PhysicalDeviceType,
     },
-    image::{Image, ImageUsage, view::ImageView},
+    image::{
+        Image, ImageUsage,
+        sampler::{Sampler, SamplerCreateInfo},
+        view::ImageView,
+    },
     instance::{Instance, InstanceCreateFlags, InstanceCreateInfo, InstanceExtensions},
     memory::allocator::{
         AllocationCreateInfo, MemoryAllocator, MemoryTypeFilter, StandardMemoryAllocator,
@@ -55,18 +58,20 @@ use winit::{
 };
 
 use crate::{
-    drw::drawable::{Children, DrawableComponent},
+    drw::drawable::{Children, DrawableComponent, DrawableGPU},
     geom::matrix::Transform,
+    mem::engine_memory::EngineMemory,
     mv::phys::movement::{PhysicsContext, PhysicsSpace},
     res::cache::{Cache, PipelineHandle},
     shaders::{
         circle_shader::{circle_fs, circle_vs},
-        cube_shader::{cube_fs, cube_vs},
+        cube_shader::{cube_fs, cube_vs}, image_shader::{image_fs, image_vs},
     },
 };
 
 pub mod drw;
 pub mod geom;
+pub mod mem;
 pub mod mv;
 pub mod res;
 pub mod shaders;
@@ -76,14 +81,21 @@ pub mod shaders;
 static GLOBAL: tracy_client::ProfiledAllocator<std::alloc::System> =
     tracy_client::ProfiledAllocator::new(std::alloc::System, 100);
 
+/// The main entry point into the engine
+/// # Generics
+/// `Drw` -> Drw(Draw) type is drawable component which render into screen
+/// `Redraw` -> Event generic which calls every frame
+/// `Start` -> Event generic which calls after window, pipelines, swapchain initialization
 pub struct EngineContext<Drw, Redraw, Start>
 where
-    Drw: DrawableComponent + 'static,
+    Drw: DrawableComponent + DrawableGPU + 'static,
     Redraw: FnMut(&mut Children<Drw>, &mut PhysicsContext, &WindowEvent, Arc<Cache>),
-    Start: FnMut(&ActiveEventLoop, &mut Children<Drw>, &mut PhysicsContext, Arc<Cache>),
+    Start: FnMut(&ActiveEventLoop, &mut Children<Drw>, Arc<Window>, Arc<Cache>),
 {
     instance: Arc<Instance>,
+    /// One of the most important parts of the engine - vulkan context
     device: Arc<Device>,
+    /// GPU possible queues(Currently is first GRAPHICS queue)
     queue: Arc<Queue>,
     memory: EngineMemory,
     rcx: Option<RenderContext>,
@@ -93,35 +105,6 @@ where
     pub frames: u64,
     redraw: Redraw,
     start: Start,
-}
-
-struct EngineMemory {
-    command_buffer_allocator: Arc<StandardCommandBufferAllocator>,
-    memory_allocator: Arc<StandardMemoryAllocator>,
-    descriptor_allocator: Arc<StandardDescriptorSetAllocator>,
-}
-
-impl EngineMemory {
-    pub fn new(device: Arc<Device>) -> Self {
-        let memory_allocator = Arc::new(StandardMemoryAllocator::new_default(device.clone()));
-
-        // Before we can start creating and recording command buffers, we need a way of allocating
-        // them. Vulkano provides a command buffer allocator, which manages raw Vulkan command
-        // pools underneath and provides a safe interface for them.
-        let command_buffer_allocator = Arc::new(StandardCommandBufferAllocator::new(
-            device.clone(),
-            Default::default(),
-        ));
-        let descriptor_set_allocator = Arc::new(StandardDescriptorSetAllocator::new(
-            device.clone(),
-            Default::default(),
-        ));
-        EngineMemory {
-            descriptor_allocator: descriptor_set_allocator,
-            command_buffer_allocator,
-            memory_allocator,
-        }
-    }
 }
 
 struct RenderContext {
@@ -137,9 +120,9 @@ struct RenderContext {
 
 impl<Drw, Redraw, Start> EngineContext<Drw, Redraw, Start>
 where
-    Drw: DrawableComponent + 'static,
+    Drw: DrawableComponent + DrawableGPU + 'static,
     Redraw: FnMut(&mut Children<Drw>, &mut PhysicsContext, &WindowEvent, Arc<Cache>),
-    Start: FnMut(&ActiveEventLoop, &mut Children<Drw>, &mut PhysicsContext, Arc<Cache>),
+    Start: FnMut(&ActiveEventLoop, &mut Children<Drw>, Arc<Window>, Arc<Cache>),
 {
     pub fn new(event_loop: &EventLoop<()>, start: Start, redraw: Redraw) -> Self {
         tracing_subscriber::fmt::init();
@@ -160,7 +143,6 @@ where
         let required_extensions = Surface::required_extensions(event_loop).unwrap();
 
         info!("Creating Vulkan instance");
-        // Now creating the instance.
         let instance = Instance::new(
             library.clone(),
             InstanceCreateInfo {
@@ -183,27 +165,37 @@ where
             ..DeviceExtensions::empty()
         };
 
-        let (device, mut queues) = select_render_device(instance.clone(), &device_extensions, event_loop);
+        let (device, mut queues) =
+            select_render_device(instance.clone(), device_extensions, event_loop);
 
-        // Since we can request multiple queues, the `queues` variable is in fact an iterator. We
-        // only use one queue in this example, so we just retrieve the first and only element of
-        // the iterator.
+        // TODO: Save queues in HashMap with keys: GRAPHICS, COMPUTE, VIDEO_DECODE, VIDEO_ENCODE
         let queue = queues.next().unwrap();
 
         let memory = EngineMemory::new(device.clone());
+        let sampler = Sampler::new(
+            device.clone(),
+            SamplerCreateInfo {
+                ..Default::default()
+            },
+        )
+        .unwrap();
         let cache = Arc::new(Cache::new(
             Some(memory.memory_allocator.clone()),
             Some(memory.descriptor_allocator.clone()),
+            sampler,
         ));
 
-        info!("Initializing physics context (RigidBodySet, ColliderSet, Space)");
+        info!("Initializing Rigidbody set");
 
         // Create physics
         let rbs = RigidBodySet::new();
+        info!("Initializing Collider set");
         let cds = ColliderSet::new();
 
+        info!("Initializing Physics space");
         let space = PhysicsSpace::new();
 
+        info!("Initializing Physics context");
         let ph_context = PhysicsContext::new(rbs, cds, space);
 
         Self {
@@ -219,14 +211,6 @@ where
             start: start,
             redraw: redraw,
         }
-    }
-
-    pub fn bind_redraw(&mut self, redraw: Redraw) {
-        self.redraw = redraw;
-    }
-
-    pub fn bind_start(&mut self, start: Start) {
-        self.start = start;
     }
 
     /// Calculates Vertex buffer, matrices vector and offsets vector for draw in Vulkano
@@ -279,8 +263,8 @@ where
             matrices.push(matrix);
         });
 
+        // NOTE: Panic when vertices capacity is empty
         let vertex_buffer = Buffer::from_iter(
-            // NOTE: Panic when iter vertices is empty
             memory_allocator,
             BufferCreateInfo {
                 usage: BufferUsage::VERTEX_BUFFER,
@@ -301,20 +285,14 @@ where
 
 impl<Drw, Redraw, Start> ApplicationHandler for EngineContext<Drw, Redraw, Start>
 where
-    Drw: DrawableComponent + 'static,
+    Drw: DrawableComponent + DrawableGPU + 'static,
     Redraw: FnMut(&mut Children<Drw>, &mut PhysicsContext, &WindowEvent, Arc<Cache>),
-    Start: FnMut(&ActiveEventLoop, &mut Children<Drw>, &mut PhysicsContext, Arc<Cache>),
+    Start: FnMut(&ActiveEventLoop, &mut Children<Drw>, Arc<Window>, Arc<Cache>),
 {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         #[cfg(feature = "tracing")]
         let _span = tracy_client::span!("Engine::resumed");
-        info!("Creating window: snake-engine");
-        // The objective of this example is to draw a triangle on a window. To do so, we first need
-        // to create the window. We use the `WindowBuilder` from the `winit` crate to do that here.
-        //
-        // Before we can render to a window, we must first create a `vulkano::swapchain::Surface`
-        // object from it, which represents the drawable surface of a window. For that we must wrap
-        // the `winit::window::Window` in an `Arc`.
+        info!("Creating window");
         let window = Arc::new(
             event_loop
                 .create_window(
@@ -415,7 +393,6 @@ where
                     // `samples: 1` means that we ask the GPU to use one sample to determine the
                     // value of each pixel in the color attachment. We could use a larger value
                     // (multisampling) for antialiasing. An example of this can be found in
-                    // msaa-renderpass.rs.
                     samples: 1,
                     // `load_op: Clear` means that we ask the GPU to clear the content of this
                     // attachment at the start of the drawing.
@@ -468,166 +445,59 @@ where
         // avoid that, we store the submission of the previous frame here.
         let previous_frame_end = Some(sync::now(self.device.clone()).boxed());
 
-        // Before we draw, we have to create what is called a **pipeline**. A pipeline describes
-        // how a GPU operation is to be performed. It is similar to an OpenGL program, but it also
-        // contains many settings for customization, all baked into a single object. For drawing,
-        // we create a **graphics** pipeline, but there are also other types of pipeline.
-        let square_pipeline = {
-            // First, we load the shaders that the pipeline will use: the vertex shader and the
-            // fragment shader.
-            //
-            // A Vulkan shader can in theory contain multiple entry points, so we have to specify
-            // which one.
-            let vs = cube_vs::load(self.device.clone())
-                .unwrap()
-                .entry_point("main")
-                .unwrap();
-            let fs = cube_fs::load(self.device.clone())
-                .unwrap()
-                .entry_point("main")
-                .unwrap();
+        let vs_cube = cube_vs::load(self.device.clone()).unwrap();
+        let fs_cube = cube_fs::load(self.device.clone()).unwrap();
+        let square_pipeline = create_pipeline(
+            self.device.clone(),
+            render_pass.clone(),
+            vs_cube.entry_point("main").unwrap(),
+            fs_cube.entry_point("main").unwrap(),
+            ColorBlendState {
+                attachments: vec![ColorBlendAttachmentState::default()],
+                ..Default::default()
+            },
+        );
 
-            // Automatically generate a vertex input state from the vertex shader's input
-            // interface, that takes a single vertex buffer containing `Vertex` structs.
-            let vertex_input_state = MyVertex::per_vertex().definition(&vs).unwrap();
+        let vs_circle = circle_vs::load(self.device.clone()).unwrap();
+        let fs_circle = circle_fs::load(self.device.clone()).unwrap();
+        let circle_pipeline = create_pipeline(
+            self.device.clone(),
+            render_pass.clone(),
+            vs_circle.entry_point("main").unwrap(),
+            fs_circle.entry_point("main").unwrap(),
+            ColorBlendState {
+                attachments: vec![ColorBlendAttachmentState {
+                    blend: Some(AttachmentBlend::alpha()),
+                    ..Default::default()
+                }],
+                ..Default::default()
+            },
+        );
 
-            // Make a list of the shader stages that the pipeline will have.
-            let stages = [
-                PipelineShaderStageCreateInfo::new(vs),
-                PipelineShaderStageCreateInfo::new(fs),
-            ];
-
-            // We must now create a **pipeline layout** object, which describes the locations and
-            // types of descriptor sets and push constants used by the shaders in the pipeline.
-            //
-            // Multiple pipelines can share a common layout object, which is more efficient. The
-            // shaders in a pipeline must use a subset of the resources described in its pipeline
-            // layout, but the pipeline layout is allowed to contain resources that are not present
-            // in the shaders; they can be used by shaders in other pipelines that share the same
-            // layout. Thus, it is a good idea to design shaders so that many pipelines have common
-            // resource locations, which allows them to share pipeline layouts.
-            //
-            // Since we only have one pipeline in this example, and thus one pipeline layout, we
-            // automatically generate the layout from the resources used in the shaders. In a real
-            // application, you would specify this information manually so that you can re-use one
-            // layout in multiple pipelines.
-            let layout = PipelineLayout::new(
-                self.device.clone(),
-                PipelineDescriptorSetLayoutCreateInfo::from_stages(&stages)
-                    .into_pipeline_layout_create_info(self.device.clone())
-                    .unwrap(),
-            )
-            .unwrap();
-            dbg!(&layout);
-
-            // We have to indicate which subpass of which render pass this pipeline is going to be
-            // used in. The pipeline will only be usable from this particular subpass.
-            let subpass = Subpass::from(render_pass.clone(), 0).unwrap();
-
-            // Finally, create the pipeline.
-            GraphicsPipeline::new(
-                self.device.clone(),
-                None,
-                GraphicsPipelineCreateInfo {
-                    stages: stages.into_iter().collect(),
-                    // How vertex data is read from the vertex buffers into the vertex shader.
-                    vertex_input_state: Some(vertex_input_state),
-                    // How vertices are arranged into primitive shapes. The default primitive shape
-                    // is a triangle.
-                    input_assembly_state: Some(InputAssemblyState {
-                        topology: vulkano::pipeline::graphics::input_assembly::PrimitiveTopology::TriangleFan,
-                        ..Default::default()
-                    }),
-                    // How primitives are transformed and clipped to fit the framebuffer. We use a
-                    // resizable viewport, set to draw over the entire window.
-                    viewport_state: Some(ViewportState::default()),
-                    // How polygons are culled and converted into a raster of pixels. The default
-                    // value does not perform any culling.
-                    rasterization_state: Some(RasterizationState::default()),
-                    // How multiple fragment shader samples are converted to a single pixel value.
-                    // The default value does not perform any multisampling.
-                    multisample_state: Some(MultisampleState::default()),
-                    // How pixel values are combined with the values already present in the
-                    // framebuffer. The default value overwrites the old value with the new one,
-                    // without any blending.
-                    color_blend_state: Some(ColorBlendState {
-                        attachments: vec![ColorBlendAttachmentState::default()],
-                        ..Default::default()
-                    }),
-                    // Dynamic states allows us to specify parts of the pipeline settings when
-                    // recording the command buffer, before we perform drawing. Here, we specify
-                    // that the viewport should be dynamic.
-                    dynamic_state: [DynamicState::Viewport].into_iter().collect(),
-                    subpass: Some((subpass.clone()).into()),
-                    ..GraphicsPipelineCreateInfo::layout(layout.clone())
-                },
-            )
-            .unwrap()
-        };
-
-        let circle_pipeline = {
-            let vs = circle_vs::load(self.device.clone())
-                .unwrap()
-                .entry_point("main")
-                .unwrap();
-            let fs = circle_fs::load(self.device.clone())
-                .unwrap()
-                .entry_point("main")
-                .unwrap();
-
-            let vertex_input_state = MyVertex::per_vertex().definition(&vs).unwrap();
-
-            let stages = [
-                PipelineShaderStageCreateInfo::new(vs),
-                PipelineShaderStageCreateInfo::new(fs),
-            ];
-
-            let layout = PipelineLayout::new(
-                self.device.clone(),
-                PipelineDescriptorSetLayoutCreateInfo::from_stages(&stages)
-                    .into_pipeline_layout_create_info(self.device.clone())
-                    .unwrap(),
-            )
-            .unwrap();
-
-            let subpass = Subpass::from(render_pass.clone(), 0).unwrap();
-
-            let pipeline = GraphicsPipeline::new(
-                self.device.clone(),
-                None,
-                GraphicsPipelineCreateInfo {
-                    stages: stages.into_iter().collect(),
-                    vertex_input_state: Some(vertex_input_state),
-                    input_assembly_state: Some(InputAssemblyState {
-                        topology: PrimitiveTopology::TriangleFan,
-                        ..Default::default()
-                    }),
-                    viewport_state: Some(ViewportState::default()),
-                    rasterization_state: Some(RasterizationState::default()),
-                    multisample_state: Some(MultisampleState::default()),
-                    color_blend_state: Some(ColorBlendState {
-                        attachments: vec![ColorBlendAttachmentState {
-                            blend: Some(AttachmentBlend::alpha()),
-                            ..Default::default()
-                        }],
-                        ..Default::default()
-                    }),
-                    dynamic_state: [DynamicState::Viewport].into_iter().collect(),
-                    subpass: Some((subpass.clone()).into()),
-                    ..GraphicsPipelineCreateInfo::layout(layout.clone())
-                },
-            )
-            .unwrap();
-            pipeline
-        };
+        let vs_image = image_vs::load(self.device.clone()).unwrap();
+        let fs_image = image_fs::load(self.device.clone()).unwrap();
+        let image_pipeline = create_pipeline(
+            self.device.clone(),
+            render_pass.clone(),
+            vs_image.entry_point("main").unwrap(),
+            fs_image.entry_point("main").unwrap(),
+            ColorBlendState {
+                attachments: vec![ColorBlendAttachmentState {
+                    blend: Some(AttachmentBlend::alpha()),
+                    ..Default::default()
+                }],
+                ..Default::default()
+            },
+        );
 
         self.cache.insert_pipeline("circle", circle_pipeline);
         self.cache.insert_pipeline("square", square_pipeline);
+        self.cache.insert_pipeline("image", image_pipeline);
 
         (self.start)(
             &event_loop,
             &mut self.children,
-            &mut self.physics_context,
+            window.clone(),
             self.cache.clone(),
         );
 
@@ -909,7 +779,7 @@ where
                 }
                 #[cfg(feature = "tracing")]
                 drop(span_submit);
-                self.physics_context.step();
+                //self.physics_context.step(); TODO: In the future I must uncomment this code block
                 #[cfg(feature = "tracing")]
                 tracy_client::Client::running().unwrap().frame_mark();
             }
@@ -959,10 +829,9 @@ fn window_size_dependent_setup(
 
 fn select_render_device(
     instance: Arc<Instance>,
-    device_extensions: &DeviceExtensions,
+    device_extensions: DeviceExtensions,
     event_loop: &impl HasDisplayHandle,
-) -> (Arc<Device>, impl ExactSizeIterator<Item = Arc<Queue>>)
-{
+) -> (Arc<Device>, impl ExactSizeIterator<Item = Arc<Queue>>) {
     info!("Selecting physical device (GPU)");
     // We then choose which physical device to use. First, we enumerate all the available
     // physical devices, then apply filters to narrow them down to those that can support our
@@ -974,7 +843,7 @@ fn select_render_device(
             // Some devices may not support the extensions or features that your application,
             // or report properties and limits that are not sufficient for your application.
             // These should be filtered out here.
-            p.supported_extensions().contains(device_extensions)
+            p.supported_extensions().contains(&device_extensions)
         })
         .filter_map(|p| {
             // For each physical device, we try to find a suitable queue family that will
@@ -1060,9 +929,60 @@ fn select_render_device(
     .unwrap();
 
     // TODO: in the future I must create async compute ability
-    for (i, queue) in device.physical_device().queue_family_properties().iter().enumerate() {
+    for (i, queue) in device
+        .physical_device()
+        .queue_family_properties()
+        .iter()
+        .enumerate()
+    {
         debug!(support_queues = ?queue.queue_flags, index = ?i);
     }
-    
+
     (device, queues)
+}
+// Before we draw, we have to create what is called a **pipeline**. A pipeline describes
+// how a GPU operation is to be performed. It is similar to an OpenGL program, but it also
+// contains many settings for customization, all baked into a single object. For drawing,
+// we create a **graphics** pipeline, but there are also other types of pipeline.
+fn create_pipeline(
+    device: Arc<Device>,
+    render_pass: Arc<RenderPass>,
+    vs: vulkano::shader::EntryPoint,
+    fs: vulkano::shader::EntryPoint,
+    blend_state: ColorBlendState,
+) -> Arc<GraphicsPipeline> {
+    let vertex_input_state = MyVertex::per_vertex().definition(&vs).unwrap();
+    let stages = [
+        PipelineShaderStageCreateInfo::new(vs),
+        PipelineShaderStageCreateInfo::new(fs),
+    ];
+    let layout = PipelineLayout::new(
+        device.clone(),
+        PipelineDescriptorSetLayoutCreateInfo::from_stages(&stages)
+            .into_pipeline_layout_create_info(device.clone())
+            .unwrap(),
+    )
+    .unwrap();
+    let subpass = Subpass::from(render_pass, 0).unwrap();
+
+    GraphicsPipeline::new(
+        device,
+        None,
+        GraphicsPipelineCreateInfo {
+            stages: stages.into_iter().collect(),
+            vertex_input_state: Some(vertex_input_state),
+            input_assembly_state: Some(InputAssemblyState {
+                topology: PrimitiveTopology::TriangleFan,
+                ..Default::default()
+            }),
+            viewport_state: Some(ViewportState::default()),
+            rasterization_state: Some(RasterizationState::default()),
+            multisample_state: Some(MultisampleState::default()),
+            color_blend_state: Some(blend_state),
+            dynamic_state: [DynamicState::Viewport].into_iter().collect(),
+            subpass: Some(subpass.into()),
+            ..GraphicsPipelineCreateInfo::layout(layout)
+        },
+    )
+    .unwrap()
 }
