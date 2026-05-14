@@ -125,7 +125,7 @@ impl Shapes {
                 ];
 
                 let descriptor_allocator = cache.descriptor_allocator.as_ref().unwrap();
-                let pipeline = cache.get_pipeline("circle").unwrap();
+                let pipeline = cache.get_pipeline("image").unwrap();
 
                 let layout = pipeline.layout().set_layouts().get(0).unwrap().clone();
                 if layout.bindings().is_empty() {
@@ -149,10 +149,11 @@ impl Shapes {
                 let descriptor_set = DescriptorSet::new(
                     descriptor_allocator.clone(),
                     layout,
-                    [
-                        WriteDescriptorSet::sampler(0, cache.sampler.clone()),
-                        WriteDescriptorSet::image_view(1, image_view),
-                    ],
+                    [WriteDescriptorSet::image_view_sampler(
+                        0,
+                        image_view,
+                        cache.sampler.clone(),
+                    )],
                     [],
                 )
                 .unwrap();
