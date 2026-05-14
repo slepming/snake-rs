@@ -65,7 +65,7 @@ use crate::{
     res::cache::{Cache, PipelineHandle},
     shaders::{
         circle_shader::{circle_fs, circle_vs},
-        cube_shader::{cube_fs, cube_vs},
+        cube_shader::{cube_fs, cube_vs}, image_shader::{image_fs, image_vs},
     },
 };
 
@@ -474,8 +474,25 @@ where
             },
         );
 
+        let vs_image = image_vs::load(self.device.clone()).unwrap();
+        let fs_image = image_fs::load(self.device.clone()).unwrap();
+        let image_pipeline = create_pipeline(
+            self.device.clone(),
+            render_pass.clone(),
+            vs_image.entry_point("main").unwrap(),
+            fs_image.entry_point("main").unwrap(),
+            ColorBlendState {
+                attachments: vec![ColorBlendAttachmentState {
+                    blend: Some(AttachmentBlend::alpha()),
+                    ..Default::default()
+                }],
+                ..Default::default()
+            },
+        );
+
         self.cache.insert_pipeline("circle", circle_pipeline);
         self.cache.insert_pipeline("square", square_pipeline);
+        self.cache.insert_pipeline("image", image_pipeline);
 
         (self.start)(
             &event_loop,
