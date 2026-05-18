@@ -4,12 +4,18 @@ use rapier2d::{
     math::Vec2,
     prelude::{RigidBody, RigidBodyHandle},
 };
-use vulkano::pipeline::GraphicsPipeline;
+use vulkano::{
+    descriptor_set::allocator::DescriptorSetAllocator,
+    image::sampler::Sampler,
+    memory::allocator::MemoryAllocator,
+    pipeline::{GraphicsPipeline, Pipeline},
+};
 
 use crate::{
     MyVertex,
     drw::texture::Texture,
     geom::{matrix::Transform, shapes::Shapes},
+    mem,
     mv::{phys::movement::PhysicsContext, transform::Entity},
 };
 
@@ -130,11 +136,7 @@ impl Mesh {
 }
 
 impl Drawable {
-    pub fn new(
-        vertex: Vec<MyVertex>,
-        key: &'static str,
-        create_info: DrawableCreateInfo
-    ) -> Self {
+    pub fn new(vertex: Vec<MyVertex>, key: &'static str, create_info: DrawableCreateInfo) -> Self {
         let pos = create_info.position;
         let transform = Transform {
             transform: [
@@ -165,57 +167,51 @@ impl Drawable {
         }
     }
 
-    //pub fn new_with_color(
-    //    drawable_info: DrawableCreateInfo,
-    //    key: &'static str,
-    //    vertex: Vec<MyVertex>,
-    //    descriptor_set: Option<Arc<DescriptorSet>>,
-    //) -> Self {
-    //    let pos = drawable_info.position;
-    //    let transform = Transform {
-    //        transform: [
-    //            [drawable_info.size[0], 0.0, 0.0, 0.0],
-    //            [0.0, drawable_info.size[1], 0.0, 0.0],
-    //            [0.0, 0.0, 1.0, 0.0],
-    //            [pos[0], pos[1], 0.0, 1.0],
-    //        ],
-    //    };
+    pub fn new_with_color(
+        drawable_info: DrawableCreateInfo,
+        key: &'static str,
+        vertex: Vec<MyVertex>,
+    ) -> Self {
+        let pos = drawable_info.position;
+        let transform = Transform {
+            transform: [
+                [drawable_info.size[0], 0.0, 0.0, 0.0],
+                [0.0, drawable_info.size[1], 0.0, 0.0],
+                [0.0, 0.0, 1.0, 0.0],
+                [pos[0], pos[1], 0.0, 1.0],
+            ],
+        };
 
-    //    let mut drawable = Drawable {
-    //        color: drawable_info.color,
-    //        transform,
-    //        render: DrawableRenderContext {
-    //            descriptor_id: DescriptorID {
-    //                id: key.to_string(),
-    //            },
-    //            pipeline_id: PipelineID {
-    //                id: key.to_string(),
-    //            },
-    //            mesh: Mesh::new(vertex, drawable_info.id),
-    //        },
-    //    };
+        let mut drawable = Drawable {
+            color: drawable_info.color,
+            transform,
+            render: DrawableRenderContext {
+                descriptor_id: DescriptorID {
+                    id: key.to_string(), // If descriptor id is key then few circles will have same
+                                         // data
+                },
+                pipeline_id: PipelineID {
+                    id: key.to_string(),
+                },
+                mesh: Mesh::new(vertex, drawable_info.id),
+            },
+        };
 
-    //    if let Some(desc) = descriptor_set {
-    //        let desc_key = format!("{}_{}", key, drawable_info.id);
-    //        drawable_info
-    //            .cache
-    //            .as_ref()
-    //            .unwrap()
-    //            .insert_descriptor_set(desc_key.clone(), desc); // TODO: I must create object in
-    //                                                            // command queue(not vulkan) and
-    //                                                            // execute in EngineContext
-    //        drawable.render.descriptor_id.id = desc_key;
-    //    }
+        drawable
+    }
 
-    //    drawable
-    //}
-
-    //pub fn from_shape(shape: Shapes, drw: DrawableCreateInfo) -> Self {
-    //    let pipeline: &'static str = shape.clone().into();
-    //    let key = Box::leak(pipeline.to_lowercase().into_boxed_str()); // Potential memory leak
-    //    let (vertex, desc) = shape.get_vertex_and_descriptor(drw.cache.as_ref().unwrap());
-    //    Drawable::new_with_color(drw, key, vertex, desc)
-    //}
+    pub fn from_shape(
+        shape: Shapes,
+        drw: DrawableCreateInfo,
+        pipeline: Arc<dyn Pipeline>,
+        mem_alloc: Arc<dyn MemoryAllocator>,
+        desc_alloc: Arc<dyn DescriptorSetAllocator>,
+        sampler: Option<Arc<Sampler>>,
+    ) -> (Self, Option<Arc<DescriptorSet>>) {
+        let (vertex, desc) =
+            shape.get_vertex_and_descriptor(pipeline, mem_alloc, desc_alloc, sampler);
+        (Drawable::new_with_color(drw, shape.into(), vertex), desc)
+    }
 }
 
 impl DrawableGPU for Drawable {

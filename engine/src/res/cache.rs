@@ -8,24 +8,21 @@ use vulkano::{
     pipeline::GraphicsPipeline,
 };
 
-pub trait CacheProvider<A: Sized>
-{
+pub trait CacheProvider<A: Sized> {
     fn get(&self, key: &str) -> Option<A>;
     fn insert(&self, value: (String, A)) -> Option<A>;
 }
 
-pub struct DescriptorSetCache
-{
-    descriptors: RwLock<HashMap<String, Arc<DescriptorSet>>>
+pub struct DescriptorSetCache {
+    descriptors: RwLock<HashMap<String, Arc<DescriptorSet>>>,
 }
 
-impl DescriptorSetCache
-{
-    pub fn new(descriptors: HashMap<String, Arc<DescriptorSet>>) -> Self
-    {
-        Self { descriptors: RwLock::new(descriptors) }
+impl DescriptorSetCache {
+    pub fn new(descriptors: HashMap<String, Arc<DescriptorSet>>) -> Self {
+        Self {
+            descriptors: RwLock::new(descriptors),
+        }
     }
-
 }
 
 impl CacheProvider<Arc<DescriptorSet>> for DescriptorSetCache {
@@ -34,32 +31,38 @@ impl CacheProvider<Arc<DescriptorSet>> for DescriptorSetCache {
     }
 
     fn insert(&self, descriptor: (String, Arc<DescriptorSet>)) -> Option<Arc<DescriptorSet>> {
-        self.descriptors.write().unwrap().insert(descriptor.0, descriptor.1)
+        self.descriptors
+            .write()
+            .unwrap()
+            .insert(descriptor.0, descriptor.1)
     }
 }
 
 impl Default for DescriptorSetCache {
     fn default() -> Self {
-        Self { descriptors: RwLock::new(HashMap::default()) }
+        Self {
+            descriptors: RwLock::new(HashMap::default()),
+        }
     }
 }
 
-pub struct PipelineCache
-{
+pub struct PipelineCache {
     pipelines: RwLock<HashMap<String, Arc<GraphicsPipeline>>>,
 }
 
-impl PipelineCache 
-{
+impl PipelineCache {
     pub fn new(pipelines: HashMap<String, Arc<GraphicsPipeline>>) -> Self {
-        Self { pipelines: RwLock::new(pipelines)}
+        Self {
+            pipelines: RwLock::new(pipelines),
+        }
     }
 }
 
-impl Default for PipelineCache
-{
+impl Default for PipelineCache {
     fn default() -> Self {
-        Self { pipelines: RwLock::new(HashMap::default()) }
+        Self {
+            pipelines: RwLock::new(HashMap::default()),
+        }
     }
 }
 
@@ -69,6 +72,9 @@ impl CacheProvider<Arc<GraphicsPipeline>> for PipelineCache {
     }
 
     fn insert(&self, pipeline: (String, Arc<GraphicsPipeline>)) -> Option<Arc<GraphicsPipeline>> {
-        self.pipelines.write().unwrap().insert(pipeline.0, pipeline.1)
+        self.pipelines
+            .write()
+            .unwrap()
+            .insert(pipeline.0, pipeline.1)
     }
 }

@@ -29,7 +29,8 @@ use vulkano::{
         AllocationCreateInfo, MemoryAllocator, MemoryTypeFilter, StandardMemoryAllocator,
     },
     pipeline::{
-        DynamicState, GraphicsPipeline, Pipeline, PipelineLayout, PipelineShaderStageCreateInfo, graphics::{
+        DynamicState, GraphicsPipeline, Pipeline, PipelineLayout, PipelineShaderStageCreateInfo,
+        graphics::{
             GraphicsPipelineCreateInfo,
             color_blend::{AttachmentBlend, ColorBlendAttachmentState, ColorBlendState},
             input_assembly::{InputAssemblyState, PrimitiveTopology},
@@ -37,7 +38,8 @@ use vulkano::{
             rasterization::RasterizationState,
             vertex_input::{Vertex, VertexDefinition},
             viewport::{Viewport, ViewportState},
-        }, layout::PipelineDescriptorSetLayoutCreateInfo
+        },
+        layout::PipelineDescriptorSetLayoutCreateInfo,
     },
     render_pass::{Framebuffer, FramebufferCreateInfo, RenderPass, Subpass},
     swapchain::{
@@ -56,19 +58,26 @@ use winit::{
 };
 
 use crate::{
-    cmd::command::CommandQueue, drw::drawable::{Children, DrawableComponent, DrawableGPU}, geom::matrix::Transform, mem::engine_memory::EngineMemory, mv::phys::movement::{PhysicsContext, PhysicsSpace}, res::cache::{CacheProvider, DescriptorSetCache, PipelineCache}, shaders::{
+    cmd::command::CommandQueue,
+    drw::drawable::{Children, DrawableComponent, DrawableGPU},
+    geom::matrix::Transform,
+    mem::engine_memory::EngineMemory,
+    mv::phys::movement::{PhysicsContext, PhysicsSpace},
+    res::cache::{CacheProvider, DescriptorSetCache, PipelineCache},
+    shaders::{
         circle_shader::{circle_fs, circle_vs},
-        cube_shader::{cube_fs, cube_vs}, image_shader::{image_fs, image_vs},
-    }
+        cube_shader::{cube_fs, cube_vs},
+        image_shader::{image_fs, image_vs},
+    },
 };
 
+pub mod cmd;
 pub mod drw;
 pub mod geom;
 pub mod mem;
 pub mod mv;
 pub mod res;
 pub mod shaders;
-pub mod cmd;
 
 #[cfg(feature = "tracing")]
 #[global_allocator]
@@ -94,6 +103,7 @@ where
     memory: EngineMemory,
     pipelines: PipelineCache,
     descriptors: DescriptorSetCache,
+    sampler: Arc<Sampler>,
     rcx: Option<RenderContext>,
     pub(crate) physics_context: PhysicsContext,
     pub children: Children<Drw>,
@@ -194,6 +204,7 @@ where
             instance,
             device,
             queue,
+            sampler,
             rcx: None,
             physics_context: ph_context,
             children: Children::<Drw>::new(),
@@ -480,14 +491,17 @@ where
             },
         );
 
-        self.pipelines.insert(("circle".to_string(), circle_pipeline));
-        self.pipelines.insert(("square".to_string(), square_pipeline));
+        self.pipelines
+            .insert(("circle".to_string(), circle_pipeline));
+        self.pipelines
+            .insert(("square".to_string(), square_pipeline));
         self.pipelines.insert(("image".to_string(), image_pipeline));
 
         (self.start)(
             &event_loop,
             &mut self.children,
-            window.clone(), &mut CommandQueue::default()
+            window.clone(),
+            &mut CommandQueue::default(),
         );
 
         self.rcx = Some(RenderContext {
@@ -517,7 +531,7 @@ where
             &mut self.children,
             &mut self.physics_context,
             &event,
-            &mut CommandQueue::default()
+            &mut CommandQueue::default(),
         );
 
         match event {

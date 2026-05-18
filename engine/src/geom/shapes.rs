@@ -1,16 +1,19 @@
 use std::sync::Arc;
-use strum::IntoStaticStr;
+use strum::{AsRefStr, EnumString, IntoStaticStr};
 use tracing::warn;
 use vulkano::buffer::{Buffer, BufferCreateInfo, BufferUsage};
+use vulkano::descriptor_set::allocator::{DescriptorSetAllocator, StandardDescriptorSetAllocator};
 use vulkano::descriptor_set::{DescriptorSet, WriteDescriptorSet};
+use vulkano::image::sampler::Sampler;
 use vulkano::image::view::{ImageView, ImageViewCreateInfo};
 use vulkano::image::{Image, ImageCreateInfo, ImageSubresourceRange, ImageUsage};
-use vulkano::memory::allocator::{AllocationCreateInfo, MemoryTypeFilter};
-use vulkano::pipeline::Pipeline;
+use vulkano::memory::allocator::{
+    AllocationCreateInfo, MemoryAllocator, MemoryTypeFilter, StandardMemoryAllocator,
+};
+use vulkano::pipeline::{GraphicsPipeline, Pipeline};
 
 use crate::MyVertex;
 use crate::drw::texture::Texture;
-use crate::res::cache::{Cache, PipelineHandle};
 
 #[derive(vulkano::buffer::BufferContents, Clone, Copy)]
 #[repr(C)]
@@ -19,7 +22,7 @@ pub struct CircleData {
     pub thickness: f32,
 }
 
-#[derive(IntoStaticStr, Clone)]
+#[derive(AsRefStr, IntoStaticStr, Clone)]
 pub enum Shapes {
     Square,
     Circle,
@@ -32,7 +35,10 @@ impl Shapes {
     /// Vertex and optional descriptor set
     pub fn get_vertex_and_descriptor(
         &self,
-        cache: &Arc<Cache>,
+        pipeline: Arc<dyn Pipeline>,
+        memory_allocator: Arc<dyn MemoryAllocator>,
+        descriptor_allocator: Arc<dyn DescriptorSetAllocator>,
+        sampler: Option<Arc<Sampler>>,
     ) -> (Vec<MyVertex>, Option<Arc<DescriptorSet>>) {
         match self {
             Shapes::Square => {
@@ -67,10 +73,6 @@ impl Shapes {
                         position: [-1.0, 1.0],
                     },
                 ];
-
-                let memory_allocator = cache.memory_allocator.as_ref().unwrap();
-                let descriptor_allocator = cache.descriptor_allocator.as_ref().unwrap();
-                let pipeline = cache.get_pipeline("circle").unwrap();
 
                 let buffer = Buffer::from_data(
                     memory_allocator.clone(),
@@ -124,16 +126,13 @@ impl Shapes {
                     },
                 ];
 
-                let descriptor_allocator = cache.descriptor_allocator.as_ref().unwrap();
-                let pipeline = cache.get_pipeline("image").unwrap();
-
                 let layout = pipeline.layout().set_layouts().get(0).unwrap().clone();
                 if layout.bindings().is_empty() {
                     warn!("Pipeline 'image' has no bindings. Did you forget to compile shaders?");
                 }
 
                 let image = Image::new(
-                    cache.memory_allocator.clone().unwrap(),
+                    memory_allocator.clone(),
                     ImageCreateInfo {
                         image_type: vulkano::image::ImageType::Dim2d,
                         format: vulkano::format::Format::R8G8B8A8_UNORM,
@@ -152,7 +151,7 @@ impl Shapes {
                     [WriteDescriptorSet::image_view_sampler(
                         0,
                         image_view,
-                        cache.sampler.clone(),
+                        sampler.unwrap().clone(),
                     )],
                     [],
                 )
