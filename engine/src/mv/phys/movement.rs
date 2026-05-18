@@ -15,7 +15,6 @@ use crate::{
     MyVertex,
     drw::drawable::{Drawable, PhysicsDrawable},
     geom::shapes::Shapes,
-    res::cache::Cache,
 };
 
 const GRAVITY: Vec2 = Vec2::new(0.0, -9.81 * 60.0); // * 60 is magick value. I will fix that in the future

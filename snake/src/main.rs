@@ -64,7 +64,7 @@ fn main() -> Result<(), impl std::error::Error> {
                     ));
                 } else {
                     ch.add_drawable(Drawable::from_shape(
-                        Shapes::Image(Texture::from_internal_assets("1px.png").unwrap()),
+                        Shapes::Image(Texture::from_internal_assets("image.png").unwrap()),
                         DrawableCreateInfo {
                             size: Vec2::new(1000.0, 1000.0),
                             color: Rgba8 { r, g, b, a: 255 },

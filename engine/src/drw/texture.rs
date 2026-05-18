@@ -3,7 +3,7 @@ use rust_embed::Embed;
 
 #[derive(Embed)]
 #[folder = "assets/"]
-pub(crate) struct Asset;
+pub(crate) struct Asset; // TODO: Binary file large
 
 /// Texture image struct which storage image in vector bytes and metadata
 #[derive(Clone)]

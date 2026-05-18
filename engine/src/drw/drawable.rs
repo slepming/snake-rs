@@ -11,17 +11,14 @@ use crate::{
     drw::texture::Texture,
     geom::{matrix::Transform, shapes::Shapes},
     mv::{phys::movement::PhysicsContext, transform::Entity},
-    res::cache::{Cache, PipelineHandle},
 };
 
-use crate::res::cache::DescriptorHandle;
 use color::Rgba8;
 use vulkano::descriptor_set::DescriptorSet;
 
 pub struct Drawable {
     transform: Transform,
     color: Rgba8,
-    pub(crate) cache: Arc<Cache>,
     pub(crate) render: DrawableRenderContext,
 }
 
@@ -34,13 +31,14 @@ pub(crate) struct DescriptorID {
 }
 
 pub(crate) struct DrawableRenderContext {
+    /// Memory descriptor key(id). Drawable doesn't know anything about the descriptor
     pub(crate) descriptor_id: DescriptorID,
-    pipeline_id: PipelineID,
+    /// Pipeline key(id). Drawable doesn't know anything about the pipeline
+    pub(crate) pipeline_id: PipelineID,
     mesh: Mesh,
 }
 
 pub struct DrawableCreateInfo {
-    pub cache: Option<Arc<Cache>>,
     pub position: Vec2,
     pub texture: Option<Texture>,
     pub radius: f32,
@@ -53,7 +51,6 @@ pub struct DrawableCreateInfo {
 impl Default for DrawableCreateInfo {
     fn default() -> Self {
         Self {
-            cache: Default::default(),
             texture: Default::default(),
             position: Default::default(),
             radius: Default::default(),
@@ -108,10 +105,6 @@ pub trait DrawableGPU {
     /// # Returns
     /// Colour for shader
     fn get_colour(&self) -> &Rgba8;
-    /// Get pipeline clone
-    /// # Returns
-    /// Pipeline clone
-    fn get_pipeline(&self) -> Arc<GraphicsPipeline>;
 }
 
 pub trait DrawableComponent: DrawableGPU {
@@ -139,16 +132,14 @@ impl Mesh {
 impl Drawable {
     pub fn new(
         vertex: Vec<MyVertex>,
-        id: u32,
-        cache: Arc<Cache>,
         key: &'static str,
-        position: Option<Vec2>,
+        create_info: DrawableCreateInfo
     ) -> Self {
-        let pos = position.unwrap_or(Vec2::new(1.0, 1.0));
+        let pos = create_info.position;
         let transform = Transform {
             transform: [
-                [1.0, 0.0, 0.0, 0.0],
-                [0.0, 1.0, 0.0, 0.0],
+                [create_info.size[0], 0.0, 0.0, 0.0],
+                [0.0, create_info.size[1], 0.0, 0.0],
                 [0.0, 0.0, 1.0, 0.0],
                 [pos[0], pos[1], 0.0, 1.0],
             ],
@@ -162,7 +153,6 @@ impl Drawable {
                 a: 255,
             },
             transform,
-            cache,
             render: DrawableRenderContext {
                 descriptor_id: DescriptorID {
                     id: key.to_string(),
@@ -170,61 +160,62 @@ impl Drawable {
                 pipeline_id: PipelineID {
                     id: key.to_string(),
                 },
-                mesh: Mesh::new(vertex, id),
+                mesh: Mesh::new(vertex, create_info.id),
             },
         }
     }
 
-    pub fn new_with_color(
-        drawable_info: DrawableCreateInfo,
-        key: &'static str,
-        vertex: Vec<MyVertex>,
-        descriptor_set: Option<Arc<DescriptorSet>>,
-    ) -> Self {
-        let pos = drawable_info.position;
-        let transform = Transform {
-            transform: [
-                [drawable_info.size[0], 0.0, 0.0, 0.0],
-                [0.0, drawable_info.size[1], 0.0, 0.0],
-                [0.0, 0.0, 1.0, 0.0],
-                [pos[0], pos[1], 0.0, 1.0],
-            ],
-        };
+    //pub fn new_with_color(
+    //    drawable_info: DrawableCreateInfo,
+    //    key: &'static str,
+    //    vertex: Vec<MyVertex>,
+    //    descriptor_set: Option<Arc<DescriptorSet>>,
+    //) -> Self {
+    //    let pos = drawable_info.position;
+    //    let transform = Transform {
+    //        transform: [
+    //            [drawable_info.size[0], 0.0, 0.0, 0.0],
+    //            [0.0, drawable_info.size[1], 0.0, 0.0],
+    //            [0.0, 0.0, 1.0, 0.0],
+    //            [pos[0], pos[1], 0.0, 1.0],
+    //        ],
+    //    };
 
-        let mut drawable = Drawable {
-            color: drawable_info.color,
-            transform,
-            cache: drawable_info.cache.as_ref().unwrap().clone(),
-            render: DrawableRenderContext {
-                descriptor_id: DescriptorID {
-                    id: key.to_string(),
-                },
-                pipeline_id: PipelineID {
-                    id: key.to_string(),
-                },
-                mesh: Mesh::new(vertex, drawable_info.id),
-            },
-        };
+    //    let mut drawable = Drawable {
+    //        color: drawable_info.color,
+    //        transform,
+    //        render: DrawableRenderContext {
+    //            descriptor_id: DescriptorID {
+    //                id: key.to_string(),
+    //            },
+    //            pipeline_id: PipelineID {
+    //                id: key.to_string(),
+    //            },
+    //            mesh: Mesh::new(vertex, drawable_info.id),
+    //        },
+    //    };
 
-        if let Some(desc) = descriptor_set {
-            let desc_key = format!("{}_{}", key, drawable_info.id);
-            drawable_info
-                .cache
-                .as_ref()
-                .unwrap()
-                .insert_descriptor_set(desc_key.clone(), desc);
-            drawable.render.descriptor_id.id = desc_key;
-        }
+    //    if let Some(desc) = descriptor_set {
+    //        let desc_key = format!("{}_{}", key, drawable_info.id);
+    //        drawable_info
+    //            .cache
+    //            .as_ref()
+    //            .unwrap()
+    //            .insert_descriptor_set(desc_key.clone(), desc); // TODO: I must create object in
+    //                                                            // command queue(not vulkan) and
+    //                                                            // execute in EngineContext
+    //        drawable.render.descriptor_id.id = desc_key;
+    //    }
 
-        drawable
-    }
+    //    drawable
+    //}
 
-    pub fn from_shape(shape: Shapes, drw: DrawableCreateInfo) -> Self {
-        let pipeline: &'static str = shape.clone().into();
-        let key = Box::leak(pipeline.to_lowercase().into_boxed_str()); // Potential memory leak
-        let (vertex, desc) = shape.get_vertex_and_descriptor(drw.cache.as_ref().unwrap());
-        Drawable::new_with_color(drw, key, vertex, desc)
-    }
+    //pub fn from_shape(shape: Shapes, drw: DrawableCreateInfo) -> Self {
+    //    let pipeline: &'static str = shape.clone().into();
+    //    let key = Box::leak(pipeline.to_lowercase().into_boxed_str()); // Potential memory leak
+    //    let (vertex, desc) = shape.get_vertex_and_descriptor(drw.cache.as_ref().unwrap());
+    //    Drawable::new_with_color(drw, key, vertex, desc)
+    //}
 }
 
 impl DrawableGPU for Drawable {
@@ -242,12 +233,6 @@ impl DrawableGPU for Drawable {
 
     fn get_colour(&self) -> &Rgba8 {
         &self.color
-    }
-
-    fn get_pipeline(&self) -> Arc<GraphicsPipeline> {
-        self.cache
-            .get_pipeline(&self.render.pipeline_id.id)
-            .unwrap()
     }
 }
 
@@ -288,10 +273,6 @@ impl DrawableGPU for PhysicsDrawable {
 
     fn get_colour(&self) -> &Rgba8 {
         &self.drawable.color
-    }
-
-    fn get_pipeline(&self) -> Arc<GraphicsPipeline> {
-        self.get_drawable().get_pipeline()
     }
 }
 

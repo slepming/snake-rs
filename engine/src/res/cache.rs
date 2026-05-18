@@ -5,64 +5,70 @@ use std::{
 
 use vulkano::{
     descriptor_set::{DescriptorSet, allocator::StandardDescriptorSetAllocator},
-    image::sampler::Sampler,
-    memory::allocator::StandardMemoryAllocator,
     pipeline::GraphicsPipeline,
 };
 
-/// Basic cache structure
-pub struct Cache {
-    pipelines: RwLock<HashMap<&'static str, Arc<GraphicsPipeline>>>,
-    descriptors: RwLock<HashMap<String, Arc<DescriptorSet>>>,
-    pub memory_allocator: Option<Arc<StandardMemoryAllocator>>,
-    pub descriptor_allocator: Option<Arc<StandardDescriptorSetAllocator>>,
-    pub(crate) sampler: Arc<Sampler>,
+pub trait CacheProvider<A: Sized>
+{
+    fn get(&self, key: &str) -> Option<A>;
+    fn insert(&self, value: (String, A)) -> Option<A>;
 }
 
-impl Cache {
-    pub fn new(
-        memory_allocator: Option<Arc<StandardMemoryAllocator>>,
-        descriptor_allocator: Option<Arc<StandardDescriptorSetAllocator>>,
-        sampler: Arc<Sampler>,
-    ) -> Self {
-        Self {
-            pipelines: RwLock::new(HashMap::new()),
-            descriptors: RwLock::new(HashMap::new()),
-            memory_allocator,
-            descriptor_allocator,
-            sampler,
-        }
-    }
+pub struct DescriptorSetCache
+{
+    descriptors: RwLock<HashMap<String, Arc<DescriptorSet>>>
 }
 
-pub(crate) trait PipelineHandle {
-    fn get_pipeline(&self, key: &str) -> Option<Arc<GraphicsPipeline>>;
-    fn insert_pipeline(&self, key: &'static str, pipeline: Arc<GraphicsPipeline>) -> &Self;
-}
-
-impl PipelineHandle for Cache {
-    fn get_pipeline(&self, key: &str) -> Option<Arc<GraphicsPipeline>> {
-        self.pipelines.read().unwrap().get(key).cloned()
+impl DescriptorSetCache
+{
+    pub fn new(descriptors: HashMap<String, Arc<DescriptorSet>>) -> Self
+    {
+        Self { descriptors: RwLock::new(descriptors) }
     }
 
-    fn insert_pipeline(&self, key: &'static str, pipeline: Arc<GraphicsPipeline>) -> &Self {
-        self.pipelines.write().unwrap().insert(key, pipeline);
-        self
-    }
 }
 
-pub(crate) trait DescriptorHandle {
-    fn get_descriptor(&self, key: &str) -> Option<Arc<DescriptorSet>>;
-    fn insert_descriptor_set(&self, key: String, descriptor_set: Arc<DescriptorSet>) -> &Self;
-}
-
-impl DescriptorHandle for Cache {
-    fn get_descriptor(&self, key: &str) -> Option<Arc<DescriptorSet>> {
+impl CacheProvider<Arc<DescriptorSet>> for DescriptorSetCache {
+    fn get(&self, key: &str) -> Option<Arc<DescriptorSet>> {
         self.descriptors.read().unwrap().get(key).cloned()
     }
 
-    fn insert_descriptor_set(&self, key: String, descriptor: Arc<DescriptorSet>) -> &Self {
-        self.descriptors.write().unwrap().insert(key, descriptor);
-        self
+    fn insert(&self, descriptor: (String, Arc<DescriptorSet>)) -> Option<Arc<DescriptorSet>> {
+        self.descriptors.write().unwrap().insert(descriptor.0, descriptor.1)
+    }
+}
+
+impl Default for DescriptorSetCache {
+    fn default() -> Self {
+        Self { descriptors: RwLock::new(HashMap::default()) }
+    }
+}
+
+pub struct PipelineCache
+{
+    pipelines: RwLock<HashMap<String, Arc<GraphicsPipeline>>>,
+}
+
+impl PipelineCache 
+{
+    pub fn new(pipelines: HashMap<String, Arc<GraphicsPipeline>>) -> Self {
+        Self { pipelines: RwLock::new(pipelines)}
+    }
+}
+
+impl Default for PipelineCache
+{
+    fn default() -> Self {
+        Self { pipelines: RwLock::new(HashMap::default()) }
+    }
+}
+
+impl CacheProvider<Arc<GraphicsPipeline>> for PipelineCache {
+    fn get(&self, pipeline_key: &str) -> Option<Arc<GraphicsPipeline>> {
+        self.pipelines.read().unwrap().get(pipeline_key).cloned()
+    }
+
+    fn insert(&self, pipeline: (String, Arc<GraphicsPipeline>)) -> Option<Arc<GraphicsPipeline>> {
+        self.pipelines.write().unwrap().insert(pipeline.0, pipeline.1)
     }
 }

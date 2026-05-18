@@ -29,8 +29,7 @@ use vulkano::{
         AllocationCreateInfo, MemoryAllocator, MemoryTypeFilter, StandardMemoryAllocator,
     },
     pipeline::{
-        DynamicState, GraphicsPipeline, Pipeline, PipelineLayout, PipelineShaderStageCreateInfo,
-        graphics::{
+        DynamicState, GraphicsPipeline, Pipeline, PipelineLayout, PipelineShaderStageCreateInfo, graphics::{
             GraphicsPipelineCreateInfo,
             color_blend::{AttachmentBlend, ColorBlendAttachmentState, ColorBlendState},
             input_assembly::{InputAssemblyState, PrimitiveTopology},
@@ -38,8 +37,7 @@ use vulkano::{
             rasterization::RasterizationState,
             vertex_input::{Vertex, VertexDefinition},
             viewport::{Viewport, ViewportState},
-        },
-        layout::PipelineDescriptorSetLayoutCreateInfo,
+        }, layout::PipelineDescriptorSetLayoutCreateInfo
     },
     render_pass::{Framebuffer, FramebufferCreateInfo, RenderPass, Subpass},
     swapchain::{
@@ -58,15 +56,10 @@ use winit::{
 };
 
 use crate::{
-    drw::drawable::{Children, DrawableComponent, DrawableGPU},
-    geom::matrix::Transform,
-    mem::engine_memory::EngineMemory,
-    mv::phys::movement::{PhysicsContext, PhysicsSpace},
-    res::cache::{Cache, PipelineHandle},
-    shaders::{
+    cmd::command::CommandQueue, drw::drawable::{Children, DrawableComponent, DrawableGPU}, geom::matrix::Transform, mem::engine_memory::EngineMemory, mv::phys::movement::{PhysicsContext, PhysicsSpace}, res::cache::{CacheProvider, DescriptorSetCache, PipelineCache}, shaders::{
         circle_shader::{circle_fs, circle_vs},
         cube_shader::{cube_fs, cube_vs}, image_shader::{image_fs, image_vs},
-    },
+    }
 };
 
 pub mod drw;
@@ -75,6 +68,7 @@ pub mod mem;
 pub mod mv;
 pub mod res;
 pub mod shaders;
+pub mod cmd;
 
 #[cfg(feature = "tracing")]
 #[global_allocator]
@@ -89,8 +83,8 @@ static GLOBAL: tracy_client::ProfiledAllocator<std::alloc::System> =
 pub struct EngineContext<Drw, Redraw, Start>
 where
     Drw: DrawableComponent + DrawableGPU + 'static,
-    Redraw: FnMut(&mut Children<Drw>, &mut PhysicsContext, &WindowEvent, Arc<Cache>),
-    Start: FnMut(&ActiveEventLoop, &mut Children<Drw>, Arc<Window>, Arc<Cache>),
+    Redraw: FnMut(&mut Children<Drw>, &mut PhysicsContext, &WindowEvent, &mut CommandQueue),
+    Start: FnMut(&ActiveEventLoop, &mut Children<Drw>, Arc<Window>, &mut CommandQueue),
 {
     instance: Arc<Instance>,
     /// One of the most important parts of the engine - vulkan context
@@ -98,8 +92,9 @@ where
     /// GPU possible queues(Currently is first GRAPHICS queue)
     queue: Arc<Queue>,
     memory: EngineMemory,
+    pipelines: PipelineCache,
+    descriptors: DescriptorSetCache,
     rcx: Option<RenderContext>,
-    cache: Arc<Cache>,
     pub(crate) physics_context: PhysicsContext,
     pub children: Children<Drw>,
     pub frames: u64,
@@ -121,8 +116,8 @@ struct RenderContext {
 impl<Drw, Redraw, Start> EngineContext<Drw, Redraw, Start>
 where
     Drw: DrawableComponent + DrawableGPU + 'static,
-    Redraw: FnMut(&mut Children<Drw>, &mut PhysicsContext, &WindowEvent, Arc<Cache>),
-    Start: FnMut(&ActiveEventLoop, &mut Children<Drw>, Arc<Window>, Arc<Cache>),
+    Redraw: FnMut(&mut Children<Drw>, &mut PhysicsContext, &WindowEvent, &mut CommandQueue),
+    Start: FnMut(&ActiveEventLoop, &mut Children<Drw>, Arc<Window>, &mut CommandQueue),
 {
     pub fn new(event_loop: &EventLoop<()>, start: Start, redraw: Redraw) -> Self {
         tracing_subscriber::fmt::init();
@@ -179,12 +174,6 @@ where
             },
         )
         .unwrap();
-        let cache = Arc::new(Cache::new(
-            Some(memory.memory_allocator.clone()),
-            Some(memory.descriptor_allocator.clone()),
-            sampler,
-        ));
-
         info!("Initializing Rigidbody set");
 
         // Create physics
@@ -199,6 +188,8 @@ where
         let ph_context = PhysicsContext::new(rbs, cds, space);
 
         Self {
+            descriptors: DescriptorSetCache::default(),
+            pipelines: PipelineCache::default(),
             memory,
             instance,
             device,
@@ -207,7 +198,6 @@ where
             physics_context: ph_context,
             children: Children::<Drw>::new(),
             frames: 0,
-            cache,
             start: start,
             redraw: redraw,
         }
@@ -286,8 +276,8 @@ where
 impl<Drw, Redraw, Start> ApplicationHandler for EngineContext<Drw, Redraw, Start>
 where
     Drw: DrawableComponent + DrawableGPU + 'static,
-    Redraw: FnMut(&mut Children<Drw>, &mut PhysicsContext, &WindowEvent, Arc<Cache>),
-    Start: FnMut(&ActiveEventLoop, &mut Children<Drw>, Arc<Window>, Arc<Cache>),
+    Redraw: FnMut(&mut Children<Drw>, &mut PhysicsContext, &WindowEvent, &mut CommandQueue),
+    Start: FnMut(&ActiveEventLoop, &mut Children<Drw>, Arc<Window>, &mut CommandQueue),
 {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         #[cfg(feature = "tracing")]
@@ -490,15 +480,14 @@ where
             },
         );
 
-        self.cache.insert_pipeline("circle", circle_pipeline);
-        self.cache.insert_pipeline("square", square_pipeline);
-        self.cache.insert_pipeline("image", image_pipeline);
+        self.pipelines.insert(("circle".to_string(), circle_pipeline));
+        self.pipelines.insert(("square".to_string(), square_pipeline));
+        self.pipelines.insert(("image".to_string(), image_pipeline));
 
         (self.start)(
             &event_loop,
             &mut self.children,
-            window.clone(),
-            self.cache.clone(),
+            window.clone(), &mut CommandQueue::default()
         );
 
         self.rcx = Some(RenderContext {
@@ -528,7 +517,7 @@ where
             &mut self.children,
             &mut self.physics_context,
             &event,
-            self.cache.clone(),
+            &mut CommandQueue::default()
         );
 
         match event {
@@ -706,11 +695,9 @@ where
 
                     builder.bind_pipeline_graphics(pipeline.clone()).unwrap();
 
-                    use crate::res::cache::DescriptorHandle;
-                    if let Some(desc) = item
-                        .drawable()
-                        .cache
-                        .get_descriptor(&item.drawable().render.descriptor_id.id)
+                    if let Some(desc) = self
+                        .descriptors
+                        .get(&item.drawable().render.descriptor_id.id)
                     {
                         builder
                             .bind_descriptor_sets(
