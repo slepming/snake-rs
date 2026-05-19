@@ -73,20 +73,20 @@ impl Default for DrawableCreateInfo {
     }
 }
 
-pub struct Children<D: DrawableComponent + 'static> {
+pub struct Children {
     // I think iterations through Vector with Box is very slowly operation, but I dont know how I to
     // make this faster. And I must replace Box reference.
-    pub drawables: Vec<D>,
+    pub drawables: Vec<Drawable>,
 }
 
-impl<D: DrawableComponent> Children<D> {
+impl Children {
     pub fn new() -> Self {
         Children {
             drawables: Vec::new(),
         }
     }
 
-    pub fn add_drawable(&mut self, item: D) {
+    pub fn add_drawable(&mut self, item: Drawable) {
         self.drawables.push(item);
     }
 }

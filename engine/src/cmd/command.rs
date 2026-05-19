@@ -14,8 +14,8 @@ enum DrawCommand {
     DrawObject(Shapes, DrawableCreateInfo),
 }
 
-enum DrawCommandReceive {
-    Drawable(Drawable),
+enum DrawCommandReceive<'a> {
+    Drawable(&'a Drawable),
 }
 
 pub struct CommandQueue {
@@ -40,11 +40,10 @@ pub trait CommandDispatcher {
     fn flush_commands(&mut self, commands: Vec<DrawCommand>) -> Option<DrawCommandReceive>;
 }
 
-impl<Drw, Redraw, Start> CommandDispatcher for EngineContext<Drw, Redraw, Start>
+impl<Redraw, Start> CommandDispatcher for EngineContext<Redraw, Start>
 where
-    Drw: DrawableComponent + DrawableGPU + 'static,
-    Redraw: FnMut(&mut Children<Drw>, &mut PhysicsContext, &WindowEvent, &mut CommandQueue),
-    Start: FnMut(&ActiveEventLoop, &mut Children<Drw>, Arc<Window>, &mut CommandQueue),
+    Redraw: FnMut(&mut Children, &mut PhysicsContext, &WindowEvent, &mut CommandQueue),
+    Start: FnMut(&ActiveEventLoop, &mut Children, Arc<Window>, &mut CommandQueue),
 {
     fn flush_commands(&mut self, commands: Vec<DrawCommand>) -> Option<DrawCommandReceive> {
         for command in commands.into_iter() {
@@ -61,9 +60,9 @@ where
                     let key: &str = s.into();
                     self.descriptors
                         .insert((key.to_string(), drw.1.unwrap().clone()));
-                    return Some(DrawCommandReceive::Drawable(drw.0));
+                    self.children.add_drawable(drw.0);
+                    return Some(DrawCommandReceive::Drawable(self.children.drawables.last().as_ref().unwrap()))
                 }
-                _ => return None,
             }
         }
         None

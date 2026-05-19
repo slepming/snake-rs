@@ -89,11 +89,10 @@ static GLOBAL: tracy_client::ProfiledAllocator<std::alloc::System> =
 /// `Drw` -> Drw(Draw) type is drawable component which render into screen
 /// `Redraw` -> Event generic which calls every frame
 /// `Start` -> Event generic which calls after window, pipelines, swapchain initialization
-pub struct EngineContext<Drw, Redraw, Start>
+pub struct EngineContext<Redraw, Start>
 where
-    Drw: DrawableComponent + DrawableGPU + 'static,
-    Redraw: FnMut(&mut Children<Drw>, &mut PhysicsContext, &WindowEvent, &mut CommandQueue),
-    Start: FnMut(&ActiveEventLoop, &mut Children<Drw>, Arc<Window>, &mut CommandQueue),
+    Redraw: FnMut(&mut Children, &mut PhysicsContext, &WindowEvent, &mut CommandQueue),
+    Start: FnMut(&ActiveEventLoop, &mut Children, Arc<Window>, &mut CommandQueue),
 {
     instance: Arc<Instance>,
     /// One of the most important parts of the engine - vulkan context
@@ -106,7 +105,7 @@ where
     sampler: Arc<Sampler>,
     rcx: Option<RenderContext>,
     pub(crate) physics_context: PhysicsContext,
-    pub children: Children<Drw>,
+    pub children: Children,
     pub frames: u64,
     redraw: Redraw,
     start: Start,
@@ -123,11 +122,10 @@ struct RenderContext {
     scale: Vec2,
 }
 
-impl<Drw, Redraw, Start> EngineContext<Drw, Redraw, Start>
+impl<Redraw, Start> EngineContext<Redraw, Start>
 where
-    Drw: DrawableComponent + DrawableGPU + 'static,
-    Redraw: FnMut(&mut Children<Drw>, &mut PhysicsContext, &WindowEvent, &mut CommandQueue),
-    Start: FnMut(&ActiveEventLoop, &mut Children<Drw>, Arc<Window>, &mut CommandQueue),
+    Redraw: FnMut(&mut Children, &mut PhysicsContext, &WindowEvent, &mut CommandQueue),
+    Start: FnMut(&ActiveEventLoop, &mut Children, Arc<Window>, &mut CommandQueue),
 {
     pub fn new(event_loop: &EventLoop<()>, start: Start, redraw: Redraw) -> Self {
         tracing_subscriber::fmt::init();
@@ -207,7 +205,7 @@ where
             sampler,
             rcx: None,
             physics_context: ph_context,
-            children: Children::<Drw>::new(),
+            children: Children::new(),
             frames: 0,
             start: start,
             redraw: redraw,
@@ -221,7 +219,7 @@ where
     pub(crate) fn calculate_drawables(
         memory_allocator: Arc<dyn MemoryAllocator>,
         _physics_context: &PhysicsContext,
-        children: &mut Children<Drw>,
+        children: &mut Children,
         _rcx: &mut RenderContext,
     ) -> (Subbuffer<[MyVertex]>, Vec<Transform>, Vec<u32>) {
         #[cfg(feature = "tracing")]
@@ -284,11 +282,10 @@ where
     }
 }
 
-impl<Drw, Redraw, Start> ApplicationHandler for EngineContext<Drw, Redraw, Start>
+impl<Redraw, Start> ApplicationHandler for EngineContext<Redraw, Start>
 where
-    Drw: DrawableComponent + DrawableGPU + 'static,
-    Redraw: FnMut(&mut Children<Drw>, &mut PhysicsContext, &WindowEvent, &mut CommandQueue),
-    Start: FnMut(&ActiveEventLoop, &mut Children<Drw>, Arc<Window>, &mut CommandQueue),
+    Redraw: FnMut(&mut Children, &mut PhysicsContext, &WindowEvent, &mut CommandQueue),
+    Start: FnMut(&ActiveEventLoop, &mut Children, Arc<Window>, &mut CommandQueue),
 {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         #[cfg(feature = "tracing")]
@@ -589,7 +586,7 @@ where
                 }
 
                 let (vertex_buffer, matrices, offsets) =
-                    EngineContext::<Drw, Redraw, Start>::calculate_drawables(
+                    EngineContext::<Redraw, Start>::calculate_drawables(
                         self.memory.memory_allocator.clone(),
                         &self.physics_context,
                         &mut self.children,
@@ -694,7 +691,7 @@ where
                             | (colour.b as u32) << 16
                             | (colour.a as u32) << 24,
                     );
-                    let pipeline = item.get_pipeline();
+                    let pipeline = self.pipelines.get(&item.drawable().render.pipeline_id.id).expect("pipeline not found");
                     let layout = pipeline.layout();
                     if !layout.push_constant_ranges().is_empty() {
                         //dbg!(size_of::<Constants>());
