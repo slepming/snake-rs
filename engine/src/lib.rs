@@ -58,7 +58,7 @@ use winit::{
 };
 
 use crate::{
-    cmd::command::CommandQueue,
+    cmd::command::{CommandDispatcher, CommandQueue},
     drw::drawable::{Children, DrawableComponent, DrawableGPU},
     geom::matrix::Transform,
     mem::engine_memory::EngineMemory,
@@ -493,12 +493,16 @@ where
             .insert(("square".to_string(), square_pipeline));
         self.pipelines.insert(("image".to_string(), image_pipeline));
 
+        let mut game_command_queue = CommandQueue::default();
+
         (self.start)(
             &event_loop,
             &mut self.children,
             window.clone(),
-            &mut CommandQueue::default(),
+            &mut game_command_queue,
         );
+
+        self.flush_commands(game_command_queue);
 
         self.rcx = Some(RenderContext {
             scale: Vec2::new(
@@ -690,7 +694,8 @@ where
                             | (colour.b as u32) << 16
                             | (colour.a as u32) << 24,
                     );
-                    let pipeline = self.pipelines.get(&item.drawable().render.pipeline_id.id).expect("pipeline not found");
+                    let pipeline_name = &item.drawable().render.pipeline_id.id;
+                    let pipeline = self.pipelines.get(pipeline_name).expect("pipeline not found");
                     let layout = pipeline.layout();
                     if !layout.push_constant_ranges().is_empty() {
                         //dbg!(size_of::<Constants>());

@@ -172,6 +172,7 @@ impl Drawable {
         key: &'static str,
         vertex: Vec<MyVertex>,
     ) -> Self {
+        let key = key.to_string().to_lowercase();
         let pos = drawable_info.position;
         let transform = Transform {
             transform: [
@@ -182,16 +183,16 @@ impl Drawable {
             ],
         };
 
-        let mut drawable = Drawable {
+        let drawable = Drawable {
             color: drawable_info.color,
             transform,
             render: DrawableRenderContext {
                 descriptor_id: DescriptorID {
-                    id: key.to_string(), // If descriptor id is key then few circles will have same
+                    id: key.clone(), // If descriptor id is key then few circles will have same
                                          // data
                 },
                 pipeline_id: PipelineID {
-                    id: key.to_string(),
+                    id: key,
                 },
                 mesh: Mesh::new(vertex, drawable_info.id),
             },
