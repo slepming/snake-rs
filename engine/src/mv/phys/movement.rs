@@ -13,7 +13,7 @@ use tracing::debug;
 
 use crate::{
     MyVertex,
-    drw::drawable::{Drawable, PhysicsDrawable},
+    drw::drawable::{Drawable, DrawableCreateInfo, PhysicsDrawable},
     geom::shapes::Shapes,
 };
 
@@ -107,91 +107,61 @@ impl PhysicsContext {
         );
     }
 
-    /// Create physical drawable object with physical size which will be converted to graphical size. WIP
-    /// # Parameters
-    /// `position` -> position where drawable object must spawn
-    /// `vertex` -> custom vertices for draw
-    /// `id` -> object id in engine array.
-    // TODO: Currently the id is not finished and WIP
-    #[deprecated]
-    pub fn create_phys_object(
-        &mut self,
-        position: Option<Vec2>,
-        vertex: Vec<MyVertex>,
-        id: u32,
-        cache: Arc<Cache>,
-        key: &'static str,
-    ) -> PhysicsDrawable {
-        let mut rigid_body_builder = RigidBodyBuilder::dynamic();
-        if let Some(pos) = position {
-            rigid_body_builder = rigid_body_builder.translation(pos);
-        }
-        let rigid_body = rigid_body_builder.build();
-        let collider = ColliderBuilder::cuboid(0.3, 0.3).build();
-        let rb_h = self.rigid_body_set.insert(rigid_body);
-        self.collider_set
-            .insert_with_parent(collider, rb_h.clone(), &mut self.rigid_body_set);
-        let drawable = Drawable::new(vertex, id, cache, key, None);
-        PhysicsDrawable::new(rb_h, drawable)
-    }
-
-    /// Create physical drawable object with physical size which will be converted to graphical size
-    /// # Parameters
-    /// `size` -> drawable object size
-    /// `position` -> position where drawable object must spawn
-    /// `id` -> object id in engine array.
-    // TODO: Currently the id is not finished and WIP
-    pub fn create_phys_square(
-        &mut self,
-        mut rigid_body_builder: RigidBodyBuilder,
-        size: Vec2,
-        id: u32,
-        cache: Arc<Cache>,
-        position: Vec2,
-    ) -> PhysicsDrawable {
-        #[cfg(feature = "tracing")]
-        let _span = tracy_client::span!("PhysicsContext::create_phys_square");
-        rigid_body_builder = rigid_body_builder.translation(position);
-        let rigid_body = rigid_body_builder.build();
-        let collider = ColliderBuilder::cuboid(size[0], size[1]).build();
-        let rb_h = self.rigid_body_set.insert(rigid_body.clone());
-        self.collider_set.insert_with_parent(
-            collider.clone(),
-            rb_h.clone(),
-            &mut self.rigid_body_set,
-        );
-        let drawable = Drawable::from_shape(
-            Shapes::Square,
-            crate::drw::drawable::DrawableCreateInfo {
-                cache: Some(cache),
-                position,
-                size,
-                id,
-                color: Rgba8 {
-                    r: 0,
-                    g: 0,
-                    b: 0,
-                    a: 255,
-                },
-                ..Default::default()
-            },
-        );
-        debug!(
-            id = id,
-            "created new object:\n\
-             position: {:?}\n\
-             size: {:?}\n\n
-             rigid_body: {:?}\n\n
-             collider: {:?}\n\n
-             rb_handle: {:?}",
-            &position,
-            &size,
-            &rigid_body,
-            &collider,
-            &rb_h
-        );
-        PhysicsDrawable::new(rb_h, drawable)
-    }
+    // /// Create physical drawable object with physical size which will be converted to graphical size
+    // /// # Parameters
+    // /// `size` -> drawable object size
+    // /// `position` -> position where drawable object must spawn
+    // /// `id` -> object id in engine array.
+    // /// TODO: Currently the id is not finished and WIP
+    //pub fn create_phys_square(
+    //    &mut self,
+    //    mut rigid_body_builder: RigidBodyBuilder,
+    //    size: Vec2,
+    //    id: u32,
+    //    position: Vec2,
+    //) -> PhysicsDrawable {
+    //    #[cfg(feature = "tracing")]
+    //    let _span = tracy_client::span!("PhysicsContext::create_phys_square");
+    //    rigid_body_builder = rigid_body_builder.translation(position);
+    //    let rigid_body = rigid_body_builder.build();
+    //    let collider = ColliderBuilder::cuboid(size[0], size[1]).build();
+    //    let rb_h = self.rigid_body_set.insert(rigid_body.clone());
+    //    self.collider_set.insert_with_parent(
+    //        collider.clone(),
+    //        rb_h.clone(),
+    //        &mut self.rigid_body_set,
+    //    );
+    //    let drawable = Drawable::from_shape(
+    //        Shapes::Square,
+    //        crate::drw::drawable::DrawableCreateInfo {
+    //            position,
+    //            size,
+    //            id,
+    //            color: Rgba8 {
+    //                r: 0,
+    //                g: 0,
+    //                b: 0,
+    //                a: 255,
+    //            },
+    //            ..Default::default()
+    //        },
+    //    );
+    //    debug!(
+    //        id = id,
+    //        "created new object:\n\
+    //         position: {:?}\n\
+    //         size: {:?}\n\n
+    //         rigid_body: {:?}\n\n
+    //         collider: {:?}\n\n
+    //         rb_handle: {:?}",
+    //        &position,
+    //        &size,
+    //        &rigid_body,
+    //        &collider,
+    //        &rb_h
+    //    );
+    //    PhysicsDrawable::new(rb_h, drawable)
+    //}
 }
 
 impl PhysicsSpace {

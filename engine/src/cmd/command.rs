@@ -10,11 +10,11 @@ use crate::{
     res::cache::CacheProvider,
 };
 
-enum DrawCommand {
+pub enum DrawCommand {
     DrawObject(Shapes, DrawableCreateInfo),
 }
 
-enum DrawCommandReceive<'a> {
+pub enum DrawCommandReceive<'a> {
     Drawable(&'a Drawable),
 }
 
@@ -37,7 +37,7 @@ impl Default for CommandQueue {
 }
 
 pub trait CommandDispatcher {
-    fn flush_commands(&mut self, commands: Vec<DrawCommand>) -> Option<DrawCommandReceive>;
+    fn flush_commands<'a>(&'a mut self, commands: Vec<DrawCommand>) -> Option<DrawCommandReceive<'a>>;
 }
 
 impl<Redraw, Start> CommandDispatcher for EngineContext<Redraw, Start>
@@ -45,7 +45,7 @@ where
     Redraw: FnMut(&mut Children, &mut PhysicsContext, &WindowEvent, &mut CommandQueue),
     Start: FnMut(&ActiveEventLoop, &mut Children, Arc<Window>, &mut CommandQueue),
 {
-    fn flush_commands(&mut self, commands: Vec<DrawCommand>) -> Option<DrawCommandReceive> {
+    fn flush_commands<'a>(&'a mut self, commands: Vec<DrawCommand>) -> Option<DrawCommandReceive<'a>> {
         for command in commands.into_iter() {
             match command {
                 DrawCommand::DrawObject(s, drw) => {

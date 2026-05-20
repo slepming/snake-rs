@@ -86,7 +86,6 @@ static GLOBAL: tracy_client::ProfiledAllocator<std::alloc::System> =
 
 /// The main entry point into the engine
 /// # Generics
-/// `Drw` -> Drw(Draw) type is drawable component which render into screen
 /// `Redraw` -> Event generic which calls every frame
 /// `Start` -> Event generic which calls after window, pipelines, swapchain initialization
 pub struct EngineContext<Redraw, Start>

@@ -4,14 +4,10 @@ use color::Rgba8;
 use rand::RngExt;
 use rapier2d::math::Vec2;
 use snake_engine::{
-    EngineContext,
-    drw::{
+    EngineContext, cmd::command::{CommandQueue, DrawCommand}, drw::{
         drawable::{Children, Drawable, DrawableCreateInfo},
         texture::Texture,
-    },
-    geom::shapes::Shapes,
-    mv::phys::movement::PhysicsContext,
-    res::cache::Cache,
+    }, geom::shapes::Shapes, mv::phys::movement::PhysicsContext
 };
 use tracing::debug;
 use winit::{
@@ -29,61 +25,32 @@ fn main() -> Result<(), impl std::error::Error> {
     let mut rng = rand::rng();
 
     let mut window =
-        |e: &ActiveEventLoop, ch: &mut Children<Drawable>, wind: Arc<Window>, cache: Arc<Cache>| {
-            let cache_clone = cache.clone();
+        |e: &ActiveEventLoop, ch: &mut Children, wind: Arc<Window>, command: &mut CommandQueue| {
             let monitor_size = e.available_monitors().next().unwrap().size();
             wind.set_title("snake");
             for i in 0..OBJECTS_COUNT {
                 let (r, g, b) = (rng.random::<u8>(), rng.random::<u8>(), rng.random::<u8>());
                 //dbg!((r, g, b));
                 if i % 2 == 0 {
-                    ch.add_drawable(Drawable::from_shape(
-                        Shapes::Square,
-                        DrawableCreateInfo {
-                            size: Vec2::new(100.0, 100.0),
+                    command.append(DrawCommand::DrawObject(Shapes::Circle, DrawableCreateInfo {
+                            size: Vec2::new(1000.0, 1000.0),
                             color: Rgba8 { r, g, b, a: 255 },
                             id: ch.drawables.len() as u32 + 1,
-                            cache: Some(cache_clone.clone()),
                             position: Vec2::new(300.0 * i as f32, monitor_size.height as f32 / 2.0),
+                            thickness: 0.0,
+                            radius: 0.0,
                             ..Default::default()
-                        },
-                    ));
+                        }));
                 } else if i % 3 == 0 {
-                    ch.add_drawable(Drawable::from_shape(
-                        Shapes::Circle,
-                        DrawableCreateInfo {
-                            size: Vec2::new(1000.0, 1000.0),
-                            color: Rgba8 { r, g, b, a: 255 },
-                            id: ch.drawables.len() as u32 + 1,
-                            cache: Some(cache_clone.clone()),
-                            position: Vec2::new(300.0 * i as f32, monitor_size.height as f32 / 2.0),
-                            thickness: 0.0,
-                            radius: 0.0,
-                            ..Default::default()
-                        },
-                    ));
                 } else {
-                    ch.add_drawable(Drawable::from_shape(
-                        Shapes::Image(Texture::from_internal_assets("image.png").unwrap()),
-                        DrawableCreateInfo {
-                            size: Vec2::new(1000.0, 1000.0),
-                            color: Rgba8 { r, g, b, a: 255 },
-                            id: ch.drawables.len() as u32 + 1,
-                            cache: Some(cache_clone.clone()),
-                            position: Vec2::new(300.0 * i as f32, monitor_size.height as f32 / 2.0),
-                            thickness: 0.0,
-                            radius: 0.0,
-                            ..Default::default()
-                        },
-                    ));
                 }
             }
         };
 
-    let redraw_closure = |_ch: &mut Children<Drawable>,
+    let redraw_closure = |_ch: &mut Children,
                           _pc: &mut PhysicsContext,
                           event: &WindowEvent,
-                          _cache: Arc<Cache>| match event {
+                          command: &mut CommandQueue| match event {
         WindowEvent::KeyboardInput { event, .. } => {
             let span = tracy_client::span!("Engine::Keyboard_input");
             span.emit_color(0xFF0000);
@@ -112,8 +79,8 @@ fn main() -> Result<(), impl std::error::Error> {
 
     let mut app = EngineContext::new(
         &event_loop,
-        |event, ch, ph, cache| window(event, ch, ph, cache),
-        |ch, pc, event, cache| redraw_closure(ch, pc, event, cache),
+        |event, ch, ph, command| window(event, ch, ph, command),
+        |ch, pc, event, command| redraw_closure(ch, pc, event, command),
     );
     event_loop.run_app(&mut app)
 }
