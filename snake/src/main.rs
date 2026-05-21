@@ -11,7 +11,7 @@ use snake_engine::{
         texture::Texture,
     },
     geom::shapes::Shapes,
-    mv::phys::movement::PhysicsContext,
+    mv::phys::movement::PhysicsContext, res::assets::AssetsManager,
 };
 use winit::{
     event::{ElementState, WindowEvent},
@@ -54,7 +54,7 @@ fn main() -> Result<(), impl std::error::Error> {
                     ));
                 } else {
                     command.append(DrawCommand::DrawObject(
-                        Shapes::Image(Texture::from_internal_assets("image.png").unwrap()),
+                        Shapes::Image(),
                         drawable_info.with_size(Vec2::new(50.0, 50.0)),
                     ));
                 }

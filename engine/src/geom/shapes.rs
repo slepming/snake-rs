@@ -12,6 +12,7 @@ use vulkano::pipeline::Pipeline;
 
 use crate::MyVertex;
 use crate::drw::texture::Texture;
+use crate::res::assets::TextureHandler;
 
 #[derive(vulkano::buffer::BufferContents, Clone, Copy)]
 #[repr(C)]
@@ -24,7 +25,7 @@ pub struct CircleData {
 pub enum Shapes {
     Square,
     Circle,
-    Image(Texture),
+    Image(TextureHandler),
 }
 
 impl Shapes {
@@ -106,9 +107,6 @@ impl Shapes {
                 (verts, Some(descriptor_set))
             }
             Shapes::Image(texture) => {
-                if texture.dimensions.0 == 0 || texture.dimensions.1 == 0 {
-                    warn!("Texture dimension is zero");
-                }
                 let verts = vec![
                     MyVertex {
                         position: [-1.0, -1.0],
@@ -128,20 +126,7 @@ impl Shapes {
                 if layout.bindings().is_empty() {
                     warn!("Pipeline 'image' has no bindings. Did you forget to compile shaders?");
                 }
-
-                let image = Image::new(
-                    memory_allocator.clone(),
-                    ImageCreateInfo {
-                        image_type: vulkano::image::ImageType::Dim2d,
-                        format: vulkano::format::Format::R8G8B8A8_UNORM,
-                        extent: [texture.dimensions.0, texture.dimensions.1, 1],
-                        usage: ImageUsage::TRANSFER_DST | ImageUsage::SAMPLED,
-                        ..Default::default()
-                    },
-                    AllocationCreateInfo::default(),
-                )
-                .unwrap();
-                let image_view = ImageView::new_default(image).unwrap();
+                let image_view = texture.view.clone();
 
                 let descriptor_set = DescriptorSet::new(
                     descriptor_allocator.clone(),
