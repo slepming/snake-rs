@@ -53,37 +53,37 @@ pub struct DrawableCreateInfo {
 }
 
 impl DrawableCreateInfo {
-    pub fn set_position(mut self, position: Vec2) -> Self {
+    pub fn with_position(mut self, position: Vec2) -> Self {
         self.position = position;
         self
     }
 
-    pub fn set_texture(mut self, texture: Texture) -> Self {
+    pub fn with_texture(mut self, texture: Texture) -> Self {
         self.texture = Some(texture);
         self
     }
 
-    pub fn set_radius(mut self, radius: f32) -> Self {
+    pub fn with_radius(mut self, radius: f32) -> Self {
         self.radius = radius;
         self
     }
 
-    pub fn set_thickness(mut self, thickness: f32) -> Self {
+    pub fn with_thickness(mut self, thickness: f32) -> Self {
         self.thickness = thickness;
         self
     }
 
-    pub fn set_size(mut self, size: Vec2) -> Self {
+    pub fn with_size(mut self, size: Vec2) -> Self {
         self.size = size;
         self
     }
 
-    pub fn set_id(mut self, id: u32) -> Self {
+    pub fn with_id(mut self, id: u32) -> Self {
         self.id = id;
         self
     }
 
-    pub fn set_color(mut self, color: Rgba8) -> Self {
+    pub fn with_color(mut self, color: Rgba8) -> Self {
         self.color = color;
         self
     }

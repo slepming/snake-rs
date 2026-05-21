@@ -65,8 +65,12 @@ where
                         self.memory.descriptor_allocator.clone(),
                         Some(self.sampler.clone()),
                     );
-                    self.descriptors
-                        .insert((pipeline_name, drw.1.unwrap().clone()));
+
+                    if let Some(descriptor) = drw.1 {
+                        self.descriptors
+                            .insert((pipeline_name, descriptor.clone()));
+                    }
+
                     self.children.add_drawable(drw.0);
                 }
             }

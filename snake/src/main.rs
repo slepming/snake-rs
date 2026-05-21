@@ -31,19 +31,24 @@ fn main() -> Result<(), impl std::error::Error> {
             for i in 0..OBJECTS_COUNT {
                 let (r, g, b) = (rng.random::<u8>(), rng.random::<u8>(), rng.random::<u8>());
                 let drawable_info = DrawableCreateInfo::default()
-                    .set_size(Vec2::new(1000.0, 1000.0))
-                    .set_color(Rgba8 { r, g, b, a: 255 })
-                    .set_id(ch.drawables.len() as u32 + 1)
-                    .set_position(Vec2::new(
+                    .with_size(Vec2::new(1000.0, 1000.0))
+                    .with_color(Rgba8 { r, g, b, a: 255 })
+                    .with_id(ch.drawables.len() as u32 + 1)
+                    .with_position(Vec2::new(
                         300.0 * i as f32,
                         monitor_size.height as f32 / 2.0,
                     ))
-                    .set_thickness(0.0)
-                    .set_radius(0.0);
+                    .with_thickness(0.0)
+                    .with_radius(0.0);
+
                 //dbg!((r, g, b));
                 if i % 2 == 0 {
                     command.append(DrawCommand::DrawObject(Shapes::Circle, drawable_info));
                 } else if i % 3 == 0 {
+                    command.append(DrawCommand::DrawObject(
+                        Shapes::Square,
+                        drawable_info.with_size(Vec2::new(50.0, 50.0)),
+                    ));
                 } else {
                 }
             }
