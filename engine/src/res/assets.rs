@@ -2,14 +2,22 @@ use std::{path::Path, sync::Arc};
 
 use image::ImageReader;
 use vulkano::{
-    DeviceSize, buffer::{Buffer, BufferCreateInfo, BufferUsage}, command_buffer::{AutoCommandBufferBuilder, CopyBufferToImageInfo, PrimaryCommandBufferAbstract}, device::Queue, image::{Image, ImageCreateInfo, ImageUsage, view::ImageView}, memory::allocator::{AllocationCreateInfo, MemoryTypeFilter}, sync::GpuFuture
+    DeviceSize,
+    buffer::{Buffer, BufferCreateInfo, BufferUsage},
+    command_buffer::{
+        AutoCommandBufferBuilder, CopyBufferToImageInfo, PrimaryCommandBufferAbstract,
+    },
+    device::Queue,
+    image::{Image, ImageCreateInfo, ImageUsage, view::ImageView},
+    memory::allocator::{AllocationCreateInfo, MemoryTypeFilter},
+    sync::GpuFuture,
 };
 
 use crate::{drw::texture::Texture, mem::engine_memory::EngineMemory};
 
 pub struct AssetsManager {
-    queue: Arc<Queue>,
-    memory_allocs: Arc<EngineMemory>,
+    pub(crate) queue: Arc<Queue>,
+    pub(crate) memory_allocs: Arc<EngineMemory>,
 }
 
 #[derive(Clone)]
@@ -22,18 +30,38 @@ impl AssetsManager {
         let texture: Texture = {
             if internal {
                 Texture::from_internal_assets(file_name.to_str().unwrap()).unwrap()
-            }
-            else {
+            } else {
                 Texture::from_file(file_name.to_str().unwrap()).unwrap()
             }
         };
 
-        let mut uploads = AutoCommandBufferBuilder::primary(self.memory_allocs.command_buffer_allocator.clone(), self.queue.queue_family_index(), vulkano::command_buffer::CommandBufferUsage::OneTimeSubmit).unwrap();
+        let mut uploads = AutoCommandBufferBuilder::primary(
+            self.memory_allocs.command_buffer_allocator.clone(),
+            self.queue.queue_family_index(),
+            vulkano::command_buffer::CommandBufferUsage::OneTimeSubmit,
+        )
+        .unwrap();
 
         let image_view: Arc<ImageView> = {
-            let upload_buffer = Buffer::new_slice::<u8>(self.memory_allocs.memory_allocator.clone(), BufferCreateInfo { usage: BufferUsage::TRANSFER_SRC, ..Default::default() }, AllocationCreateInfo { memory_type_filter: MemoryTypeFilter::PREFER_HOST | MemoryTypeFilter::HOST_SEQUENTIAL_WRITE, ..Default::default() }, (texture.dimensions.0 * texture.dimensions.1 * 4) as DeviceSize).unwrap();
+            let upload_buffer = Buffer::new_slice::<u8>(
+                self.memory_allocs.memory_allocator.clone(),
+                BufferCreateInfo {
+                    usage: BufferUsage::TRANSFER_SRC,
+                    ..Default::default()
+                },
+                AllocationCreateInfo {
+                    memory_type_filter: MemoryTypeFilter::PREFER_HOST
+                        | MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
+                    ..Default::default()
+                },
+                (texture.dimensions.0 * texture.dimensions.1 * 4) as DeviceSize,
+            )
+            .unwrap();
 
-            upload_buffer.write().unwrap().copy_from_slice(&texture.image);
+            upload_buffer
+                .write()
+                .unwrap()
+                .copy_from_slice(&texture.image);
 
             let image = Image::new(
                 self.memory_allocs.memory_allocator.clone(),
@@ -50,11 +78,21 @@ impl AssetsManager {
 
             drop(texture);
 
-            uploads.copy_buffer_to_image(CopyBufferToImageInfo::buffer_image(upload_buffer, image.clone())).unwrap();
+            uploads
+                .copy_buffer_to_image(CopyBufferToImageInfo::buffer_image(
+                    upload_buffer,
+                    image.clone(),
+                ))
+                .unwrap();
             ImageView::new_default(image).unwrap()
         };
 
-        let _ = uploads.build().unwrap().execute(self.queue.clone()).unwrap().flush();
+        let _ = uploads
+            .build()
+            .unwrap()
+            .execute(self.queue.clone())
+            .unwrap()
+            .flush();
 
         TextureHandler { view: image_view }
     }

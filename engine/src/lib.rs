@@ -61,6 +61,7 @@ use crate::{
     geom::matrix::Transform,
     mem::engine_memory::EngineMemory,
     mv::phys::movement::{PhysicsContext, PhysicsSpace},
+    res::assets::AssetsManager,
     res::cache::{CacheProvider, DescriptorSetCache, PipelineCache},
     shaders::{
         circle_shader::{circle_fs, circle_vs},
@@ -88,21 +89,29 @@ static GLOBAL: tracy_client::ProfiledAllocator<std::alloc::System> =
 /// `Start` -> Event generic which calls after window, pipelines, swapchain initialization
 pub struct EngineContext<Redraw, Start>
 where
-    Redraw: FnMut(&mut Children, &mut PhysicsContext, &WindowEvent, &mut CommandQueue),
-    Start: FnMut(&ActiveEventLoop, &mut Children, Arc<Window>, &mut CommandQueue),
+    Redraw: FnMut(
+        &mut Children,
+        &mut PhysicsContext,
+        &mut AssetsManager,
+        &WindowEvent,
+        &mut CommandQueue,
+    ),
+    Start:
+        FnMut(&ActiveEventLoop, &mut Children, &mut AssetsManager, Arc<Window>, &mut CommandQueue),
 {
     instance: Arc<Instance>,
     /// One of the most important parts of the engine - vulkan context
     device: Arc<Device>,
     /// GPU possible queues(Currently is first GRAPHICS queue)
     queue: Arc<Queue>,
-    memory: EngineMemory,
+    memory: Arc<EngineMemory>,
     pipelines: PipelineCache,
     descriptors: DescriptorSetCache,
     sampler: Arc<Sampler>,
     rcx: Option<RenderContext>,
     pub(crate) physics_context: PhysicsContext,
     pub children: Children,
+    pub assets: AssetsManager,
     pub frames: u64,
     redraw: Redraw,
     start: Start,
@@ -121,8 +130,15 @@ struct RenderContext {
 
 impl<Redraw, Start> EngineContext<Redraw, Start>
 where
-    Redraw: FnMut(&mut Children, &mut PhysicsContext, &WindowEvent, &mut CommandQueue),
-    Start: FnMut(&ActiveEventLoop, &mut Children, Arc<Window>, &mut CommandQueue),
+    Redraw: FnMut(
+        &mut Children,
+        &mut PhysicsContext,
+        &mut AssetsManager,
+        &WindowEvent,
+        &mut CommandQueue,
+    ),
+    Start:
+        FnMut(&ActiveEventLoop, &mut Children, &mut AssetsManager, Arc<Window>, &mut CommandQueue),
 {
     pub fn new(event_loop: &EventLoop<()>, start: Start, redraw: Redraw) -> Self {
         tracing_subscriber::fmt::init();
@@ -171,7 +187,7 @@ where
         // TODO: Save queues in HashMap with keys: GRAPHICS, COMPUTE, VIDEO_DECODE, VIDEO_ENCODE
         let queue = queues.next().unwrap();
 
-        let memory = EngineMemory::new(device.clone());
+        let memory = Arc::new(EngineMemory::new(device.clone()));
         let sampler = Sampler::new(
             device.clone(),
             SamplerCreateInfo {
@@ -192,6 +208,11 @@ where
         info!("Initializing Physics context");
         let ph_context = PhysicsContext::new(rbs, cds, space);
 
+        let assets = AssetsManager {
+            queue: queue.clone(),
+            memory_allocs: memory.clone(),
+        };
+
         Self {
             descriptors: DescriptorSetCache::default(),
             pipelines: PipelineCache::default(),
@@ -203,6 +224,7 @@ where
             rcx: None,
             physics_context: ph_context,
             children: Children::new(),
+            assets,
             frames: 0,
             start: start,
             redraw: redraw,
@@ -281,8 +303,15 @@ where
 
 impl<Redraw, Start> ApplicationHandler for EngineContext<Redraw, Start>
 where
-    Redraw: FnMut(&mut Children, &mut PhysicsContext, &WindowEvent, &mut CommandQueue),
-    Start: FnMut(&ActiveEventLoop, &mut Children, Arc<Window>, &mut CommandQueue),
+    Redraw: FnMut(
+        &mut Children,
+        &mut PhysicsContext,
+        &mut AssetsManager,
+        &WindowEvent,
+        &mut CommandQueue,
+    ),
+    Start:
+        FnMut(&ActiveEventLoop, &mut Children, &mut AssetsManager, Arc<Window>, &mut CommandQueue),
 {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         #[cfg(feature = "tracing")]
@@ -496,6 +525,7 @@ where
         (self.start)(
             &event_loop,
             &mut self.children,
+            &mut self.assets,
             window.clone(),
             &mut game_command_queue,
         );
@@ -528,6 +558,7 @@ where
         (self.redraw)(
             &mut self.children,
             &mut self.physics_context,
+            &mut self.assets,
             &event,
             &mut CommandQueue::default(),
         );

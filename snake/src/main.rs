@@ -11,7 +11,8 @@ use snake_engine::{
         texture::Texture,
     },
     geom::shapes::Shapes,
-    mv::phys::movement::PhysicsContext, res::assets::AssetsManager,
+    mv::phys::movement::PhysicsContext,
+    res::assets::AssetsManager,
 };
 use winit::{
     event::{ElementState, WindowEvent},
@@ -27,42 +28,46 @@ fn main() -> Result<(), impl std::error::Error> {
     let event_loop = EventLoop::new().unwrap();
     let mut rng = rand::rng();
 
-    let mut window =
-        |e: &ActiveEventLoop, ch: &mut Children, wind: Arc<Window>, command: &mut CommandQueue| {
-            let monitor_size = e.available_monitors().next().unwrap().size();
-            wind.set_title("snake");
-            for i in 0..OBJECTS_COUNT {
-                let (r, g, b) = (rng.random::<u8>(), rng.random::<u8>(), rng.random::<u8>());
-                let drawable_info = DrawableCreateInfo::default()
-                    .with_size(Vec2::new(1000.0, 1000.0))
-                    .with_color(Rgba8 { r, g, b, a: 255 })
-                    .with_id(ch.drawables.len() as u32 + 1)
-                    .with_position(Vec2::new(
-                        300.0 * i as f32,
-                        monitor_size.height as f32 / 2.0,
-                    ))
-                    .with_thickness(0.0)
-                    .with_radius(0.0);
+    let mut window = |e: &ActiveEventLoop,
+                      ch: &mut Children,
+                      assets: &mut AssetsManager,
+                      wind: Arc<Window>,
+                      command: &mut CommandQueue| {
+        let monitor_size = e.available_monitors().next().unwrap().size();
+        wind.set_title("snake");
+        for i in 0..OBJECTS_COUNT {
+            let (r, g, b) = (rng.random::<u8>(), rng.random::<u8>(), rng.random::<u8>());
+            let drawable_info = DrawableCreateInfo::default()
+                .with_size(Vec2::new(1000.0, 1000.0))
+                .with_color(Rgba8 { r, g, b, a: 255 })
+                .with_id(ch.drawables.len() as u32 + 1)
+                .with_position(Vec2::new(
+                    300.0 * i as f32,
+                    monitor_size.height as f32 / 2.0,
+                ))
+                .with_thickness(0.0)
+                .with_radius(0.0);
 
-                //dbg!((r, g, b));
-                if i % 2 == 0 {
-                    command.append(DrawCommand::DrawObject(Shapes::Circle, drawable_info));
-                } else if i % 3 == 0 {
-                    command.append(DrawCommand::DrawObject(
-                        Shapes::Square,
-                        drawable_info.with_size(Vec2::new(50.0, 50.0)),
-                    ));
-                } else {
-                    command.append(DrawCommand::DrawObject(
-                        Shapes::Image(),
-                        drawable_info.with_size(Vec2::new(50.0, 50.0)),
-                    ));
-                }
+            //dbg!((r, g, b));
+            if i % 2 == 0 {
+                command.append(DrawCommand::DrawObject(Shapes::Circle, drawable_info));
+            } else if i % 3 == 0 {
+                command.append(DrawCommand::DrawObject(
+                    Shapes::Square,
+                    drawable_info.with_size(Vec2::new(50.0, 50.0)),
+                ));
+            } else {
+                command.append(DrawCommand::DrawObject(
+                    Shapes::Image(assets.load(std::path::Path::new("image.png"), true)),
+                    drawable_info.with_size(Vec2::new(50.0, 50.0)),
+                ));
             }
-        };
+        }
+    };
 
     let redraw_closure = |_ch: &mut Children,
                           _pc: &mut PhysicsContext,
+                          _assets: &mut AssetsManager,
                           event: &WindowEvent,
                           command: &mut CommandQueue| match event {
         WindowEvent::KeyboardInput { event, .. } => {
@@ -93,8 +98,8 @@ fn main() -> Result<(), impl std::error::Error> {
 
     let mut app = EngineContext::new(
         &event_loop,
-        |event, ch, ph, command| window(event, ch, ph, command),
-        |ch, pc, event, command| redraw_closure(ch, pc, event, command),
+        |event, ch, assets, ph, command| window(event, ch, assets, ph, command),
+        |ch, pc, assets, event, command| redraw_closure(ch, pc, assets, event, command),
     );
     event_loop.run_app(&mut app)
 }

@@ -43,8 +43,20 @@ pub trait CommandDispatcher {
 
 impl<Redraw, Start> CommandDispatcher for EngineContext<Redraw, Start>
 where
-    Redraw: FnMut(&mut Children, &mut PhysicsContext, &WindowEvent, &mut CommandQueue),
-    Start: FnMut(&ActiveEventLoop, &mut Children, Arc<Window>, &mut CommandQueue),
+    Redraw: FnMut(
+        &mut Children,
+        &mut PhysicsContext,
+        &mut crate::res::assets::AssetsManager,
+        &WindowEvent,
+        &mut CommandQueue,
+    ),
+    Start: FnMut(
+        &ActiveEventLoop,
+        &mut Children,
+        &mut crate::res::assets::AssetsManager,
+        Arc<Window>,
+        &mut CommandQueue,
+    ),
 {
     fn flush_commands(&mut self, queue: CommandQueue) {
         #[cfg(feature = "tracing")]
