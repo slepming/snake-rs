@@ -86,6 +86,7 @@ package "Base" {
             - sampler: Arc<Sampler>
             + physics_context: PhysicsContext
             + children: Children
+            + assets: AssetsManager
             + frames: u64
             - redraw: Redraw
             - start: Start
@@ -108,6 +109,16 @@ package "Base" {
         struct DescriptorSetCache {
             - descriptors: RwLock<HashMap<String, Arc<DescriptorSet>>>
             + new(descriptors: HashMap<String, Arc<DescriptorSet>>) -> DescriptorSetCache
+        }
+
+        struct AssetsManager {
+            ~ queue: Arc<Queue>
+            ~ memory_allocs: Arc<EngineMemory>
+            + load(&self, file_name: &Path, internal: bool) -> TextureHandler
+        }
+
+        struct TextureHandler {
+            ~ view: Arc<ImageView>
         }
 
         interface "CacheProvider<A>" as CacheProvider << (T,ORANGE) >> {
@@ -237,7 +248,7 @@ package "Draw" {
     enum Shapes {
         Square
         Circle
-        Image(Texture)
+        Image(TextureHandler)
         + get_vertex_and_descriptor(&self, pipeline: Arc<dyn Pipeline>, mem_alloc: Arc<dyn MemoryAllocator>, desc_alloc: Arc<dyn DescriptorSetAllocator>, sampler: Option<Arc<Sampler>>) -> (Vec<MyVertex>, Option<Arc<DescriptorSet>>)
     }
 
@@ -277,6 +288,7 @@ EngineContext *-- PipelineCache : own
 EngineContext *-- DescriptorSetCache : own
 EngineContext *-- PhysicsContext : own
 EngineContext *-- Children : own
+EngineContext *-- AssetsManager : own
 PhysicsContext *-- PhysicsSpace : own
 
 CommandQueue o-- DrawCommand : contains
@@ -304,7 +316,7 @@ DrawableRenderContext *-- DescriptorID : own
 Mesh *-- MyVertex : own
 
 PhysicsDrawable *-- Drawable : own
-Shapes o-- Texture : contains
+Shapes o-- TextureHandler : contains
 
 note right of EngineContext
     Центральная точка входа.
