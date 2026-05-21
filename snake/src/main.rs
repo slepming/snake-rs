@@ -4,12 +4,12 @@ use color::Rgba8;
 use rand::RngExt;
 use rapier2d::math::Vec2;
 use snake_engine::{
-    EngineContext, cmd::command::{CommandQueue, DrawCommand}, drw::{
-        drawable::{Children, Drawable, DrawableCreateInfo},
-        texture::Texture,
-    }, geom::shapes::Shapes, mv::phys::movement::PhysicsContext
+    EngineContext,
+    cmd::command::{CommandQueue, DrawCommand},
+    drw::drawable::{Children, DrawableCreateInfo},
+    geom::shapes::Shapes,
+    mv::phys::movement::PhysicsContext,
 };
-use tracing::debug;
 use winit::{
     event::{ElementState, WindowEvent},
     event_loop::{ActiveEventLoop, EventLoop},
@@ -30,17 +30,19 @@ fn main() -> Result<(), impl std::error::Error> {
             wind.set_title("snake");
             for i in 0..OBJECTS_COUNT {
                 let (r, g, b) = (rng.random::<u8>(), rng.random::<u8>(), rng.random::<u8>());
+                let drawable_info = DrawableCreateInfo::default()
+                    .set_size(Vec2::new(1000.0, 1000.0))
+                    .set_color(Rgba8 { r, g, b, a: 255 })
+                    .set_id(ch.drawables.len() as u32 + 1)
+                    .set_position(Vec2::new(
+                        300.0 * i as f32,
+                        monitor_size.height as f32 / 2.0,
+                    ))
+                    .set_thickness(0.0)
+                    .set_radius(0.0);
                 //dbg!((r, g, b));
                 if i % 2 == 0 {
-                    command.append(DrawCommand::DrawObject(Shapes::Circle, DrawableCreateInfo {
-                            size: Vec2::new(1000.0, 1000.0),
-                            color: Rgba8 { r, g, b, a: 255 },
-                            id: ch.drawables.len() as u32 + 1,
-                            position: Vec2::new(300.0 * i as f32, monitor_size.height as f32 / 2.0),
-                            thickness: 0.0,
-                            radius: 0.0,
-                            ..Default::default()
-                        }));
+                    command.append(DrawCommand::DrawObject(Shapes::Circle, drawable_info));
                 } else if i % 3 == 0 {
                 } else {
                 }

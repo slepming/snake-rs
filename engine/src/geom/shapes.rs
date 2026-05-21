@@ -1,16 +1,14 @@
 use std::sync::Arc;
-use strum::{AsRefStr, EnumString, IntoStaticStr};
+use strum::{AsRefStr, IntoStaticStr};
 use tracing::warn;
 use vulkano::buffer::{Buffer, BufferCreateInfo, BufferUsage};
-use vulkano::descriptor_set::allocator::{DescriptorSetAllocator, StandardDescriptorSetAllocator};
+use vulkano::descriptor_set::allocator::DescriptorSetAllocator;
 use vulkano::descriptor_set::{DescriptorSet, WriteDescriptorSet};
 use vulkano::image::sampler::Sampler;
-use vulkano::image::view::{ImageView, ImageViewCreateInfo};
-use vulkano::image::{Image, ImageCreateInfo, ImageSubresourceRange, ImageUsage};
-use vulkano::memory::allocator::{
-    AllocationCreateInfo, MemoryAllocator, MemoryTypeFilter, StandardMemoryAllocator,
-};
-use vulkano::pipeline::{GraphicsPipeline, Pipeline};
+use vulkano::image::view::ImageView;
+use vulkano::image::{Image, ImageCreateInfo, ImageUsage};
+use vulkano::memory::allocator::{AllocationCreateInfo, MemoryAllocator, MemoryTypeFilter};
+use vulkano::pipeline::Pipeline;
 
 use crate::MyVertex;
 use crate::drw::texture::Texture;

@@ -5,17 +5,14 @@ use rapier2d::{
     prelude::{RigidBody, RigidBodyHandle},
 };
 use vulkano::{
-    descriptor_set::allocator::DescriptorSetAllocator,
-    image::sampler::Sampler,
-    memory::allocator::MemoryAllocator,
-    pipeline::{GraphicsPipeline, Pipeline},
+    descriptor_set::allocator::DescriptorSetAllocator, image::sampler::Sampler,
+    memory::allocator::MemoryAllocator, pipeline::Pipeline,
 };
 
 use crate::{
     MyVertex,
     drw::texture::Texture,
     geom::{matrix::Transform, shapes::Shapes},
-    mem,
     mv::{phys::movement::PhysicsContext, transform::Entity},
 };
 
@@ -47,11 +44,49 @@ pub(crate) struct DrawableRenderContext {
 pub struct DrawableCreateInfo {
     pub position: Vec2,
     pub texture: Option<Texture>,
+    /// Set radius to circle object
     pub radius: f32,
     pub thickness: f32,
     pub size: Vec2,
     pub id: u32,
     pub color: Rgba8,
+}
+
+impl DrawableCreateInfo {
+    pub fn set_position(mut self, position: Vec2) -> Self {
+        self.position = position;
+        self
+    }
+
+    pub fn set_texture(mut self, texture: Texture) -> Self {
+        self.texture = Some(texture);
+        self
+    }
+
+    pub fn set_radius(mut self, radius: f32) -> Self {
+        self.radius = radius;
+        self
+    }
+
+    pub fn set_thickness(mut self, thickness: f32) -> Self {
+        self.thickness = thickness;
+        self
+    }
+
+    pub fn set_size(mut self, size: Vec2) -> Self {
+        self.size = size;
+        self
+    }
+
+    pub fn set_id(mut self, id: u32) -> Self {
+        self.id = id;
+        self
+    }
+
+    pub fn set_color(mut self, color: Rgba8) -> Self {
+        self.color = color;
+        self
+    }
 }
 
 impl Default for DrawableCreateInfo {
@@ -189,11 +224,9 @@ impl Drawable {
             render: DrawableRenderContext {
                 descriptor_id: DescriptorID {
                     id: key.clone(), // If descriptor id is key then few circles will have same
-                                         // data
+                                     // data
                 },
-                pipeline_id: PipelineID {
-                    id: key,
-                },
+                pipeline_id: PipelineID { id: key },
                 mesh: Mesh::new(vertex, drawable_info.id),
             },
         };

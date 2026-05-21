@@ -1,21 +1,12 @@
-use std::sync::{Arc, RwLock};
-
-use color::Rgba8;
 use rapier2d::{
     math::Vec2,
     prelude::{
-        CCDSolver, ColliderBuilder, ColliderSet, DefaultBroadPhase, ImpulseJointSet,
-        IntegrationParameters, IslandManager, MultibodyJointSet, NarrowPhase, PhysicsPipeline,
-        RigidBodyBuilder, RigidBodySet,
+        CCDSolver, ColliderSet, DefaultBroadPhase, ImpulseJointSet, IntegrationParameters,
+        IslandManager, MultibodyJointSet, NarrowPhase, PhysicsPipeline, RigidBodySet,
     },
 };
-use tracing::debug;
 
-use crate::{
-    MyVertex,
-    drw::drawable::{Drawable, DrawableCreateInfo, PhysicsDrawable},
-    geom::shapes::Shapes,
-};
+use crate::drw::drawable::PhysicsDrawable;
 
 const GRAVITY: Vec2 = Vec2::new(0.0, -9.81 * 60.0); // * 60 is magick value. I will fix that in the future
 

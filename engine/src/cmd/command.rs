@@ -1,10 +1,11 @@
 use std::sync::Arc;
 
+use tracing::info;
 use winit::{event::WindowEvent, event_loop::ActiveEventLoop, window::Window};
 
 use crate::{
-    EngineContext, MyVertex,
-    drw::drawable::{Children, Drawable, DrawableComponent, DrawableCreateInfo, DrawableGPU},
+    EngineContext,
+    drw::drawable::{Children, Drawable, DrawableCreateInfo},
     geom::shapes::Shapes,
     mv::phys::movement::PhysicsContext,
     res::cache::CacheProvider,
@@ -45,7 +46,10 @@ where
     Redraw: FnMut(&mut Children, &mut PhysicsContext, &WindowEvent, &mut CommandQueue),
     Start: FnMut(&ActiveEventLoop, &mut Children, Arc<Window>, &mut CommandQueue),
 {
-    fn flush_commands(&mut self, queue: CommandQueue){
+    fn flush_commands(&mut self, queue: CommandQueue) {
+        #[cfg(feature = "tracing")]
+        let span_submit = tracy_client::span!("Engine: Flush commands");
+        info!("Flush commands");
         let commands = queue.commands;
         for command in commands.into_iter() {
             match command {
@@ -54,7 +58,9 @@ where
                     let drw = Drawable::from_shape(
                         s.clone(),
                         drw,
-                        self.pipelines.get(&pipeline_name).expect("There is no pipeline for this drawable"),
+                        self.pipelines
+                            .get(&pipeline_name)
+                            .expect("There is no pipeline for this drawable"),
                         self.memory.memory_allocator.clone(),
                         self.memory.descriptor_allocator.clone(),
                         Some(self.sampler.clone()),

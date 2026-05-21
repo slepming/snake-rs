@@ -25,9 +25,7 @@ use vulkano::{
         view::ImageView,
     },
     instance::{Instance, InstanceCreateFlags, InstanceCreateInfo, InstanceExtensions},
-    memory::allocator::{
-        AllocationCreateInfo, MemoryAllocator, MemoryTypeFilter, StandardMemoryAllocator,
-    },
+    memory::allocator::{AllocationCreateInfo, MemoryAllocator, MemoryTypeFilter},
     pipeline::{
         DynamicState, GraphicsPipeline, Pipeline, PipelineLayout, PipelineShaderStageCreateInfo,
         graphics::{
@@ -695,7 +693,10 @@ where
                             | (colour.a as u32) << 24,
                     );
                     let pipeline_name = &item.drawable().render.pipeline_id.id;
-                    let pipeline = self.pipelines.get(pipeline_name).expect("pipeline not found");
+                    let pipeline = self
+                        .pipelines
+                        .get(pipeline_name)
+                        .expect("pipeline not found");
                     let layout = pipeline.layout();
                     if !layout.push_constant_ranges().is_empty() {
                         //dbg!(size_of::<Constants>());

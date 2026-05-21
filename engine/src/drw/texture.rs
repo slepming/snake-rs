@@ -8,6 +8,7 @@ pub(crate) struct Asset; // TODO: Binary file large
 /// Texture image struct which storage image in vector bytes and metadata
 #[derive(Clone)]
 pub struct Texture {
+    #[allow(dead_code)]
     pub(crate) image: Vec<u8>,
     pub dimensions: (u32, u32),
 }

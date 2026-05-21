@@ -3,10 +3,7 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-use vulkano::{
-    descriptor_set::{DescriptorSet, allocator::StandardDescriptorSetAllocator},
-    pipeline::GraphicsPipeline,
-};
+use vulkano::{descriptor_set::DescriptorSet, pipeline::GraphicsPipeline};
 
 pub trait CacheProvider<A: Sized> {
     fn get(&self, key: &str) -> Option<A>;
