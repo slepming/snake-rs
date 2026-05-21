@@ -6,7 +6,10 @@ use rapier2d::math::Vec2;
 use snake_engine::{
     EngineContext,
     cmd::command::{CommandQueue, DrawCommand},
-    drw::drawable::{Children, DrawableCreateInfo},
+    drw::{
+        drawable::{Children, DrawableCreateInfo},
+        texture::Texture,
+    },
     geom::shapes::Shapes,
     mv::phys::movement::PhysicsContext,
 };
@@ -50,6 +53,10 @@ fn main() -> Result<(), impl std::error::Error> {
                         drawable_info.with_size(Vec2::new(50.0, 50.0)),
                     ));
                 } else {
+                    command.append(DrawCommand::DrawObject(
+                        Shapes::Image(Texture::from_internal_assets("image.png").unwrap()),
+                        drawable_info.with_size(Vec2::new(50.0, 50.0)),
+                    ));
                 }
             }
         };

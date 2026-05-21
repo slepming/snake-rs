@@ -59,16 +59,33 @@ package "Base" {
         }
     }
 
+    package "Commands" {
+        struct CommandQueue {
+            - commands: Vec<DrawCommand>
+            + append(&mut self, command: DrawCommand)
+        }
+
+        enum DrawCommand {
+            DrawObject(Shapes, DrawableCreateInfo)
+        }
+
+        interface CommandDispatcher << (T,ORANGE) >> {
+            + flush_commands(&mut self, commands: CommandQueue)
+        }
+    }
+
     package "Core Engine" {
-        struct "EngineContext<Drw, Redraw, Start>" as EngineContext {
+        struct "EngineContext<Redraw, Start>" as EngineContext {
             - instance: Arc<Instance>
             - device: Arc<Device>
             - queue: Arc<Queue>
             - memory: EngineMemory
             - rcx: Option<RenderContext>
-            - cache: Arc<Cache>
+            - pipelines: PipelineCache
+            - descriptors: DescriptorSetCache
+            - sampler: Arc<Sampler>
             + physics_context: PhysicsContext
-            + children: Children<Drw>
+            + children: Children
             + frames: u64
             - redraw: Redraw
             - start: Start
@@ -83,23 +100,19 @@ package "Base" {
             + new(device: Arc<Device>) -> EngineMemory
         }
 
-        struct Cache {
-            - pipelines: RwLock<HashMap<&'static str, Arc<GraphicsPipeline>>>
+        struct PipelineCache {
+            - pipelines: RwLock<HashMap<String, Arc<GraphicsPipeline>>>
+            + new(pipelines: HashMap<String, Arc<GraphicsPipeline>>) -> PipelineCache
+        }
+
+        struct DescriptorSetCache {
             - descriptors: RwLock<HashMap<String, Arc<DescriptorSet>>>
-            + memory_allocator: Option<Arc<StandardMemoryAllocator>>
-            + descriptor_allocator: Option<Arc<StandardDescriptorSetAllocator>>
-            ~ sampler: Arc<Sampler>
-            + new(...) -> Cache
+            + new(descriptors: HashMap<String, Arc<DescriptorSet>>) -> DescriptorSetCache
         }
 
-        interface PipelineHandle << (T,ORANGE) >> {
-            + get_pipeline(&self, key: &str) -> Option<Arc<GraphicsPipeline>>
-            + insert_pipeline(&self, key: &'static str, pipeline: Arc<GraphicsPipeline>) -> &Self
-        }
-
-        interface DescriptorHandle << (T,ORANGE) >> {
-            + get_descriptor(&self, key: &str) -> Option<Arc<DescriptorSet>>
-            + insert_descriptor_set(&self, key: String, descriptor_set: Arc<DescriptorSet>) -> &Self
+        interface "CacheProvider<A>" as CacheProvider << (T,ORANGE) >> {
+            + get(&self, key: &str) -> Option<A>
+            + insert(&self, value: (String, A)) -> Option<A>
         }
     }
 }
@@ -156,20 +169,19 @@ package "Physics (Rapier2D)" {
 }
 
 package "Draw" {
-    struct "Children<D: DrawableComponent>" as Children {
-        + drawables: Vec<D>
-        + new() -> Children<D>
-        + add_drawable(&mut self, item: D)
+    struct Children {
+        + drawables: Vec<Drawable>
+        + new() -> Children
+        + add_drawable(&mut self, item: Drawable)
     }
 
     struct Drawable {
         - transform: Transform
         - color: Rgba8
-        ~ cache: Arc<Cache>
         ~ render: DrawableRenderContext
         + new(...) -> Drawable
         + new_with_color(...) -> Drawable
-        + from_shape(shape: Shapes, drw: DrawableCreateInfo) -> Drawable
+        + from_shape(shape: Shapes, drw: DrawableCreateInfo, pipeline: Arc<dyn Pipeline>, mem_alloc: Arc<dyn MemoryAllocator>, desc_alloc: Arc<dyn DescriptorSetAllocator>, sampler: Option<Arc<Sampler>>) -> (Drawable, Option<Arc<DescriptorSet>>)
     }
 
     struct PhysicsDrawable {
@@ -213,7 +225,6 @@ package "Draw" {
     }
 
     struct DrawableCreateInfo {
-        + cache: Option<Arc<Cache>>
         + position: Vec2
         + texture: Option<Texture>
         + radius: f32
@@ -227,7 +238,7 @@ package "Draw" {
         Square
         Circle
         Image(Texture)
-        + get_vertex_and_descriptor(&self, cache: &Arc<Cache>) -> (Vec<MyVertex>, Option<Arc<DescriptorSet>>)
+        + get_vertex_and_descriptor(&self, pipeline: Arc<dyn Pipeline>, mem_alloc: Arc<dyn MemoryAllocator>, desc_alloc: Arc<dyn DescriptorSetAllocator>, sampler: Option<Arc<Sampler>>) -> (Vec<MyVertex>, Option<Arc<DescriptorSet>>)
     }
 
     struct Texture {
@@ -242,7 +253,6 @@ package "Draw" {
         + get_vertex_clone(&self) -> Vec<MyVertex>
         + get_vertex(&self) -> &Vec<MyVertex>
         + get_colour(&self) -> &Rgba8
-        + get_pipeline(&self) -> Arc<GraphicsPipeline>
     }
 
     interface DrawableComponent << (T,ORANGE) >> {
@@ -256,15 +266,20 @@ package "Draw" {
 
 ' Relationships
 ApplicationHandler <|.. EngineContext : implement
-PipelineHandle <|.. Cache : implement
-DescriptorHandle <|.. Cache : implement
+CommandDispatcher <|.. EngineContext : implement
+
+CacheProvider <|.. PipelineCache : implement
+CacheProvider <|.. DescriptorSetCache : implement
 
 EngineContext o-- RenderContext : contains (Option)
 EngineContext *-- EngineMemory : own
-EngineContext *-- Cache : own
+EngineContext *-- PipelineCache : own
+EngineContext *-- DescriptorSetCache : own
 EngineContext *-- PhysicsContext : own
 EngineContext *-- Children : own
 PhysicsContext *-- PhysicsSpace : own
+
+CommandQueue o-- DrawCommand : contains
 
 DrawableGPU <|-- DrawableComponent : extend
 DrawableComponent <|.. Drawable : implement
@@ -279,7 +294,7 @@ Entity --|> DynamicObject : extend
 
 Position <|.. Transform : implement
 
-Children o-- DrawableComponent : contains
+Children o-- Drawable : contains
 
 Drawable *-- Transform : own
 Drawable *-- DrawableRenderContext : own
@@ -294,7 +309,7 @@ Shapes o-- Texture : contains
 note right of EngineContext
     Центральная точка входа.
     Управляет жизненным циклом
-    приложения через ApplicationHandler.
+    приложения через ApplicationHandler и CommandDispatcher.
     Настраивается через замыкания
     (Start и Redraw).
 end note

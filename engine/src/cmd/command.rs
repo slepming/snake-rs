@@ -67,8 +67,7 @@ where
                     );
 
                     if let Some(descriptor) = drw.1 {
-                        self.descriptors
-                            .insert((pipeline_name, descriptor.clone()));
+                        self.descriptors.insert((pipeline_name, descriptor.clone()));
                     }
 
                     self.children.add_drawable(drw.0);
