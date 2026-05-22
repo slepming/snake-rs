@@ -61,9 +61,10 @@ where
     fn flush_commands(&mut self, queue: CommandQueue) {
         #[cfg(feature = "tracing")]
         let span_submit = tracy_client::span!("Engine: Flush commands");
-        info!("Flush commands");
-        let commands = queue.commands;
-        for command in commands.into_iter() {
+        let commands_count = queue.commands.len();
+        info!(commands_count=commands_count,"Flush commands");
+        let commands = queue.commands.into_iter();
+        for command in commands {
             match command {
                 DrawCommand::DrawObject(s, drw) => {
                     let pipeline_name = s.as_ref().to_lowercase();

@@ -157,7 +157,9 @@ where
         // All the window-drawing functionalities are part of non-core extensions that we need to
         // enable manually. To do so, we ask `Surface` for the list of extensions required to draw
         // to a window.
-        let required_extensions = Surface::required_extensions(event_loop).unwrap();
+        let mut required_extensions = Surface::required_extensions(event_loop).unwrap();
+        let supported_extensions = library.supported_extensions();
+        required_extensions &= *supported_extensions;
 
         info!("Creating Vulkan instance");
         let instance = Instance::new(
@@ -166,10 +168,7 @@ where
                 // Enable enumerating devices that use non-conformant Vulkan implementations.
                 // (e.g. MoltenVK)
                 flags: InstanceCreateFlags::ENUMERATE_PORTABILITY,
-                enabled_extensions: InstanceExtensions {
-                    khr_wayland_surface: true,
-                    ..required_extensions
-                },
+                enabled_extensions: required_extensions,
                 ..Default::default()
             },
         )
@@ -922,7 +921,7 @@ fn select_render_device(
                     // that queues in this queue family are capable of presenting images to the
                     // surface.
                     q.queue_flags.intersects(QueueFlags::GRAPHICS)
-                        && p.presentation_support(i as u32, event_loop).unwrap()
+                        && p.presentation_support(i as u32, event_loop).unwrap_or(false)
                 })
                 // The code here searches for the first queue family that is suitable. If none
                 // is found, `None` is returned to `filter_map`, which
