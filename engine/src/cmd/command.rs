@@ -70,11 +70,10 @@ where
                     let drw = Drawable::from_shape(
                         s.clone(),
                         drw,
-                        self.pipelines
-                            .get(&pipeline_name)
-                            .expect("There is no pipeline for this drawable"),
                         self.memory.memory_allocator.clone(),
                         self.memory.descriptor_allocator.clone(),
+                        self.pipelines.clone(),
+                        self.descriptors.clone(),
                         Some(self.sampler.clone()),
                     );
 

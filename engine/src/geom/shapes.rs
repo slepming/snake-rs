@@ -11,8 +11,10 @@ use vulkano::memory::allocator::{AllocationCreateInfo, MemoryAllocator, MemoryTy
 use vulkano::pipeline::Pipeline;
 
 use crate::MyVertex;
+use crate::drw::drawable::{DescriptorID, PipelineID};
 use crate::drw::texture::Texture;
 use crate::res::assets::TextureHandler;
+use crate::res::cache::{CacheProvider, DescriptorSetCache, PipelineCache};
 
 #[derive(vulkano::buffer::BufferContents, Clone, Copy)]
 #[repr(C)]
@@ -34,11 +36,15 @@ impl Shapes {
     /// Vertex and optional descriptor set
     pub fn get_vertex_and_descriptor(
         &self,
-        pipeline: Arc<dyn Pipeline>,
+        pipeline_id: PipelineID,
+        descriptor_id: DescriptorID,
         memory_allocator: Arc<dyn MemoryAllocator>,
         descriptor_allocator: Arc<dyn DescriptorSetAllocator>,
+        descriptor_set_cache: Arc<DescriptorSetCache>,
+        pipeline_cache: Arc<PipelineCache>,
         sampler: Option<Arc<Sampler>>,
     ) -> (Vec<MyVertex>, Option<Arc<DescriptorSet>>) {
+        let pipeline = pipeline_cache.get(&pipeline_id.id).unwrap();
         match self {
             Shapes::Square => {
                 let verts = vec![
@@ -127,6 +133,10 @@ impl Shapes {
                     warn!("Pipeline 'image' has no bindings. Did you forget to compile shaders?");
                 }
                 let image_view = texture.view.clone();
+
+                if let Some(descriptor_set) = descriptor_set_cache.get(&descriptor_id.id) {
+                    return (verts, Some(descriptor_set))
+                }
 
                 let descriptor_set = DescriptorSet::new(
                     descriptor_allocator.clone(),

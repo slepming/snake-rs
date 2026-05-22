@@ -1,4 +1,4 @@
-use std::{path::Path, sync::Arc};
+use std::{collections::HashMap, path::Path, sync::Arc};
 
 use image::ImageReader;
 use vulkano::{
@@ -18,15 +18,21 @@ use crate::{drw::texture::Texture, mem::engine_memory::EngineMemory};
 pub struct AssetsManager {
     pub(crate) queue: Arc<Queue>,
     pub(crate) memory_allocs: Arc<EngineMemory>,
+    pub(crate) texture_pool: Arc<HashMap<String, TextureHandler>>,
 }
 
-#[derive(Clone)]
 pub struct TextureHandler {
     pub(crate) view: Arc<ImageView>,
 }
 
 impl AssetsManager {
-    pub fn load(&self, file_name: &Path, internal: bool) -> TextureHandler {
+    pub fn load(&self, file_name: &Path, internal: bool) -> &TextureHandler {
+        #[cfg(feature = "tracing")]
+        let _span = tracy_client::span!("Engine::load_texture");
+        let file = file_name.file_name().unwrap().to_str().unwrap().to_string().to_lowercase();
+        if let Some(texture) = self.texture_pool.get(&file) {
+            return texture
+        }
         let texture: Texture = {
             if internal {
                 Texture::from_internal_assets(file_name.to_str().unwrap()).unwrap()
@@ -92,6 +98,8 @@ impl AssetsManager {
             .unwrap()
             .flush();
 
-        TextureHandler { view: image_view }
+        let texture_handler = TextureHandler { view: image_view };
+        self.texture_pool.insert(file, texture_handler);
+        &texture_handler
     }
 }

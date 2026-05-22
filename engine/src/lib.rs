@@ -106,8 +106,8 @@ where
     /// GPU possible queues(Currently is first GRAPHICS queue)
     queue: Arc<Queue>,
     memory: Arc<EngineMemory>,
-    pipelines: PipelineCache,
-    descriptors: DescriptorSetCache,
+    pipelines: Arc<PipelineCache>,
+    descriptors: Arc<DescriptorSetCache>,
     sampler: Arc<Sampler>,
     rcx: Option<RenderContext>,
     pub(crate) physics_context: PhysicsContext,
@@ -219,8 +219,8 @@ where
         };
 
         Self {
-            descriptors: DescriptorSetCache::default(),
-            pipelines: PipelineCache::default(),
+            descriptors: Arc::new(DescriptorSetCache::default()),
+            pipelines: Arc::new(PipelineCache::default()),
             memory,
             instance,
             device,

@@ -13,7 +13,7 @@ use crate::{
     MyVertex,
     drw::texture::Texture,
     geom::{matrix::Transform, shapes::Shapes},
-    mv::{phys::movement::PhysicsContext, transform::Entity},
+    mv::{phys::movement::PhysicsContext, transform::Entity}, res::cache::{DescriptorSetCache, PipelineCache},
 };
 
 use color::Rgba8;
@@ -25,11 +25,13 @@ pub struct Drawable {
     pub(crate) render: DrawableRenderContext,
 }
 
-pub(crate) struct PipelineID {
+#[derive(Clone)]
+pub struct PipelineID {
     pub id: String,
 }
 
-pub(crate) struct DescriptorID {
+#[derive(Clone)]
+pub struct DescriptorID {
     pub id: String,
 }
 
@@ -204,10 +206,10 @@ impl Drawable {
 
     pub fn new_with_color(
         drawable_info: DrawableCreateInfo,
-        key: &'static str,
+        pipeline_id: PipelineID,
+        descriptor_id: DescriptorID,
         vertex: Vec<MyVertex>,
     ) -> Self {
-        let key = key.to_string().to_lowercase();
         let pos = drawable_info.position;
         let transform = Transform {
             transform: [
@@ -222,11 +224,8 @@ impl Drawable {
             color: drawable_info.color,
             transform,
             render: DrawableRenderContext {
-                descriptor_id: DescriptorID {
-                    id: key.clone(), // If descriptor id is key then few circles will have same
-                                     // data
-                },
-                pipeline_id: PipelineID { id: key },
+                descriptor_id,
+                pipeline_id,
                 mesh: Mesh::new(vertex, drawable_info.id),
             },
         };
@@ -237,14 +236,25 @@ impl Drawable {
     pub fn from_shape(
         shape: Shapes,
         drw: DrawableCreateInfo,
-        pipeline: Arc<dyn Pipeline>,
         mem_alloc: Arc<dyn MemoryAllocator>,
         desc_alloc: Arc<dyn DescriptorSetAllocator>,
+        pipeline_cache: Arc<PipelineCache>,
+        desc_cache: Arc<DescriptorSetCache>,
         sampler: Option<Arc<Sampler>>,
     ) -> (Self, Option<Arc<DescriptorSet>>) {
+        let key_raw: &'static str = shape.clone().into();
+        let key = key_raw.to_string().to_lowercase();
+        let pipeline_id = PipelineID {
+            id: key.clone()
+        };
+
+        let descriptor_id = DescriptorID {
+            id: key.clone()
+        };
+
         let (vertex, desc) =
-            shape.get_vertex_and_descriptor(pipeline, mem_alloc, desc_alloc, sampler);
-        (Drawable::new_with_color(drw, shape.into(), vertex), desc)
+            shape.get_vertex_and_descriptor(pipeline_id.clone(), descriptor_id.clone(), mem_alloc, desc_alloc, desc_cache, pipeline_cache, sampler);
+        (Drawable::new_with_color(drw, pipeline_id, descriptor_id, vertex), desc)
     }
 }
 
