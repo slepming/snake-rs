@@ -21,4 +21,5 @@ void main()
 {
 	mat4 matrix = pixelMatrixToNDC(pc.transform.transform, pc.u_resolution);
 	gl_Position = matrix * vec4(position, 0.0, 1.0);
+    tex_coords = position * 0.5 + 0.5;
 }

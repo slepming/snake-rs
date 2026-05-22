@@ -21,7 +21,7 @@ use vulkano::{
     },
     image::{
         Image, ImageUsage,
-        sampler::{Sampler, SamplerCreateInfo},
+        sampler::{Filter, Sampler, SamplerAddressMode, SamplerCreateInfo},
         view::ImageView,
     },
     instance::{Instance, InstanceCreateFlags, InstanceCreateInfo, InstanceExtensions},
@@ -41,7 +41,8 @@ use vulkano::{
     },
     render_pass::{Framebuffer, FramebufferCreateInfo, RenderPass, Subpass},
     swapchain::{
-        Surface, Swapchain, SwapchainCreateInfo, SwapchainPresentInfo, acquire_next_image,
+        CompositeAlpha, Surface, Swapchain, SwapchainCreateInfo, SwapchainPresentInfo,
+        acquire_next_image,
     },
     sync::{self, GpuFuture},
 };
@@ -191,6 +192,10 @@ where
         let sampler = Sampler::new(
             device.clone(),
             SamplerCreateInfo {
+                mag_filter: Filter::Linear,
+                min_filter: Filter::Nearest,
+                address_mode: [SamplerAddressMode::ClampToBorder; 3],
+                border_color: vulkano::image::sampler::BorderColor::FloatTransparentBlack,
                 ..Default::default()
             },
         )
@@ -357,6 +362,25 @@ where
                 .surface_formats(&surface, Default::default())
                 .unwrap()[0];
 
+            // Composite alpha priority
+            let priority_hierarchy = [CompositeAlpha::PreMultiplied, CompositeAlpha::PostMultiplied, CompositeAlpha::Inherit, CompositeAlpha::Opaque];
+
+            let supported_composite_alpha = priority_hierarchy
+                .into_iter()
+                .find(|&desired_alpha| {
+                    surface_capabilities
+                        .supported_composite_alpha
+                        .into_iter()
+                        .any(|available_alpha| available_alpha == desired_alpha)
+                })
+                .unwrap_or_else(|| {
+                    surface_capabilities
+                        .supported_composite_alpha
+                        .into_iter()
+                        .next()
+                        .expect("Device don't support CompositeAlpha")
+                });
+
             // Please take a look at the docs for the meaning of the parameters we didn't mention.
             Swapchain::new(
                 self.device.clone(),
@@ -389,11 +413,7 @@ where
                     // The alpha mode indicates how the alpha value of the final image will behave.
                     // For example, you can choose whether the window will be
                     // opaque or transparent.
-                    composite_alpha: surface_capabilities
-                        .supported_composite_alpha
-                        .into_iter()
-                        .next()
-                        .unwrap(),
+                    composite_alpha: supported_composite_alpha,
 
                     ..Default::default()
                 },

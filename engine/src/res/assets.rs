@@ -76,8 +76,6 @@ impl AssetsManager {
             )
             .unwrap();
 
-            drop(texture);
-
             uploads
                 .copy_buffer_to_image(CopyBufferToImageInfo::buffer_image(
                     upload_buffer,
