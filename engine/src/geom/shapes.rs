@@ -27,7 +27,7 @@ pub struct CircleData {
 pub enum Shapes {
     Square,
     Circle,
-    Image(TextureHandler),
+    Image(Arc<TextureHandler>),
 }
 
 impl Shapes {

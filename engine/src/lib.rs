@@ -6,7 +6,7 @@ use rapier2d::{
     math::Vec2,
     prelude::{ColliderSet, RigidBodySet},
 };
-use std::{ops::RangeInclusive, sync::Arc};
+use std::{collections::HashMap, ops::RangeInclusive, sync::{Arc, RwLock}};
 use tracing::{debug, info};
 use vulkano::{
     Validated, VulkanError, VulkanLibrary,
@@ -215,6 +215,7 @@ where
         let assets = AssetsManager {
             queue: queue.clone(),
             memory_allocs: memory.clone(),
+            texture_pool: RwLock::new(HashMap::new())
         };
 
         Self {
