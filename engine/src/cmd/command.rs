@@ -62,7 +62,7 @@ where
         #[cfg(feature = "tracing")]
         let span_submit = tracy_client::span!("Engine: Flush commands");
         let commands_count = queue.commands.len();
-        info!(commands_count=commands_count,"Flush commands");
+        info!(commands_count = commands_count, "Flush commands");
         let commands = queue.commands.into_iter();
         for command in commands {
             match command {

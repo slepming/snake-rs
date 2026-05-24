@@ -1,4 +1,8 @@
-use std::{collections::HashMap, path::Path, sync::{Arc, RwLock}};
+use std::{
+    collections::HashMap,
+    path::Path,
+    sync::{Arc, RwLock},
+};
 
 use image::ImageReader;
 use vulkano::{
@@ -29,9 +33,15 @@ impl AssetsManager {
     pub fn load(&self, file_name: &Path, internal: bool) -> Arc<TextureHandler> {
         #[cfg(feature = "tracing")]
         let _span = tracy_client::span!("Engine::load_texture");
-        let file = file_name.file_name().unwrap().to_str().unwrap().to_string().to_lowercase();
+        let file = file_name
+            .file_name()
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .to_string()
+            .to_lowercase();
         if let Some(texture) = self.texture_pool.read().unwrap().get(&file) {
-            return texture.clone()
+            return texture.clone();
         }
         let texture: Texture = {
             if internal {
@@ -99,7 +109,16 @@ impl AssetsManager {
             .flush();
 
         let texture_handler = TextureHandler { view: image_view };
-        self.texture_pool.write().unwrap().insert(file.clone(), Arc::new(texture_handler));
-        self.texture_pool.read().unwrap().get(&file).expect(format!("texture pool not contain {}", file).as_str()).clone()
+        self.texture_pool
+            .write()
+            .unwrap()
+            .insert(file.clone(), Arc::new(texture_handler));
+
+        self.texture_pool
+            .read()
+            .unwrap()
+            .get(&file)
+            .expect(format!("texture pool not contain {}", file).as_str())
+            .clone()
     }
 }

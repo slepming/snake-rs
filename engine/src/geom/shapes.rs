@@ -5,14 +5,11 @@ use vulkano::buffer::{Buffer, BufferCreateInfo, BufferUsage};
 use vulkano::descriptor_set::allocator::DescriptorSetAllocator;
 use vulkano::descriptor_set::{DescriptorSet, WriteDescriptorSet};
 use vulkano::image::sampler::Sampler;
-use vulkano::image::view::ImageView;
-use vulkano::image::{Image, ImageCreateInfo, ImageUsage};
 use vulkano::memory::allocator::{AllocationCreateInfo, MemoryAllocator, MemoryTypeFilter};
 use vulkano::pipeline::Pipeline;
 
 use crate::MyVertex;
 use crate::drw::drawable::{DescriptorID, PipelineID};
-use crate::drw::texture::Texture;
 use crate::res::assets::TextureHandler;
 use crate::res::cache::{CacheProvider, DescriptorSetCache, PipelineCache};
 
@@ -135,7 +132,7 @@ impl Shapes {
                 let image_view = texture.view.clone();
 
                 if let Some(descriptor_set) = descriptor_set_cache.get(&descriptor_id.id) {
-                    return (verts, Some(descriptor_set))
+                    return (verts, Some(descriptor_set));
                 }
 
                 let descriptor_set = DescriptorSet::new(

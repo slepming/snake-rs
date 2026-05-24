@@ -6,7 +6,11 @@ use rapier2d::{
     math::Vec2,
     prelude::{ColliderSet, RigidBodySet},
 };
-use std::{collections::HashMap, ops::RangeInclusive, sync::{Arc, RwLock}};
+use std::{
+    collections::HashMap,
+    ops::RangeInclusive,
+    sync::{Arc, RwLock},
+};
 use tracing::{debug, info};
 use vulkano::{
     Validated, VulkanError, VulkanLibrary,
@@ -129,6 +133,9 @@ struct RenderContext {
     scale: Vec2,
 }
 
+/// Used for drawable calculations
+struct MeshBuffers(Subbuffer<[MyVertex]>, Vec<Transform>, Vec<u32>);
+
 impl<Redraw, Start> EngineContext<Redraw, Start>
 where
     Redraw: FnMut(
@@ -215,7 +222,7 @@ where
         let assets = AssetsManager {
             queue: queue.clone(),
             memory_allocs: memory.clone(),
-            texture_pool: RwLock::new(HashMap::new())
+            texture_pool: RwLock::new(HashMap::new()),
         };
 
         Self {
@@ -245,7 +252,7 @@ where
         _physics_context: &PhysicsContext,
         children: &mut Children,
         _rcx: &mut RenderContext,
-    ) -> (Subbuffer<[MyVertex]>, Vec<Transform>, Vec<u32>) {
+    ) -> MeshBuffers {
         #[cfg(feature = "tracing")]
         let _span = tracy_client::span!("Engine::calculate_drawables");
         let mut vertices: Vec<MyVertex> = Vec::new();
@@ -302,7 +309,7 @@ where
         )
         .unwrap();
 
-        (vertex_buffer, matrices, offsets)
+        MeshBuffers(vertex_buffer, matrices, offsets)
     }
 }
 
@@ -363,7 +370,12 @@ where
                 .unwrap()[0];
 
             // Composite alpha priority
-            let priority_hierarchy = [CompositeAlpha::PreMultiplied, CompositeAlpha::PostMultiplied, CompositeAlpha::Inherit, CompositeAlpha::Opaque];
+            let priority_hierarchy = [
+                CompositeAlpha::PreMultiplied,
+                CompositeAlpha::PostMultiplied,
+                CompositeAlpha::Inherit,
+                CompositeAlpha::Opaque,
+            ];
 
             let supported_composite_alpha = priority_hierarchy
                 .into_iter()
@@ -637,13 +649,12 @@ where
                     rcx.recreate_swapchain = false;
                 }
 
-                let (vertex_buffer, matrices, offsets) =
-                    EngineContext::<Redraw, Start>::calculate_drawables(
-                        self.memory.memory_allocator.clone(),
-                        &self.physics_context,
-                        &mut self.children,
-                        rcx,
-                    );
+                let mesh_buffers = EngineContext::<Redraw, Start>::calculate_drawables(
+                    self.memory.memory_allocator.clone(),
+                    &self.physics_context,
+                    &mut self.children,
+                    rcx,
+                );
 
                 // Before we can draw on the output, we have to *acquire* an image from the
                 // swapchain. If no image is available (which happens if you submit draw commands
@@ -726,7 +737,7 @@ where
                     // TODO: Document state setting and how it affects subsequent draw commands.
                     .set_viewport(0, [rcx.viewport.clone()].into_iter().collect())
                     .unwrap()
-                    .bind_vertex_buffers(0, vertex_buffer.clone())
+                    .bind_vertex_buffers(0, mesh_buffers.0.clone())
                     .unwrap();
 
                 let all_items = self.children.drawables.iter();
@@ -736,7 +747,7 @@ where
                     let _span_draw = tracy_client::span!("GPU: Draw Item");
                     let colour = item.get_colour().clone();
                     let constants = Constants(
-                        matrices[i].clone(),
+                        mesh_buffers.1[i].clone(),
                         rcx.window.inner_size().into(),
                         (colour.r as u32)
                             | (colour.g as u32) << 8
@@ -757,7 +768,7 @@ where
                             .unwrap();
                     }
 
-                    let vertex_cursor = offsets[i] as u32;
+                    let vertex_cursor = mesh_buffers.2[i] as u32;
                     let vertex_count = item.get_vertex().len() as u32;
 
                     builder.bind_pipeline_graphics(pipeline.clone()).unwrap();
@@ -922,7 +933,8 @@ fn select_render_device(
                     // that queues in this queue family are capable of presenting images to the
                     // surface.
                     q.queue_flags.intersects(QueueFlags::GRAPHICS)
-                        && p.presentation_support(i as u32, event_loop).unwrap_or(false)
+                        && p.presentation_support(i as u32, event_loop)
+                            .unwrap_or(false)
                 })
                 // The code here searches for the first queue family that is suitable. If none
                 // is found, `None` is returned to `filter_map`, which

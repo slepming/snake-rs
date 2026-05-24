@@ -13,7 +13,8 @@ use crate::{
     MyVertex,
     drw::texture::Texture,
     geom::{matrix::Transform, shapes::Shapes},
-    mv::{phys::movement::PhysicsContext, transform::Entity}, res::cache::{DescriptorSetCache, PipelineCache},
+    mv::{phys::movement::PhysicsContext, transform::Entity},
+    res::cache::{DescriptorSetCache, PipelineCache},
 };
 
 use color::Rgba8;
@@ -244,17 +245,23 @@ impl Drawable {
     ) -> (Self, Option<Arc<DescriptorSet>>) {
         let key_raw: &'static str = shape.clone().into();
         let key = key_raw.to_string().to_lowercase();
-        let pipeline_id = PipelineID {
-            id: key.clone()
-        };
+        let pipeline_id = PipelineID { id: key.clone() };
 
-        let descriptor_id = DescriptorID {
-            id: key.clone()
-        };
+        let descriptor_id = DescriptorID { id: key.clone() };
 
-        let (vertex, desc) =
-            shape.get_vertex_and_descriptor(pipeline_id.clone(), descriptor_id.clone(), mem_alloc, desc_alloc, desc_cache, pipeline_cache, sampler);
-        (Drawable::new_with_color(drw, pipeline_id, descriptor_id, vertex), desc)
+        let (vertex, desc) = shape.get_vertex_and_descriptor(
+            pipeline_id.clone(),
+            descriptor_id.clone(),
+            mem_alloc,
+            desc_alloc,
+            desc_cache,
+            pipeline_cache,
+            sampler,
+        );
+        (
+            Drawable::new_with_color(drw, pipeline_id, descriptor_id, vertex),
+            desc,
+        )
     }
 }
 

@@ -6,10 +6,7 @@ use rapier2d::math::Vec2;
 use snake_engine::{
     EngineContext,
     cmd::command::{CommandQueue, DrawCommand},
-    drw::{
-        drawable::{Children, DrawableCreateInfo},
-        texture::Texture,
-    },
+    drw::drawable::{Children, DrawableCreateInfo},
     geom::shapes::Shapes,
     mv::phys::movement::PhysicsContext,
     res::assets::AssetsManager,
@@ -69,10 +66,8 @@ fn main() -> Result<(), impl std::error::Error> {
                           _pc: &mut PhysicsContext,
                           _assets: &mut AssetsManager,
                           event: &WindowEvent,
-                          command: &mut CommandQueue| match event {
+                          _command: &mut CommandQueue| match event {
         WindowEvent::KeyboardInput { event, .. } => {
-            let span = tracy_client::span!("Engine::Keyboard_input");
-            span.emit_color(0xFF0000);
             if event.state == ElementState::Pressed && !event.repeat {
                 match event.key_without_modifiers().as_ref() {
                     Key::Named(NamedKey::Escape) => {
