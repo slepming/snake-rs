@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{process::exit, sync::Arc};
 
 use color::Rgba8;
 use rand::RngExt;
@@ -70,20 +70,7 @@ fn main() -> Result<(), impl std::error::Error> {
         WindowEvent::KeyboardInput { event, .. } => {
             if event.state == ElementState::Pressed && !event.repeat {
                 match event.key_without_modifiers().as_ref() {
-                    Key::Named(NamedKey::Escape) => {
-                        //ch.physics_drawables.iter_mut().for_each(|r| {
-                        //    if r.rigid_body(pc).is_dynamic() {
-                        //        let object = pc.rigid_body_set[r.rb_handle()].clone();
-                        //        r.teleport(
-                        //            pc,
-                        //            Vec2::new(
-                        //                object.translation().x,
-                        //                object.translation().y + 1000.0,
-                        //            ),
-                        //        );
-                        //    }
-                        //});
-                    }
+                    Key::Named(NamedKey::Escape) => exit(0),
                     _ => {}
                 }
             }

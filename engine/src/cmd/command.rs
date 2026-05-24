@@ -61,6 +61,10 @@ where
     fn flush_commands(&mut self, queue: CommandQueue) {
         #[cfg(feature = "tracing")]
         let span_submit = tracy_client::span!("Engine: Flush commands");
+        if queue.commands.is_empty() {
+            return;
+        }
+
         let commands_count = queue.commands.len();
         info!(commands_count = commands_count, "Flush commands");
         let commands = queue.commands.into_iter();
