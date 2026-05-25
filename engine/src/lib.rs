@@ -1,7 +1,3 @@
-// TODO:
-// * Translate matrix from physics matrix to vulkan matrix at the Drawable level
-
-//use log::debug;
 use rapier2d::{
     math::Vec2,
     prelude::{ColliderSet, RigidBodySet},
@@ -115,11 +111,16 @@ where
     sampler: Arc<Sampler>,
     rcx: Option<RenderContext>,
     pub(crate) physics_context: PhysicsContext,
+    game: GameContext,
+    redraw: Redraw,
+    start: Start,
+}
+
+pub(crate) struct GameContext {
     pub children: Children,
     pub assets: AssetsManager,
     pub frames: u64,
-    redraw: Redraw,
-    start: Start,
+    pub(crate) game_command_queue: CommandQueue,
 }
 
 struct RenderContext {
@@ -226,6 +227,7 @@ where
         };
 
         Self {
+            game: GameContext { children: Children::new(), assets, frames: 0, game_command_queue: CommandQueue::default() },
             descriptors: Arc::new(DescriptorSetCache::default()),
             pipelines: Arc::new(PipelineCache::default()),
             memory,
@@ -235,9 +237,6 @@ where
             sampler,
             rcx: None,
             physics_context: ph_context,
-            children: Children::new(),
-            assets,
-            frames: 0,
             start: start,
             redraw: redraw,
         }
@@ -552,17 +551,17 @@ where
             .insert(("square".to_string(), square_pipeline));
         self.pipelines.insert(("image".to_string(), image_pipeline));
 
-        let mut game_command_queue = CommandQueue::default();
+        let game = &mut self.game;
 
         (self.start)(
             &event_loop,
-            &mut self.children,
-            &mut self.assets,
+            &mut game.children,
+            &mut game.assets,
             window.clone(),
-            &mut game_command_queue,
+            &mut game.game_command_queue,
         );
 
-        self.flush_commands(game_command_queue);
+        self.flush_commands();
 
         self.rcx = Some(RenderContext {
             scale: Vec2::new(
@@ -585,16 +584,15 @@ where
         _window_id: WindowId,
         event: WindowEvent,
     ) {
-        self.frames += 1;
+        self.game.frames += 1;
         let rcx = self.rcx.as_mut().unwrap();
 
-        let mut user_command_queue = CommandQueue::default();
         (self.redraw)(
-            &mut self.children,
+            &mut self.game.children,
             &mut self.physics_context,
-            &mut self.assets,
+            &mut self.game.assets,
             &event,
-            &mut user_command_queue,
+            &mut self.game.game_command_queue,
         );
 
         match event {
@@ -654,7 +652,7 @@ where
                 let mesh_buffers = EngineContext::<Redraw, Start>::calculate_drawables(
                     self.memory.memory_allocator.clone(),
                     &self.physics_context,
-                    &mut self.children,
+                    &mut self.game.children,
                     rcx,
                 );
 
@@ -742,7 +740,7 @@ where
                     .bind_vertex_buffers(0, mesh_buffers.0.clone())
                     .unwrap();
 
-                let all_items = self.children.drawables.iter();
+                let all_items = self.game.children.drawables.iter();
 
                 all_items.enumerate().for_each(|(i, item)| {
                     #[cfg(feature = "tracing")]
@@ -850,7 +848,7 @@ where
                 #[cfg(feature = "tracing")]
                 tracy_client::Client::running().unwrap().frame_mark();
 
-                self.flush_commands(user_command_queue);
+                self.flush_commands();
             }
             _ => {}
         }

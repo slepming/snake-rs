@@ -1,10 +1,10 @@
-use std::sync::Arc;
+use std::{collections::VecDeque, sync::Arc};
 
 use tracing::info;
 use winit::{event::WindowEvent, event_loop::ActiveEventLoop, window::Window};
 
 use crate::{
-    EngineContext, cmd::command, drw::drawable::{Children, Drawable, DrawableCreateInfo}, geom::shapes::Shapes, mv::phys::movement::PhysicsContext, res::cache::CacheProvider
+    EngineContext, GameContext, cmd::command, drw::drawable::{Children, Drawable, DrawableCreateInfo}, geom::shapes::Shapes, mv::phys::movement::PhysicsContext, res::cache::CacheProvider
 };
 
 pub enum DrawCommand {
@@ -15,13 +15,14 @@ pub enum DrawCommandReceive<'a> {
     Drawable(&'a Drawable),
 }
 
+/// FIFO Queue for execute engine commands
 pub struct CommandQueue {
-    commands: Vec<DrawCommand>,
+    commands: VecDeque<DrawCommand>,
 }
 
 impl CommandQueue {
     pub fn append(&mut self, command: DrawCommand) {
-        self.commands.push(command);
+        self.commands.push_back(command);
     }
 
     pub fn len(&self) -> usize {
@@ -36,13 +37,13 @@ impl CommandQueue {
 impl Default for CommandQueue {
     fn default() -> Self {
         Self {
-            commands: Vec::new(),
+            commands: VecDeque::with_capacity(5),
         }
     }
 }
 
 pub trait CommandDispatcher {
-    fn flush_commands(&mut self, commands: CommandQueue);
+    fn flush_commands(&mut self);
 }
 
 impl<Redraw, Start> CommandDispatcher for EngineContext<Redraw, Start>
@@ -62,16 +63,16 @@ where
         &mut CommandQueue,
     ),
 {
-    fn flush_commands(&mut self, queue: CommandQueue) {
+    fn flush_commands(&mut self) {
         #[cfg(feature = "tracing")]
         let span_submit = tracy_client::span!("Engine: Flush commands");
-        if queue.commands.is_empty() {
+        if self.game.game_command_queue.commands.is_empty() {
             return;
         }
 
-        let commands_count = queue.commands.len();
+        let commands_count = self.game.game_command_queue.commands.len();
         info!(commands_count = commands_count, "Flush commands");
-        let commands = queue.commands.into_iter();
+        let commands = self.game.game_command_queue.commands.drain(..);
         for command in commands {
             match command {
                 DrawCommand::DrawObject(s, drw) => {
@@ -90,7 +91,7 @@ where
                         self.descriptors.insert((pipeline_name, descriptor.clone()));
                     }
 
-                    self.children.add_drawable(drw.0);
+                    self.game.children.add_drawable(drw.0);
                 }
             }
         }
