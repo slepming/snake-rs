@@ -66,11 +66,17 @@ fn main() -> Result<(), impl std::error::Error> {
                           _pc: &mut PhysicsContext,
                           _assets: &mut AssetsManager,
                           event: &WindowEvent,
-                          _command: &mut CommandQueue| match event {
+                          command: &mut CommandQueue| match event {
         WindowEvent::KeyboardInput { event, .. } => {
             if event.state == ElementState::Pressed && !event.repeat {
                 match event.key_without_modifiers().as_ref() {
                     Key::Named(NamedKey::Escape) => exit(0),
+                    Key::Named(NamedKey::Enter) => command.append(DrawCommand::DrawObject(
+                        Shapes::Circle,
+                        DrawableCreateInfo::default()
+                            .with_position(Vec2::new(500.0, 200.0))
+                            .with_size(Vec2::new(20.0, 20.0)),
+                    )),
                     _ => {}
                 }
             }

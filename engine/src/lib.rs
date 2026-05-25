@@ -587,12 +587,14 @@ where
     ) {
         self.frames += 1;
         let rcx = self.rcx.as_mut().unwrap();
+
+        let mut user_command_queue = CommandQueue::default();
         (self.redraw)(
             &mut self.children,
             &mut self.physics_context,
             &mut self.assets,
             &event,
-            &mut CommandQueue::default(),
+            &mut user_command_queue,
         );
 
         match event {
@@ -847,14 +849,6 @@ where
                 //self.physics_context.step(); TODO: In the future I must uncomment this code block
                 #[cfg(feature = "tracing")]
                 tracy_client::Client::running().unwrap().frame_mark();
-                let mut user_command_queue = CommandQueue::default();
-                (self.redraw)(
-                    &mut self.children,
-                    &mut self.physics_context,
-                    &mut self.assets,
-                    &event,
-                    &mut user_command_queue,
-                );
 
                 self.flush_commands(user_command_queue);
             }

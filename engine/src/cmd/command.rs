@@ -4,11 +4,7 @@ use tracing::info;
 use winit::{event::WindowEvent, event_loop::ActiveEventLoop, window::Window};
 
 use crate::{
-    EngineContext,
-    drw::drawable::{Children, Drawable, DrawableCreateInfo},
-    geom::shapes::Shapes,
-    mv::phys::movement::PhysicsContext,
-    res::cache::CacheProvider,
+    EngineContext, cmd::command, drw::drawable::{Children, Drawable, DrawableCreateInfo}, geom::shapes::Shapes, mv::phys::movement::PhysicsContext, res::cache::CacheProvider
 };
 
 pub enum DrawCommand {
@@ -26,6 +22,14 @@ pub struct CommandQueue {
 impl CommandQueue {
     pub fn append(&mut self, command: DrawCommand) {
         self.commands.push(command);
+    }
+
+    pub fn len(&self) -> usize {
+        self.commands.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.commands.is_empty()
     }
 }
 
