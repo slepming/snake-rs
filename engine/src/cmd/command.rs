@@ -1,10 +1,17 @@
+//! Commands from game space
+
 use std::{collections::VecDeque, sync::Arc};
 
 use tracing::info;
 use winit::{event::WindowEvent, event_loop::ActiveEventLoop, window::Window};
 
 use crate::{
-    EngineContext, GameContext, cmd::command, drw::drawable::{Children, Drawable, DrawableCreateInfo}, geom::shapes::Shapes, mv::phys::movement::PhysicsContext, res::cache::CacheProvider
+    EngineContext, GameContext,
+    cmd::command,
+    drw::drawable::{Children, Drawable, DrawableCreateInfo},
+    geom::shapes::Shapes,
+    mv::phys::movement::PhysicsContext,
+    res::cache::CacheProvider,
 };
 
 pub enum DrawCommand {

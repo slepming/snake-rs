@@ -227,7 +227,12 @@ where
         };
 
         Self {
-            game: GameContext { children: Children::new(), assets, frames: 0, game_command_queue: CommandQueue::default() },
+            game: GameContext {
+                children: Children::default(),
+                assets,
+                frames: 0,
+                game_command_queue: CommandQueue::default(),
+            },
             descriptors: Arc::new(DescriptorSetCache::default()),
             pipelines: Arc::new(PipelineCache::default()),
             memory,

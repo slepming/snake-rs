@@ -1,3 +1,5 @@
+//! Managing Drawable states
+
 use std::sync::Arc;
 
 use rapier2d::{
@@ -20,19 +22,24 @@ use crate::{
 use color::Rgba8;
 use vulkano::descriptor_set::DescriptorSet;
 
+/// The main element that is rendered by the Vulkan 
 pub struct Drawable {
     transform: Transform,
     color: Rgba8,
     pub(crate) render: DrawableRenderContext,
 }
 
+/// Pipeline id structure
 #[derive(Clone)]
 pub struct PipelineID {
+    /// String ID to search pipelines
     pub id: String,
 }
 
+/// Descriptor set id structure
 #[derive(Clone)]
 pub struct DescriptorID {
+    /// String ID to search descriptor sets
     pub id: String,
 }
 
@@ -44,48 +51,82 @@ pub(crate) struct DrawableRenderContext {
     mesh: Mesh,
 }
 
+/// Information about the object to be drawn
 pub struct DrawableCreateInfo {
+    /// Positional coordinates
     pub position: Vec2,
+    /// Texture for drawable object
     pub texture: Option<Texture>,
     /// Set radius to circle object
     pub radius: f32,
+    /// TODO
     pub thickness: f32,
+    /// Drawable object size
     pub size: Vec2,
-    pub id: u32,
+    pub(crate) id: u32,
+    /// Object color
     pub color: Rgba8,
 }
 
 impl DrawableCreateInfo {
+    /// Sets the position of the object
+    ///
+    /// # Returns 
+    /// [`Drawable`]
     pub fn with_position(mut self, position: Vec2) -> Self {
         self.position = position;
         self
     }
 
+    /// Sets the texture of the object(if supported)
+    ///
+    /// # Returns 
+    /// [`Drawable`]
     pub fn with_texture(mut self, texture: Texture) -> Self {
         self.texture = Some(texture);
         self
     }
 
+    /// Sets the radius of the object(if supported)
+    ///
+    /// # Returns 
+    /// [`Drawable`]
     pub fn with_radius(mut self, radius: f32) -> Self {
         self.radius = radius;
         self
     }
 
+    /// Sets the thickness of the object(if supported)
+    ///
+    /// # Returns 
+    /// [`Drawable`]
     pub fn with_thickness(mut self, thickness: f32) -> Self {
         self.thickness = thickness;
         self
     }
 
+    /// Sets the size of the object
+    ///
+    /// # Returns 
+    /// [`Drawable`]
     pub fn with_size(mut self, size: Vec2) -> Self {
         self.size = size;
         self
     }
 
+    /// Sets id of the object
+    ///
+    /// # Returns 
+    /// [`Drawable`]
     pub fn with_id(mut self, id: u32) -> Self {
         self.id = id;
         self
     }
 
+    /// Sets the color for the object
+    ///
+    /// # Returns 
+    /// [`Drawable`]
     pub fn with_color(mut self, color: Rgba8) -> Self {
         self.color = color;
         self
@@ -111,21 +152,22 @@ impl Default for DrawableCreateInfo {
     }
 }
 
+/// Structure which contains list of all objects
 pub struct Children {
-    // I think iterations through Vector with Box is very slowly operation, but I dont know how I to
-    // make this faster. And I must replace Box reference.
+    /// List of all drawable objects
     pub drawables: Vec<Drawable>,
 }
 
 impl Children {
-    pub fn new() -> Self {
-        Children {
-            drawables: Vec::new(),
-        }
-    }
-
+    /// Push drawable to the [`Children::drawables`]
     pub fn add_drawable(&mut self, item: Drawable) {
         self.drawables.push(item);
+    }
+}
+
+impl Default for Children {
+    fn default() -> Self {
+        Self { drawables: Default::default() }
     }
 }
 
@@ -234,6 +276,10 @@ impl Drawable {
         drawable
     }
 
+    /// Creates allocations, pipeline descriptors for drawable and calls [`Self::new_with_color`]
+    ///
+    /// # Returns
+    /// [`Drawable`], [`vulkano::descriptor_set::DescriptorSet`]
     pub fn from_shape(
         shape: Shapes,
         drw: DrawableCreateInfo,

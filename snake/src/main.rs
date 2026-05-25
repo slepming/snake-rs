@@ -73,16 +73,13 @@ fn main() -> Result<(), impl std::error::Error> {
                 match event.key_without_modifiers().as_ref() {
                     Key::Named(NamedKey::Escape) => exit(0),
                     Key::Named(NamedKey::Enter) => {
-                        debug!("Enter key pressed");
                         command.append(DrawCommand::DrawObject(
                             Shapes::Circle,
                             DrawableCreateInfo::default()
                                 .with_position(Vec2::new(500.0, 200.0))
-                                .with_size(Vec2::new(20.0, 20.0)),
+                                .with_size(Vec2::new(1000.0, 1000.0)),
                         ));
-                        debug!("Command append");
-                        debug!(command_len=command.len());
-                    },
+                    }
                     _ => {}
                 }
             }
