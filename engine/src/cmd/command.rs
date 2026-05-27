@@ -2,7 +2,7 @@
 
 use std::{collections::VecDeque, sync::Arc};
 
-use tracing::info;
+use tracing::{debug, info};
 use winit::{event::WindowEvent, event_loop::ActiveEventLoop, window::Window};
 
 use crate::{
@@ -78,7 +78,7 @@ where
         }
 
         let commands_count = self.game.game_command_queue.commands.len();
-        info!(commands_count = commands_count, "Flush commands");
+        debug!(commands_count = commands_count, "Flush commands");
         let commands = self.game.game_command_queue.commands.drain(..);
         for command in commands {
             match command {
@@ -99,6 +99,7 @@ where
                     }
 
                     self.game.children.add_drawable(drw.0);
+                    info!("Object created");
                 }
             }
         }

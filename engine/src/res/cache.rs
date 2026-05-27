@@ -8,6 +8,7 @@ use vulkano::{descriptor_set::DescriptorSet, pipeline::GraphicsPipeline};
 pub trait CacheProvider<A: Sized> {
     fn get(&self, key: &str) -> Option<A>;
     fn insert(&self, value: (String, A)) -> Option<A>;
+    fn len(&self) -> usize;
 }
 
 pub struct DescriptorSetCache {
@@ -32,6 +33,10 @@ impl CacheProvider<Arc<DescriptorSet>> for DescriptorSetCache {
             .write()
             .unwrap()
             .insert(descriptor.0, descriptor.1)
+    }
+
+    fn len(&self) -> usize {
+        self.descriptors.read().unwrap().len()
     }
 }
 
@@ -73,5 +78,9 @@ impl CacheProvider<Arc<GraphicsPipeline>> for PipelineCache {
             .write()
             .unwrap()
             .insert(pipeline.0, pipeline.1)
+    }
+
+    fn len(&self) -> usize {
+        self.pipelines.read().unwrap().len()
     }
 }
