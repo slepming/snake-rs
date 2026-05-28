@@ -81,7 +81,7 @@ fn main() -> Result<(), impl std::error::Error> {
                                 variant.clone(),
                                 DrawableCreateInfo::default()
                                     .with_position(Vec2::new(500.0, 200.0))
-                                    .with_size(Vec2::new(1000.0, 1000.0)),
+                                    .with_size(Vec2::new(50.0, 50.0)),
                             ));
                         }
                         _ => {}

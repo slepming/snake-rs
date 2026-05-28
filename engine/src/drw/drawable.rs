@@ -143,9 +143,9 @@ impl Default for DrawableCreateInfo {
             size: Default::default(),
             id: Default::default(),
             color: Rgba8 {
-                r: 0,
-                g: 0,
-                b: 0,
+                r: 255,
+                g: 255,
+                b: 255,
                 a: 1,
             },
         }
