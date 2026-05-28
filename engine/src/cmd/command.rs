@@ -73,6 +73,7 @@ where
     fn flush_commands(&mut self) {
         #[cfg(feature = "tracing")]
         let span_submit = tracy_client::span!("Engine: Flush commands");
+
         if self.game.game_command_queue.commands.is_empty() {
             return;
         }
@@ -86,7 +87,7 @@ where
                     let pipeline_name = s.as_ref().to_lowercase();
                     let drw = Drawable::from_shape(
                         s.clone(),
-                        drw,
+                        drw.with_id(self.game.children.drawables.len() as u32 + 1),
                         self.memory.memory_allocator.clone(),
                         self.memory.descriptor_allocator.clone(),
                         self.pipelines.clone(),
@@ -95,11 +96,12 @@ where
                     );
 
                     if let Some(descriptor) = drw.1 {
-                        self.descriptors.insert((pipeline_name, descriptor.clone()));
+                        self.descriptors.insert((pipeline_name.clone(), descriptor.clone()));
                     }
 
+                    let drw_id = drw.0.render.mesh.get_id().clone();
                     self.game.children.add_drawable(drw.0);
-                    info!("Object created");
+                    info!(pipeline_name=&pipeline_name, drw_id=drw_id, "Object created");
                 }
             }
         }

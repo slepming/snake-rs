@@ -38,7 +38,6 @@ fn main() -> Result<(), impl std::error::Error> {
             let drawable_info = DrawableCreateInfo::default()
                 .with_size(Vec2::new(1000.0, 1000.0))
                 .with_color(Rgba8 { r, g, b, a: 255 })
-                .with_id(ch.drawables.len() as u32 + 1)
                 .with_position(Vec2::new(
                     300.0 * i as f32,
                     monitor_size.height as f32 / 2.0,
@@ -67,24 +66,33 @@ fn main() -> Result<(), impl std::error::Error> {
                           _pc: &mut PhysicsContext,
                           _assets: &mut AssetsManager,
                           event: &WindowEvent,
-                          command: &mut CommandQueue| match event {
-        WindowEvent::KeyboardInput { event, .. } => {
-            if event.state == ElementState::Pressed && !event.repeat {
-                match event.key_without_modifiers().as_ref() {
-                    Key::Named(NamedKey::Escape) => exit(0),
-                    Key::Named(NamedKey::Enter) => {
-                        command.append(DrawCommand::DrawObject(
-                            Shapes::Circle,
-                            DrawableCreateInfo::default()
-                                .with_position(Vec2::new(500.0, 200.0))
-                                .with_size(Vec2::new(1000.0, 1000.0)),
-                        ));
+                          command: &mut CommandQueue| {
+        command.append(DrawCommand::DrawObject(
+            Shapes::Circle,
+            DrawableCreateInfo::default()
+                .with_position(Vec2::new(500.0, 200.0))
+                .with_size(Vec2::new(1000.0, 1000.0)),
+        ));
+
+        match event {
+            WindowEvent::KeyboardInput { event, .. } => {
+                if event.state == ElementState::Pressed && !event.repeat {
+                    match event.key_without_modifiers().as_ref() {
+                        Key::Named(NamedKey::Escape) => exit(0),
+                        Key::Named(NamedKey::Enter) => {
+                            command.append(DrawCommand::DrawObject(
+                                Shapes::Circle,
+                                DrawableCreateInfo::default()
+                                    .with_position(Vec2::new(500.0, 200.0))
+                                    .with_size(Vec2::new(1000.0, 1000.0)),
+                            ));
+                        }
+                        _ => {}
                     }
-                    _ => {}
                 }
             }
+            _ => {}
         }
-        _ => {}
     };
 
     let mut app = EngineContext::new(

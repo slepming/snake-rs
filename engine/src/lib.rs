@@ -47,7 +47,16 @@ use vulkano::{
     sync::{self, GpuFuture},
 };
 use winit::{
-    application::ApplicationHandler, dpi::{PhysicalSize, Size}, event::{ElementState, WindowEvent}, event_loop::{ActiveEventLoop, EventLoop}, keyboard::{Key, NamedKey}, platform::{modifier_supplement::KeyEventExtModifierSupplement, wayland::WindowAttributesExtWayland}, raw_window_handle::HasDisplayHandle, window::{Fullscreen, Window, WindowId}
+    application::ApplicationHandler,
+    dpi::{PhysicalSize, Size},
+    event::{ElementState, WindowEvent},
+    event_loop::{ActiveEventLoop, EventLoop},
+    keyboard::{Key, NamedKey},
+    platform::{
+        modifier_supplement::KeyEventExtModifierSupplement, wayland::WindowAttributesExtWayland,
+    },
+    raw_window_handle::HasDisplayHandle,
+    window::{Fullscreen, Window, WindowId},
 };
 
 use crate::{
@@ -606,17 +615,20 @@ where
                 let scale_y = 2.0 / rcx.window.inner_size().height as f32;
                 (rcx.scale.x, rcx.scale.y) = (scale_x, scale_y);
             }
-            WindowEvent::KeyboardInput { event, ..} => {
-            if event.state == ElementState::Pressed {
-                match event.key_without_modifiers().as_ref() {
-                    Key::Named(NamedKey::F1) => {
-                        debug!("!!! DEBUG INFORMATION START !!!");
-                        debug!(pipelines_count=self.pipelines.len(), descriptor_sets_count=self.descriptors.len());
-                        debug!("!!! DEBUG INFORMATION END !!!");
-                    },
-                    _ => {}
+            WindowEvent::KeyboardInput { event, .. } => {
+                if event.state == ElementState::Pressed {
+                    match event.key_without_modifiers().as_ref() {
+                        Key::Named(NamedKey::F1) => {
+                            debug!("!!! DEBUG INFORMATION START !!!");
+                            debug!(
+                                pipelines_count = self.pipelines.len(),
+                                descriptor_sets_count = self.descriptors.len()
+                            );
+                            debug!("!!! DEBUG INFORMATION END !!!");
+                        }
+                        _ => {}
+                    }
                 }
-            }
             }
             WindowEvent::RedrawRequested => {
                 #[cfg(feature = "tracing")]

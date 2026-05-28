@@ -22,7 +22,7 @@ use crate::{
 use color::Rgba8;
 use vulkano::descriptor_set::DescriptorSet;
 
-/// The main element that is rendered by the Vulkan 
+/// The main element that is rendered by the Vulkan
 pub struct Drawable {
     transform: Transform,
     color: Rgba8,
@@ -48,7 +48,7 @@ pub(crate) struct DrawableRenderContext {
     pub(crate) descriptor_id: DescriptorID,
     /// Pipeline key(id). Drawable doesn't know anything about the pipeline
     pub(crate) pipeline_id: PipelineID,
-    mesh: Mesh,
+    pub mesh: Mesh,
 }
 
 /// Information about the object to be drawn
@@ -71,7 +71,7 @@ pub struct DrawableCreateInfo {
 impl DrawableCreateInfo {
     /// Sets the position of the object
     ///
-    /// # Returns 
+    /// # Returns
     /// [`Drawable`]
     pub fn with_position(mut self, position: Vec2) -> Self {
         self.position = position;
@@ -80,7 +80,7 @@ impl DrawableCreateInfo {
 
     /// Sets the texture of the object(if supported)
     ///
-    /// # Returns 
+    /// # Returns
     /// [`Drawable`]
     pub fn with_texture(mut self, texture: Texture) -> Self {
         self.texture = Some(texture);
@@ -89,7 +89,7 @@ impl DrawableCreateInfo {
 
     /// Sets the radius of the object(if supported)
     ///
-    /// # Returns 
+    /// # Returns
     /// [`Drawable`]
     pub fn with_radius(mut self, radius: f32) -> Self {
         self.radius = radius;
@@ -98,7 +98,7 @@ impl DrawableCreateInfo {
 
     /// Sets the thickness of the object(if supported)
     ///
-    /// # Returns 
+    /// # Returns
     /// [`Drawable`]
     pub fn with_thickness(mut self, thickness: f32) -> Self {
         self.thickness = thickness;
@@ -107,7 +107,7 @@ impl DrawableCreateInfo {
 
     /// Sets the size of the object
     ///
-    /// # Returns 
+    /// # Returns
     /// [`Drawable`]
     pub fn with_size(mut self, size: Vec2) -> Self {
         self.size = size;
@@ -116,16 +116,16 @@ impl DrawableCreateInfo {
 
     /// Sets id of the object
     ///
-    /// # Returns 
+    /// # Returns
     /// [`Drawable`]
-    pub fn with_id(mut self, id: u32) -> Self {
+    pub(crate) fn with_id(mut self, id: u32) -> Self {
         self.id = id;
         self
     }
 
     /// Sets the color for the object
     ///
-    /// # Returns 
+    /// # Returns
     /// [`Drawable`]
     pub fn with_color(mut self, color: Rgba8) -> Self {
         self.color = color;
@@ -167,7 +167,9 @@ impl Children {
 
 impl Default for Children {
     fn default() -> Self {
-        Self { drawables: Default::default() }
+        Self {
+            drawables: Default::default(),
+        }
     }
 }
 
