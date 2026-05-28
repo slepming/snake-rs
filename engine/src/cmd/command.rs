@@ -96,8 +96,12 @@ where
                     );
 
                     if let Some(descriptor) = drw.1 {
-                        self.descriptors.insert((pipeline_name.clone(), descriptor.clone()));
+                        if self.descriptors.get(pipeline_name.clone().as_str()).is_none() {
+                            self.descriptors.insert((pipeline_name.clone(), descriptor.clone()));
+                        }
                     }
+
+                    dbg!(self.descriptors.get(pipeline_name.clone().as_str()));
 
                     let drw_id = drw.0.render.mesh.get_id().clone();
                     self.game.children.add_drawable(drw.0);
