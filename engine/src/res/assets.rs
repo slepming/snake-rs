@@ -4,7 +4,6 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-use image::ImageReader;
 use vulkano::{
     DeviceSize,
     buffer::{Buffer, BufferCreateInfo, BufferUsage},

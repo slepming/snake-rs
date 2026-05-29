@@ -1,7 +1,7 @@
 use std::{process::exit, sync::Arc};
 
 use color::Rgba8;
-use rand::{RngExt, seq::{IndexedRandom, SliceRandom}};
+use rand::{RngExt, seq::IndexedRandom};
 use rapier2d::math::Vec2;
 use snake_engine::{
     EngineContext,
@@ -11,7 +11,6 @@ use snake_engine::{
     mv::phys::movement::PhysicsContext,
     res::assets::AssetsManager,
 };
-use tracing::debug;
 use winit::{
     event::{ElementState, WindowEvent},
     event_loop::{ActiveEventLoop, EventLoop},
@@ -24,13 +23,13 @@ const OBJECTS_COUNT: u32 = 6;
 
 fn main() -> Result<(), impl std::error::Error> {
     let event_loop = EventLoop::new().unwrap();
-    let mut rng_init = rand::rng();
+    let rng_init = rand::rng();
 
-    let mut window = |e: &ActiveEventLoop,
-                      ch: &mut Children,
-                      assets: &mut AssetsManager,
-                      wind: Arc<Window>,
-                      command: &mut CommandQueue| {
+    let window = |e: &ActiveEventLoop,
+                  _ch: &mut Children,
+                  assets: &mut AssetsManager,
+                  wind: Arc<Window>,
+                  command: &mut CommandQueue| {
         let monitor_size = e.available_monitors().next().unwrap().size();
         wind.set_title("snake");
         let mut rng = rng_init.clone();
@@ -75,7 +74,11 @@ fn main() -> Result<(), impl std::error::Error> {
                         Key::Named(NamedKey::Escape) => exit(0),
                         Key::Named(NamedKey::Enter) => {
                             let mut shapes: Vec<Shapes> = Vec::with_capacity(2);
-                            shapes.extend(vec![Shapes::Circle, Shapes::Square, Shapes::Image(assets.load(std::path::Path::new("image.png"), true))]);
+                            shapes.extend(vec![
+                                Shapes::Circle,
+                                Shapes::Square,
+                                Shapes::Image(assets.load(std::path::Path::new("image.png"), true)),
+                            ]);
                             let variant = shapes.choose(&mut rng_init.clone()).unwrap();
                             command.append(DrawCommand::DrawObject(
                                 variant.clone(),

@@ -8,7 +8,7 @@ use rapier2d::{
 };
 use vulkano::{
     descriptor_set::allocator::DescriptorSetAllocator, image::sampler::Sampler,
-    memory::allocator::MemoryAllocator, pipeline::Pipeline,
+    memory::allocator::MemoryAllocator,
 };
 
 use crate::{
@@ -218,38 +218,7 @@ impl Mesh {
 }
 
 impl Drawable {
-    pub fn new(vertex: Vec<MyVertex>, key: &'static str, create_info: DrawableCreateInfo) -> Self {
-        let pos = create_info.position;
-        let transform = Transform {
-            transform: [
-                [create_info.size[0], 0.0, 0.0, 0.0],
-                [0.0, create_info.size[1], 0.0, 0.0],
-                [0.0, 0.0, 1.0, 0.0],
-                [pos[0], pos[1], 0.0, 1.0],
-            ],
-        };
-
-        Drawable {
-            color: Rgba8 {
-                r: 0,
-                g: 0,
-                b: 0,
-                a: 255,
-            },
-            transform,
-            render: DrawableRenderContext {
-                descriptor_id: DescriptorID {
-                    id: key.to_string(),
-                },
-                pipeline_id: PipelineID {
-                    id: key.to_string(),
-                },
-                mesh: Mesh::new(vertex, create_info.id),
-            },
-        }
-    }
-
-    pub fn new_with_color(
+    pub fn new(
         drawable_info: DrawableCreateInfo,
         pipeline_id: PipelineID,
         descriptor_id: DescriptorID,
@@ -306,10 +275,7 @@ impl Drawable {
             pipeline_cache,
             sampler,
         );
-        (
-            Drawable::new_with_color(drw, pipeline_id, descriptor_id, vertex),
-            desc,
-        )
+        (Drawable::new(drw, pipeline_id, descriptor_id, vertex), desc)
     }
 }
 

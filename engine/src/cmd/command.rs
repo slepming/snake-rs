@@ -96,8 +96,13 @@ where
                     );
 
                     if let Some(descriptor) = drw.1 {
-                        if self.descriptors.get(pipeline_name.clone().as_str()).is_none() {
-                            self.descriptors.insert((pipeline_name.clone(), descriptor.clone()));
+                        if self
+                            .descriptors
+                            .get(pipeline_name.clone().as_str())
+                            .is_none()
+                        {
+                            self.descriptors
+                                .insert((pipeline_name.clone(), descriptor.clone()));
                         }
                     }
 
@@ -105,7 +110,11 @@ where
 
                     let drw_id = drw.0.render.mesh.get_id().clone();
                     self.game.children.add_drawable(drw.0);
-                    info!(pipeline_name=&pipeline_name, drw_id=drw_id, "Object created");
+                    info!(
+                        pipeline_name = &pipeline_name,
+                        drw_id = drw_id,
+                        "Object created"
+                    );
                 }
             }
         }
