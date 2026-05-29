@@ -1,5 +1,7 @@
+//! Image processing and creation
 use image::GenericImageView;
 use rust_embed::Embed;
+use tracing::info;
 
 #[derive(Embed)]
 #[folder = "assets/"]
@@ -19,11 +21,17 @@ impl Texture {
     /// Texture struct
     pub fn from_file(path: &str) -> Option<Self> {
         match image::open(path).ok() {
-            Some(img) => Some(Self {
-                image: img.clone().into_rgba8().into_raw().to_vec(),
-                dimensions: img.dimensions(),
-            }),
-            None => None,
+            Some(img) => {
+                info!("File import was successful");
+                Some(Self {
+                    image: img.clone().into_rgba8().into_raw().to_vec(),
+                    dimensions: img.dimensions(),
+                })
+            }
+            None => {
+                info!("File {} not found", path);
+                None
+            }
         }
     }
 
@@ -33,6 +41,7 @@ impl Texture {
     pub fn from_internal_assets(filename: &str) -> Option<Self> {
         match Asset::get(filename) {
             Some(f) => {
+                info!("File from internal storage import was successful");
                 let img = image::load_from_memory(f.data.as_ref()).unwrap();
                 let dimensions = img.dimensions();
                 Some(Self {
@@ -40,7 +49,10 @@ impl Texture {
                     dimensions,
                 })
             }
-            None => None,
+            None => {
+                info!("File {} not found in internal storage", filename);
+                None
+            }
         }
     }
 }

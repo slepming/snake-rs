@@ -6,8 +6,7 @@ use tracing::{debug, info};
 use winit::{event::WindowEvent, event_loop::ActiveEventLoop, window::Window};
 
 use crate::{
-    EngineContext, GameContext,
-    cmd::command,
+    EngineContext,
     drw::drawable::{Children, Drawable, DrawableCreateInfo},
     geom::shapes::Shapes,
     mv::phys::movement::PhysicsContext,
@@ -105,8 +104,6 @@ where
                                 .insert((pipeline_name.clone(), descriptor.clone()));
                         }
                     }
-
-                    dbg!(self.descriptors.get(pipeline_name.clone().as_str()));
 
                     let drw_id = drw.0.render.mesh.get_id().clone();
                     self.game.children.add_drawable(drw.0);

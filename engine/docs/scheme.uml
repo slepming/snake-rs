@@ -48,87 +48,28 @@ skinparam package {
     FontColor BROWN
 }
 
-title Архитектура
+title Архитектура engine
 
-package "Base" {
-    package "Winit / Event Loop" {
-        interface ApplicationHandler << (T,ORANGE) >> {
-            + resumed(&mut self, event_loop: &ActiveEventLoop)
-            + window_event(&mut self, event_loop: &ActiveEventLoop, id: WindowId, event: WindowEvent)
-            + about_to_wait(&mut self, event_loop: &ActiveEventLoop)
-        }
+package "engine" {
+    struct "EngineContext<Redraw, Start>" as EngineContext {
+        - instance: Arc<Instance>
+        - device: Arc<Device>
+        - queue: Arc<Queue>
+        - memory: EngineMemory
+        - rcx: Option<RenderContext>
+        - pipelines: PipelineCache
+        - descriptors: DescriptorSetCache
+        - sampler: Arc<Sampler>
+        + physics_context: PhysicsContext
+        + children: Children
+        + assets: AssetsManager
+        + frames: u64
+        - redraw: Redraw
+        - start: Start
+        + new(event_loop: &EventLoop<()>, start: Start, redraw: Redraw) -> EngineContext
+        + calculate_drawables(...) -> (Subbuffer<[MyVertex]>, Vec<Transform>, Vec<u32>)
     }
 
-    package "Commands" {
-        struct CommandQueue {
-            - commands: Vec<DrawCommand>
-            + append(&mut self, command: DrawCommand)
-        }
-
-        enum DrawCommand {
-            DrawObject(Shapes, DrawableCreateInfo)
-        }
-
-        interface CommandDispatcher << (T,ORANGE) >> {
-            + flush_commands(&mut self, commands: CommandQueue)
-        }
-    }
-
-    package "Core Engine" {
-        struct "EngineContext<Redraw, Start>" as EngineContext {
-            - instance: Arc<Instance>
-            - device: Arc<Device>
-            - queue: Arc<Queue>
-            - memory: EngineMemory
-            - rcx: Option<RenderContext>
-            - pipelines: PipelineCache
-            - descriptors: DescriptorSetCache
-            - sampler: Arc<Sampler>
-            + physics_context: PhysicsContext
-            + children: Children
-            + assets: AssetsManager
-            + frames: u64
-            - redraw: Redraw
-            - start: Start
-            + new(event_loop: &EventLoop<()>, start: Start, redraw: Redraw) -> EngineContext
-            + calculate_drawables(...) -> (Subbuffer<[MyVertex]>, Vec<Transform>, Vec<u32>)
-        }
-
-        struct EngineMemory {
-            + command_buffer_allocator: Arc<StandardCommandBufferAllocator>
-            + memory_allocator: Arc<StandardMemoryAllocator>
-            + descriptor_allocator: Arc<StandardDescriptorSetAllocator>
-            + new(device: Arc<Device>) -> EngineMemory
-        }
-
-        struct PipelineCache {
-            - pipelines: RwLock<HashMap<String, Arc<GraphicsPipeline>>>
-            + new(pipelines: HashMap<String, Arc<GraphicsPipeline>>) -> PipelineCache
-        }
-
-        struct DescriptorSetCache {
-            - descriptors: RwLock<HashMap<String, Arc<DescriptorSet>>>
-            + new(descriptors: HashMap<String, Arc<DescriptorSet>>) -> DescriptorSetCache
-        }
-
-        struct AssetsManager {
-            ~ queue: Arc<Queue>
-            ~ memory_allocs: Arc<EngineMemory>
-            + load(&self, file_name: &Path, internal: bool) -> TextureHandler
-        }
-
-        struct TextureHandler {
-            ~ view: Arc<ImageView>
-        }
-
-        interface "CacheProvider<A>" as CacheProvider << (T,ORANGE) >> {
-            + get(&self, key: &str) -> Option<A>
-            + insert(&self, value: (String, A)) -> Option<A>
-        }
-    }
-}
-
-package "Vulkan Rendering" {
     struct RenderContext {
         - window: Arc<Window>
         - swapchain: Arc<Swapchain>
@@ -143,43 +84,107 @@ package "Vulkan Rendering" {
     struct MyVertex {
         + position: [f32; 2]
     }
+    
+    interface ApplicationHandler << (T,ORANGE) >> {
+        + resumed(&mut self, event_loop: &ActiveEventLoop)
+        + window_event(&mut self, event_loop: &ActiveEventLoop, id: WindowId, event: WindowEvent)
+        + about_to_wait(&mut self, event_loop: &ActiveEventLoop)
+    }
 }
 
-package "Physics (Rapier2D)" {
-    struct PhysicsContext {
-        + rigid_body_set: RigidBodySet
-        + collider_set: ColliderSet
-        + space: PhysicsSpace
-        + new(...) -> PhysicsContext
-        + step(&mut self)
-        + create_phys_square(...) -> PhysicsDrawable
+package "Commands" {
+    struct CommandQueue {
+        - commands: Vec<DrawCommand>
+        + append(&mut self, command: DrawCommand)
     }
 
-    struct PhysicsSpace {
-        - integration_parameters: IntegrationParameters
-        - pipeline: PhysicsPipeline
-        - island_manager: IslandManager
-        - broad_phase: DefaultBroadPhase
-        - narrow_phase: NarrowPhase
-        - impulse_joint_set: ImpulseJointSet
-        - multibody_joint_set: MultibodyJointSet
-        - ccd_solver: CCDSolver
-        - physics_hooks: ()
-        - event_handler: ()
-        + new() -> PhysicsSpace
+    enum DrawCommand {
+        DrawObject(Shapes, DrawableCreateInfo)
     }
 
-    interface DynamicObject << (T,ORANGE) >> {
-        + teleport(&mut self, ctx: &mut PhysicsContext, vec: Vec2)
+    interface CommandDispatcher << (T,ORANGE) >> {
+        + flush_commands(&mut self, commands: CommandQueue)
+    }
+}
+
+package "Memory" {
+    struct EngineMemory {
+        + command_buffer_allocator: Arc<StandardCommandBufferAllocator>
+        + memory_allocator: Arc<StandardMemoryAllocator>
+        + descriptor_allocator: Arc<StandardDescriptorSetAllocator>
+        + new(device: Arc<Device>) -> EngineMemory
+    }
+}
+
+package "Resources" {
+    struct AssetsManager {
+        ~ queue: Arc<Queue>
+        ~ memory_allocs: Arc<EngineMemory>
+        + load(&self, file_name: &Path, internal: bool) -> TextureHandler
     }
 
+    struct TextureHandler {
+        ~ view: Arc<ImageView>
+    }
+
+    interface "CacheProvider<A>" as CacheProvider << (T,ORANGE) >> {
+        + get(&self, key: &str) -> Option<A>
+        + insert(&self, value: (String, A)) -> Option<A>
+    }
+    
+    struct PipelineCache {
+        - pipelines: RwLock<HashMap<String, Arc<GraphicsPipeline>>>
+        + new(pipelines: HashMap<String, Arc<GraphicsPipeline>>) -> PipelineCache
+    }
+
+    struct DescriptorSetCache {
+        - descriptors: RwLock<HashMap<String, Arc<DescriptorSet>>>
+        + new(descriptors: HashMap<String, Arc<DescriptorSet>>) -> DescriptorSetCache
+    }
+}
+
+package "Movement" {
+    interface Position << (T,ORANGE) >> {
+        + get_matrix_mut(&mut self) -> &mut [[f32; 4]; 4]
+        + get_matrix(&self) -> &[[f32; 4]; 4]
+    }
+    
     interface Entity << (T,ORANGE) >> {
         + rigid_body<'a>(&self, ctx: &'a mut PhysicsContext) -> &'a mut RigidBody
         + rb_handle(&self) -> RigidBodyHandle
     }
+    
+    package "Physics" {
+        struct PhysicsContext {
+            + rigid_body_set: RigidBodySet
+            + collider_set: ColliderSet
+            + space: PhysicsSpace
+            + new(...) -> PhysicsContext
+            + step(&mut self)
+            + create_phys_square(...) -> PhysicsDrawable
+        }
+
+        struct PhysicsSpace {
+            - integration_parameters: IntegrationParameters
+            - pipeline: PhysicsPipeline
+            - island_manager: IslandManager
+            - broad_phase: DefaultBroadPhase
+            - narrow_phase: NarrowPhase
+            - impulse_joint_set: ImpulseJointSet
+            - multibody_joint_set: MultibodyJointSet
+            - ccd_solver: CCDSolver
+            - physics_hooks: ()
+            - event_handler: ()
+            + new() -> PhysicsSpace
+        }
+
+        interface DynamicObject << (T,ORANGE) >> {
+            + teleport(&mut self, ctx: &mut PhysicsContext, vec: Vec2)
+        }
+    }
 }
 
-package "Draw" {
+package "Drawing" {
     struct Children {
         + drawables: Vec<Drawable>
         + new() -> Children
@@ -225,16 +230,7 @@ package "Draw" {
         + new(...) -> Mesh
         + get_id(&self) -> &u32
     }
-
-    struct Transform {
-        + transform: [[f32; 4]; 4]
-    }
-
-    interface Position << (T,ORANGE) >> {
-        + get_matrix_mut(&mut self) -> &mut [[f32; 4]; 4]
-        + get_matrix(&self) -> &[[f32; 4]; 4]
-    }
-
+    
     struct DrawableCreateInfo {
         + position: Vec2
         + texture: Option<Texture>
@@ -243,13 +239,6 @@ package "Draw" {
         + size: Vec2
         + id: u32
         + color: Rgba8
-    }
-
-    enum Shapes {
-        Square
-        Circle
-        Image(TextureHandler)
-        + get_vertex_and_descriptor(&self, pipeline: Arc<dyn Pipeline>, mem_alloc: Arc<dyn MemoryAllocator>, desc_alloc: Arc<dyn DescriptorSetAllocator>, sampler: Option<Arc<Sampler>>) -> (Vec<MyVertex>, Option<Arc<DescriptorSet>>)
     }
 
     struct Texture {
@@ -272,6 +261,19 @@ package "Draw" {
         + set_transform(&mut self, transform: Transform)
         + drawable(&self) -> &Drawable
         + drawable_mut(&mut self) -> &mut Drawable
+    }
+}
+
+package "Geometry" {
+    struct Transform {
+        + transform: [[f32; 4]; 4]
+    }
+
+    enum Shapes {
+        Square
+        Circle
+        Image(TextureHandler)
+        + get_vertex_and_descriptor(&self, pipeline: Arc<dyn Pipeline>, mem_alloc: Arc<dyn MemoryAllocator>, desc_alloc: Arc<dyn DescriptorSetAllocator>, sampler: Option<Arc<Sampler>>) -> (Vec<MyVertex>, Option<Arc<DescriptorSet>>)
     }
 }
 
