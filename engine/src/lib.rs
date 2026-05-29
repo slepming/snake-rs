@@ -290,7 +290,7 @@ where
         //     matrices.push(matrics);
         // });
 
-        children.drawables.iter().for_each(|drawable| {
+        children.iter().for_each(|drawable| {
             let verts = drawable.get_vertex();
             let matrix = drawable.get_transform_clone();
             let offset = vertices.len() as u32;
@@ -763,7 +763,7 @@ where
                     .bind_vertex_buffers(0, mesh_buffers.0.clone())
                     .unwrap();
 
-                let all_items = self.game.children.drawables.iter();
+                let all_items = self.game.children.iter();
 
                 all_items.enumerate().for_each(|(i, item)| {
                     #[cfg(feature = "tracing")]

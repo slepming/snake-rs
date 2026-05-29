@@ -86,7 +86,7 @@ where
                     let pipeline_name = s.as_ref().to_lowercase();
                     let drw = Drawable::from_shape(
                         s.clone(),
-                        drw.with_id(self.game.children.drawables.len() as u32 + 1),
+                        drw.with_id(self.game.children.len() as u32 + 1),
                         self.memory.memory_allocator.clone(),
                         self.memory.descriptor_allocator.clone(),
                         self.pipelines.clone(),
@@ -106,7 +106,7 @@ where
                     }
 
                     let drw_id = drw.0.render.mesh.get_id().clone();
-                    self.game.children.add_drawable(drw.0);
+                    self.game.children.add(drw.0);
                     info!(
                         pipeline_name = &pipeline_name,
                         drw_id = drw_id,
