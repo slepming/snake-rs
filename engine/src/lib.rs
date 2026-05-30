@@ -53,11 +53,14 @@ use winit::{
     event_loop::{ActiveEventLoop, EventLoop},
     keyboard::{Key, NamedKey},
     platform::{
-        modifier_supplement::KeyEventExtModifierSupplement, wayland::WindowAttributesExtWayland,
+        modifier_supplement::KeyEventExtModifierSupplement, 
     },
     raw_window_handle::HasDisplayHandle,
     window::{Fullscreen, Window, WindowId},
 };
+
+#[cfg(target_family = "unix")]
+use winit::platform::wayland::WindowAttributesExtWayland;
 
 use crate::{
     cmd::command::{CommandDispatcher, CommandQueue},
@@ -158,7 +161,7 @@ where
         let _span = tracy_client::span!("Engine::new");
 
         info!("Initializing Vulkan library");
-        let library = VulkanLibrary::new().unwrap();
+        let library = VulkanLibrary::new().expect("Vulkan not found. You may not have Vulkan support or an up-to-date GPU driver.");
 
         info!("Gathering required Vulkan extensions for windowing");
         // The first step of any Vulkan program is to create an instance.
@@ -340,24 +343,48 @@ where
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         #[cfg(feature = "tracing")]
         let _span = tracy_client::span!("Engine::resumed");
+        let window: Arc<Window>;
         info!("Creating window");
-        let window = Arc::new(
-            event_loop
-                .create_window(
-                    Window::default_attributes()
-                        .with_title("snake")
-                        .with_name("snake-engine", "snake-engine")
-                        .with_fullscreen(Some(Fullscreen::Borderless(None)))
-                        .with_min_inner_size(Size::Physical(PhysicalSize {
-                            width: 640,
-                            height: 480,
-                        }))
-                        .with_max_inner_size(
-                            event_loop.available_monitors().next().unwrap().size(),
-                        ),
-                )
-                .unwrap(),
-        );
+        #[cfg(target_family =  "unix")]
+        {
+            window = Arc::new(
+                event_loop
+                    .create_window(
+                        Window::default_attributes()
+                            .with_title("snake")
+                            .with_name("snake-engine", "snake-engine")
+                            .with_fullscreen(Some(Fullscreen::Borderless(None)))
+                            .with_min_inner_size(Size::Physical(PhysicalSize {
+                                width: 640,
+                                height: 480,
+                            }))
+                            .with_max_inner_size(
+                                event_loop.available_monitors().next().unwrap().size(),
+                            ),
+                    )
+                    .unwrap(),
+            );
+        }
+
+        #[cfg(target_family = "windows")]
+        {
+            window = Arc::new(
+                event_loop
+                    .create_window(
+                        Window::default_attributes()
+                            .with_title("snake")
+                            .with_fullscreen(Some(Fullscreen::Borderless(None)))
+                            .with_min_inner_size(Size::Physical(PhysicalSize {
+                                width: 640,
+                                height: 480,
+                            }))
+                            .with_max_inner_size(
+                                event_loop.available_monitors().next().unwrap().size(),
+                            ),
+                    )
+                    .unwrap(),
+            );
+        }
 
         let surface = Surface::from_window(self.instance.clone(), window.clone()).unwrap();
         let window_size = window.inner_size();
