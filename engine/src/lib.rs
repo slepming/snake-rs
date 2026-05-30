@@ -123,7 +123,7 @@ pub(crate) struct GameContext {
     pub children: Children,
     pub assets: AssetsManager,
     pub frames: u64,
-    pub(crate) game_command_queue: CommandQueue,
+    pub game_command_queue: CommandQueue,
 }
 
 struct RenderContext {
@@ -259,9 +259,14 @@ where
         _physics_context: &PhysicsContext,
         children: &mut Children,
         _rcx: &mut RenderContext,
-    ) -> MeshBuffers {
+    ) -> Option<MeshBuffers> {
+        if children.len() < 1 {
+            return None
+        }
+
         #[cfg(feature = "tracing")]
         let _span = tracy_client::span!("Engine::calculate_drawables");
+
         let mut vertices: Vec<MyVertex> = Vec::new();
         let mut matrices: Vec<Transform> = Vec::new();
         let mut offsets: Vec<u32> = Vec::new();
@@ -316,7 +321,7 @@ where
         )
         .unwrap();
 
-        MeshBuffers(vertex_buffer, matrices, offsets)
+        Some(MeshBuffers(vertex_buffer, matrices, offsets))
     }
 }
 
@@ -759,61 +764,62 @@ where
                     //
                     // TODO: Document state setting and how it affects subsequent draw commands.
                     .set_viewport(0, [rcx.viewport.clone()].into_iter().collect())
-                    .unwrap()
-                    .bind_vertex_buffers(0, mesh_buffers.0.clone())
                     .unwrap();
+                if let Some(mesh) = mesh_buffers {
+                    builder.bind_vertex_buffers(0, mesh.0.clone())
+                        .unwrap();
+                    let all_items = self.game.children.iter();
 
-                let all_items = self.game.children.iter();
+                    all_items.enumerate().for_each(|(i, item)| {
+                        #[cfg(feature = "tracing")]
+                        let _span_draw = tracy_client::span!("GPU: Draw Item");
+                        let colour = item.get_colour().clone();
+                        let constants = Constants(
+                            mesh.1[i].clone(),
+                            rcx.window.inner_size().into(),
+                            (colour.r as u32)
+                                | (colour.g as u32) << 8
+                                | (colour.b as u32) << 16
+                                | (colour.a as u32) << 24,
+                        );
+                        let pipeline_name = &item.drawable().render.pipeline_id.id;
+                        let pipeline = self
+                            .pipelines
+                            .get(pipeline_name)
+                            .expect("pipeline not found");
+                        let layout = pipeline.layout();
+                        if !layout.push_constant_ranges().is_empty() {
+                            //dbg!(size_of::<Constants>());
+                            //dbg!(((constants.1 >> 0) & 0xFF, (constants.1 >> 8) & 0xFF, (constants.1 >> 16) & 0xFF, (constants.1 >> 24) & 0xFF));
+                            builder
+                                .push_constants(pipeline.layout().clone(), 0, constants)
+                                .unwrap();
+                        }
 
-                all_items.enumerate().for_each(|(i, item)| {
-                    #[cfg(feature = "tracing")]
-                    let _span_draw = tracy_client::span!("GPU: Draw Item");
-                    let colour = item.get_colour().clone();
-                    let constants = Constants(
-                        mesh_buffers.1[i].clone(),
-                        rcx.window.inner_size().into(),
-                        (colour.r as u32)
-                            | (colour.g as u32) << 8
-                            | (colour.b as u32) << 16
-                            | (colour.a as u32) << 24,
-                    );
-                    let pipeline_name = &item.drawable().render.pipeline_id.id;
-                    let pipeline = self
-                        .pipelines
-                        .get(pipeline_name)
-                        .expect("pipeline not found");
-                    let layout = pipeline.layout();
-                    if !layout.push_constant_ranges().is_empty() {
-                        //dbg!(size_of::<Constants>());
-                        //dbg!(((constants.1 >> 0) & 0xFF, (constants.1 >> 8) & 0xFF, (constants.1 >> 16) & 0xFF, (constants.1 >> 24) & 0xFF));
-                        builder
-                            .push_constants(pipeline.layout().clone(), 0, constants)
-                            .unwrap();
-                    }
+                        let vertex_cursor = mesh.2[i] as u32;
+                        let vertex_count = item.get_vertex().len() as u32;
 
-                    let vertex_cursor = mesh_buffers.2[i] as u32;
-                    let vertex_count = item.get_vertex().len() as u32;
+                        builder.bind_pipeline_graphics(pipeline.clone()).unwrap();
 
-                    builder.bind_pipeline_graphics(pipeline.clone()).unwrap();
+                        if let Some(desc) = self
+                            .descriptors
+                            .get(&item.drawable().render.descriptor_id.id)
+                        {
+                            builder
+                                .bind_descriptor_sets(
+                                    vulkano::pipeline::PipelineBindPoint::Graphics,
+                                    pipeline.layout().clone(),
+                                    0,
+                                    desc.clone(),
+                                )
+                                .unwrap();
+                        }
 
-                    if let Some(desc) = self
-                        .descriptors
-                        .get(&item.drawable().render.descriptor_id.id)
-                    {
-                        builder
-                            .bind_descriptor_sets(
-                                vulkano::pipeline::PipelineBindPoint::Graphics,
-                                pipeline.layout().clone(),
-                                0,
-                                desc.clone(),
-                            )
-                            .unwrap();
-                    }
-
-                    unsafe {
-                        builder.draw(vertex_count, 1, vertex_cursor, 0).unwrap();
-                    }
-                });
+                        unsafe {
+                            builder.draw(vertex_count, 1, vertex_cursor, 0).unwrap();
+                        }
+                    });
+                }
 
                 builder
                     // We leave the render pass. Note that if we had multiple subpasses we could
