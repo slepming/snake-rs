@@ -1,6 +1,6 @@
 use std::sync::Arc;
 use strum::{AsRefStr, IntoStaticStr};
-use tracing::warn;
+use tracing::{debug, warn};
 use vulkano::buffer::{Buffer, BufferCreateInfo, BufferUsage};
 use vulkano::descriptor_set::allocator::DescriptorSetAllocator;
 use vulkano::descriptor_set::{DescriptorSet, WriteDescriptorSet};
@@ -99,6 +99,12 @@ impl Shapes {
                     warn!("Pipeline 'circle' has no bindings. Did you forget to compile shaders?");
                 }
 
+                if let Some(descriptor_set) = descriptor_set_cache.get(&descriptor_id.id) {
+                    debug!("Descriptor set exists");
+                    return (verts, Some(descriptor_set));
+                }
+
+                debug!("Descriptor set created!");
                 let descriptor_set = DescriptorSet::new(
                     descriptor_allocator.clone(),
                     layout,
@@ -132,6 +138,7 @@ impl Shapes {
                 let image_view = texture.view.clone();
 
                 if let Some(descriptor_set) = descriptor_set_cache.get(&descriptor_id.id) {
+                    debug!("Descriptor set exists");
                     return (verts, Some(descriptor_set));
                 }
 
@@ -146,6 +153,8 @@ impl Shapes {
                     [],
                 )
                 .unwrap();
+
+                debug!("Descriptor set created!");
 
                 (verts, Some(descriptor_set))
             }

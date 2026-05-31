@@ -19,7 +19,7 @@ use winit::{
     window::Window,
 };
 
-const OBJECTS_COUNT: u32 = 0;
+const OBJECTS_COUNT: u32 = 16;
 
 fn main() -> Result<(), impl std::error::Error> {
     let event_loop = EventLoop::new().unwrap();
