@@ -24,7 +24,7 @@ use vulkano::{
         sampler::{Filter, Sampler, SamplerAddressMode, SamplerCreateInfo},
         view::ImageView,
     },
-    instance::{Instance, InstanceCreateFlags, InstanceCreateInfo},
+    instance::{Instance, InstanceCreateFlags, InstanceCreateInfo, debug::ValidationFeatureEnable},
     memory::allocator::{AllocationCreateInfo, MemoryAllocator, MemoryTypeFilter},
     pipeline::{
         DynamicState, GraphicsPipeline, Pipeline, PipelineLayout, PipelineShaderStageCreateInfo,
@@ -308,7 +308,6 @@ where
             matrices.push(matrix);
         });
 
-        // NOTE: Panic when vertices capacity is empty
         let vertex_buffer = Buffer::from_iter(
             memory_allocator,
             BufferCreateInfo {

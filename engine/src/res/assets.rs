@@ -1,9 +1,8 @@
 use std::{
-    collections::HashMap,
-    path::Path,
-    sync::{Arc, RwLock},
+    collections::HashMap, fmt::Debug, path::Path, sync::{Arc, RwLock}
 };
 
+use tracing::debug;
 use vulkano::{
     DeviceSize,
     buffer::{Buffer, BufferCreateInfo, BufferUsage},
@@ -24,6 +23,7 @@ pub struct AssetsManager {
     pub(crate) texture_pool: RwLock<HashMap<String, Arc<TextureHandler>>>,
 }
 
+#[derive(Debug)]
 pub struct TextureHandler {
     pub(crate) view: Arc<ImageView>,
 }
@@ -39,9 +39,11 @@ impl AssetsManager {
             .unwrap()
             .to_string()
             .to_lowercase();
+
         if let Some(texture) = self.texture_pool.read().unwrap().get(&file) {
             return texture.clone();
         }
+
         let texture: Texture = {
             if internal {
                 Texture::from_internal_assets(file_name.to_str().unwrap()).unwrap()
@@ -49,6 +51,8 @@ impl AssetsManager {
                 Texture::from_file(file_name.to_str().unwrap()).unwrap()
             }
         };
+
+        debug!(loaded_image_size=texture.image.len(), loaded_image_size_mb=texture.image.len() / 1024 / 1024);
 
         let mut uploads = AutoCommandBufferBuilder::primary(
             self.memory_allocs.command_buffer_allocator.clone(),
@@ -105,7 +109,7 @@ impl AssetsManager {
             .unwrap()
             .execute(self.queue.clone())
             .unwrap()
-            .flush();
+            .then_signal_fence_and_flush().unwrap().wait(None).unwrap();
 
         let texture_handler = TextureHandler { view: image_view };
         self.texture_pool

@@ -33,6 +33,8 @@ fn main() -> Result<(), impl std::error::Error> {
         let monitor_size = e.available_monitors().next().unwrap().size();
         wind.set_title("snake");
         let mut rng = rng_init.clone();
+        let image = assets.load(std::path::Path::new("little.png"), true);
+        let shape = Shapes::Image(image.clone());
         for i in 0..OBJECTS_COUNT {
             let (r, g, b) = (rng.random::<u8>(), rng.random::<u8>(), rng.random::<u8>());
             let drawable_info = DrawableCreateInfo::default()
@@ -55,7 +57,7 @@ fn main() -> Result<(), impl std::error::Error> {
                 ));
             } else {
                 command.append(DrawCommand::DrawObject(
-                    Shapes::Image(assets.load(std::path::Path::new("image.png"), true)),
+                    shape.clone(),
                     drawable_info.with_size(Vec2::new(50.0, 50.0)),
                 ));
             }
