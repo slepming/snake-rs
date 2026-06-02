@@ -24,7 +24,13 @@ use vulkano::{
         sampler::{Filter, Sampler, SamplerAddressMode, SamplerCreateInfo},
         view::ImageView,
     },
-    instance::{Instance, InstanceCreateFlags, InstanceCreateInfo, debug::ValidationFeatureEnable},
+    instance::{
+        Instance, InstanceCreateFlags, InstanceCreateInfo,
+        debug::{
+            DebugUtilsMessageSeverity, DebugUtilsMessageType, DebugUtilsMessenger,
+            DebugUtilsMessengerCallback, DebugUtilsMessengerCreateInfo, ValidationFeatureEnable,
+        },
+    },
     memory::allocator::{AllocationCreateInfo, MemoryAllocator, MemoryTypeFilter},
     pipeline::{
         DynamicState, GraphicsPipeline, Pipeline, PipelineLayout, PipelineShaderStageCreateInfo,
@@ -52,9 +58,7 @@ use winit::{
     event::{ElementState, WindowEvent},
     event_loop::{ActiveEventLoop, EventLoop},
     keyboard::{Key, NamedKey},
-    platform::{
-        modifier_supplement::KeyEventExtModifierSupplement, 
-    },
+    platform::modifier_supplement::KeyEventExtModifierSupplement,
     raw_window_handle::HasDisplayHandle,
     window::{Fullscreen, Window, WindowId},
 };
@@ -118,8 +122,13 @@ where
     rcx: Option<RenderContext>,
     pub(crate) physics_context: PhysicsContext,
     game: GameContext,
+    debug: DebugUtils,
     redraw: Redraw,
     start: Start,
+}
+
+pub(crate) struct DebugUtils {
+    debug_callback: Option<DebugUtilsMessenger>
 }
 
 pub(crate) struct GameContext {
@@ -161,7 +170,9 @@ where
         let _span = tracy_client::span!("Engine::new");
 
         info!("Initializing Vulkan library");
-        let library = VulkanLibrary::new().expect("Vulkan not found. You may not have Vulkan support or an up-to-date GPU driver.");
+        let library = VulkanLibrary::new().expect(
+            "Vulkan not found. You may not have Vulkan support or an up-to-date GPU driver.",
+        );
 
         info!("Gathering required Vulkan extensions for windowing");
         // The first step of any Vulkan program is to create an instance.
@@ -172,13 +183,29 @@ where
         // enable manually. To do so, we ask `Surface` for the list of extensions required to draw
         // to a window.
         let mut required_extensions = Surface::required_extensions(event_loop).unwrap();
+        required_extensions.ext_debug_utils = true;
         let supported_extensions = library.supported_extensions();
 
         for extension in supported_extensions.clone().into_iter().filter(|e| e.1) {
             info!("Supported extension: {}", extension.0);
         }
+
         required_extensions &= *supported_extensions;
 
+        for enabled_extension in required_extensions.clone().into_iter().filter(|e| e.1) {
+            info!("Enabled extension: {}", enabled_extension.0);
+        }
+
+        let mut enabled_layers: Vec<String> = vec![];
+
+        #[cfg(debug_assertions)]
+        {
+            enabled_layers.push("VK_LAYER_KHRONOS_validation".to_string());
+        }
+
+        for layer in enabled_layers.iter() {
+            info!("Enabled layer: {}", layer);
+        }
 
         info!("Creating Vulkan instance");
         let instance = Instance::new(
@@ -188,10 +215,68 @@ where
                 // (e.g. MoltenVK)
                 flags: InstanceCreateFlags::ENUMERATE_PORTABILITY,
                 enabled_extensions: required_extensions,
+                enabled_layers: enabled_layers,
                 ..Default::default()
             },
         )
         .unwrap();
+
+        let mut debug: DebugUtils = DebugUtils { debug_callback: None };
+        #[cfg(debug_assertions)]
+        {
+            let debug_callback = unsafe {
+                let messenger_callback = DebugUtilsMessengerCallback::new(
+                    |message_severity, message_type, callback_data| {
+                        let severity = if message_severity.intersects(DebugUtilsMessageSeverity::ERROR)
+                        {
+                            "error"
+                        } else if message_severity.intersects(DebugUtilsMessageSeverity::WARNING) {
+                            "warning"
+                        } else if message_severity.intersects(DebugUtilsMessageSeverity::INFO) {
+                            "information"
+                        } else if message_severity.intersects(DebugUtilsMessageSeverity::VERBOSE) {
+                            "verbose"
+                        } else {
+                            panic!("no-impl");
+                        };
+
+                        let ty = if message_type.intersects(DebugUtilsMessageType::GENERAL) {
+                            "general"
+                        } else if message_type.intersects(DebugUtilsMessageType::VALIDATION) {
+                            "validation"
+                        } else if message_type.intersects(DebugUtilsMessageType::PERFORMANCE) {
+                            "performance"
+                        } else {
+                            panic!("no-impl");
+                        };
+
+                        println!(
+                            "{} {} {}: {}",
+                            callback_data.message_id_name.unwrap_or("unknown"),
+                            ty,
+                            severity,
+                            callback_data.message
+                        );
+                    },
+                );
+                DebugUtilsMessenger::new(
+                    instance.clone(),
+                    DebugUtilsMessengerCreateInfo {
+                        message_severity: DebugUtilsMessageSeverity::ERROR
+                            | DebugUtilsMessageSeverity::WARNING
+                            | DebugUtilsMessageSeverity::INFO
+                            | DebugUtilsMessageSeverity::VERBOSE,
+                        message_type: DebugUtilsMessageType::GENERAL
+                            | DebugUtilsMessageType::VALIDATION
+                            | DebugUtilsMessageType::PERFORMANCE,
+                        ..DebugUtilsMessengerCreateInfo::user_callback(messenger_callback)
+                    },
+                )
+            }
+            .ok();
+
+            debug.debug_callback = debug_callback;
+        }
 
         // Choose device extensions that we're going to use. In order to present images to a
         // surface, we need a `Swapchain`, which is provided by the `khr_swapchain` extension.
@@ -253,6 +338,7 @@ where
             sampler,
             rcx: None,
             physics_context: ph_context,
+            debug,
             start: start,
             redraw: redraw,
         }
@@ -269,7 +355,7 @@ where
         _rcx: &mut RenderContext,
     ) -> Option<MeshBuffers> {
         if children.len() < 1 {
-            return None
+            return None;
         }
 
         #[cfg(feature = "tracing")]
@@ -349,7 +435,7 @@ where
         let _span = tracy_client::span!("Engine::resumed");
         let window: Arc<Window>;
         info!("Creating window");
-        #[cfg(target_family =  "unix")]
+        #[cfg(target_family = "unix")]
         {
             window = Arc::new(
                 event_loop
@@ -797,8 +883,7 @@ where
                     .set_viewport(0, [rcx.viewport.clone()].into_iter().collect())
                     .unwrap();
                 if let Some(mesh) = mesh_buffers {
-                    builder.bind_vertex_buffers(0, mesh.0.clone())
-                        .unwrap();
+                    builder.bind_vertex_buffers(0, mesh.0.clone()).unwrap();
                     let all_items = self.game.children.iter();
 
                     all_items.enumerate().for_each(|(i, item)| {

@@ -1,5 +1,8 @@
 use std::{
-    collections::HashMap, fmt::Debug, path::Path, sync::{Arc, RwLock}
+    collections::HashMap,
+    fmt::Debug,
+    path::Path,
+    sync::{Arc, RwLock},
 };
 
 use tracing::debug;
@@ -52,7 +55,10 @@ impl AssetsManager {
             }
         };
 
-        debug!(loaded_image_size=texture.image.len(), loaded_image_size_mb=texture.image.len() / 1024 / 1024);
+        debug!(
+            loaded_image_size = texture.image.len(),
+            loaded_image_size_mb = texture.image.len() / 1024 / 1024
+        );
 
         let mut uploads = AutoCommandBufferBuilder::primary(
             self.memory_allocs.command_buffer_allocator.clone(),
@@ -109,7 +115,10 @@ impl AssetsManager {
             .unwrap()
             .execute(self.queue.clone())
             .unwrap()
-            .then_signal_fence_and_flush().unwrap().wait(None).unwrap();
+            .then_signal_fence_and_flush()
+            .unwrap()
+            .wait(None)
+            .unwrap();
 
         let texture_handler = TextureHandler { view: image_view };
         self.texture_pool
