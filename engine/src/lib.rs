@@ -173,7 +173,12 @@ where
         // to a window.
         let mut required_extensions = Surface::required_extensions(event_loop).unwrap();
         let supported_extensions = library.supported_extensions();
+
+        for extension in supported_extensions.clone().into_iter().filter(|e| e.1) {
+            info!("Supported extension: {}", extension.0);
+        }
         required_extensions &= *supported_extensions;
+
 
         info!("Creating Vulkan instance");
         let instance = Instance::new(
