@@ -1,0 +1,168 @@
+use std::sync::Arc;
+
+use tracing::{debug, info};
+use vulkano::{device::{Device, DeviceCreateInfo, DeviceExtensions, Queue, QueueCreateInfo, QueueFlags, physical::PhysicalDeviceType}, instance::Instance, pipeline::{DynamicState, GraphicsPipeline, PipelineLayout, PipelineShaderStageCreateInfo, graphics::{GraphicsPipelineCreateInfo, color_blend::ColorBlendState, input_assembly::{InputAssemblyState, PrimitiveTopology}, multisample::MultisampleState, rasterization::RasterizationState, vertex_input::{Vertex, VertexDefinition}, viewport::ViewportState}, layout::PipelineDescriptorSetLayoutCreateInfo}, render_pass::{RenderPass, Subpass}};
+use winit::raw_window_handle::HasDisplayHandle;
+
+use crate::MyVertex;
+
+pub fn select_render_device(
+    instance: Arc<Instance>,
+    device_extensions: DeviceExtensions,
+    event_loop: &impl HasDisplayHandle,
+) -> (Arc<Device>, impl ExactSizeIterator<Item = Arc<Queue>>) {
+    info!("Selecting physical device (GPU)");
+    // We then choose which physical device to use. First, we enumerate all the available
+    // physical devices, then apply filters to narrow them down to those that can support our
+    // needs.
+    let (physical_device, queue_family_index) = instance
+        .enumerate_physical_devices()
+        .unwrap()
+        .filter(|p| {
+            // Some devices may not support the extensions or features that your application,
+            // or report properties and limits that are not sufficient for your application.
+            // These should be filtered out here.
+            p.supported_extensions().contains(&device_extensions)
+        })
+        .filter_map(|p| {
+            // For each physical device, we try to find a suitable queue family that will
+            // execute our draw commands.
+            //
+            // Devices can provide multiple queues to run commands in parallel (for example a
+            // draw queue and a compute queue), similar to CPU threads. This is
+            // something you have to have to manage manually in Vulkan. Queues
+            // of the same type belong to the same queue family.
+            //
+            // Here, we look for a single queue family that is suitable for our purposes. In a
+            // real-world application, you may want to use a separate dedicated transfer queue
+            // to handle data transfers in parallel with graphics operations.
+            // You may also need a separate queue for compute operations, if
+            // your application uses those.
+            p.queue_family_properties()
+                .iter()
+                .enumerate()
+                .position(|(i, q)| {
+                    // We select a queue family that supports graphics operations. When drawing
+                    // to a window surface, as we do in this example, we also need to check
+                    // that queues in this queue family are capable of presenting images to the
+                    // surface.
+                    q.queue_flags.intersects(QueueFlags::GRAPHICS)
+                        && p.presentation_support(i as u32, event_loop)
+                            .unwrap_or(false)
+                })
+                // The code here searches for the first queue family that is suitable. If none
+                // is found, `None` is returned to `filter_map`, which
+                // disqualifies this physical device.
+                .map(|i| (p, i as u32))
+        })
+        // All the physical devices that pass the filters above are suitable for the
+        // application. However, not every device is equal, some are preferred over others.
+        // Now, we assign each physical device a score, and pick the device with the lowest
+        // ("best") score.
+        //
+        // In this example, we simply select the best-scoring device to use in the application.
+        // In a real-world setting, you may want to use the best-scoring device only as a
+        // "default" or "recommended" device, and let the user choose the device themself.
+        .min_by_key(|(p, _)| {
+            // We assign a lower score to device types that are likely to be faster/better.
+            match p.properties().device_type {
+                PhysicalDeviceType::DiscreteGpu => 0,
+                PhysicalDeviceType::IntegratedGpu => 1,
+                PhysicalDeviceType::VirtualGpu => 2,
+                PhysicalDeviceType::Cpu => 3,
+                PhysicalDeviceType::Other => 4,
+                _ => 5,
+            }
+        })
+        .expect("no suitable physical device found");
+
+    info!(
+        device_name = ?physical_device.properties().device_name,
+        device_type = ?physical_device.properties().device_type,
+        max_push_constants_size = physical_device.properties().max_push_constants_size,
+        "Selected physical device"
+    );
+
+    // Now initializing the device. This is probably the most important object of Vulkan.
+    //
+    // An iterator of created queues is returned by the function alongside the device.
+    let (device, queues) = Device::new(
+        // Which physical device to connect to.
+        physical_device.clone(),
+        DeviceCreateInfo {
+            // A list of optional features and extensions that our program needs to work
+            // correctly. Some parts of the Vulkan specs are optional and must be enabled
+            // manually at device creation. In this example the only thing we are going to need
+            // is the `khr_swapchain` extension that allows us to draw to a window.
+            enabled_extensions: device_extensions.clone(),
+
+            // The list of queues that we are going to use. Here we only use one queue, from
+            // the previously chosen queue family.
+            queue_create_infos: vec![QueueCreateInfo {
+                queue_family_index,
+                ..Default::default()
+            }],
+
+            ..Default::default()
+        },
+    )
+    .unwrap();
+
+    // TODO: in the future I must create async compute ability
+    for (i, queue) in device
+        .physical_device()
+        .queue_family_properties()
+        .iter()
+        .enumerate()
+    {
+        debug!(support_queues = ?queue.queue_flags, index = ?i);
+    }
+
+    (device, queues)
+}
+// Before we draw, we have to create what is called a **pipeline**. A pipeline describes
+// how a GPU operation is to be performed. It is similar to an OpenGL program, but it also
+// contains many settings for customization, all baked into a single object. For drawing,
+// we create a **graphics** pipeline, but there are also other types of pipeline.
+pub fn create_pipeline(
+    device: Arc<Device>,
+    render_pass: Arc<RenderPass>,
+    vs: vulkano::shader::EntryPoint,
+    fs: vulkano::shader::EntryPoint,
+    blend_state: ColorBlendState,
+) -> Arc<GraphicsPipeline> {
+    let vertex_input_state = MyVertex::per_vertex().definition(&vs).unwrap();
+    let stages = [
+        PipelineShaderStageCreateInfo::new(vs),
+        PipelineShaderStageCreateInfo::new(fs),
+    ];
+    let layout = PipelineLayout::new(
+        device.clone(),
+        PipelineDescriptorSetLayoutCreateInfo::from_stages(&stages)
+            .into_pipeline_layout_create_info(device.clone())
+            .unwrap(),
+    )
+    .unwrap();
+    let subpass = Subpass::from(render_pass, 0).unwrap();
+
+    GraphicsPipeline::new(
+        device,
+        None,
+        GraphicsPipelineCreateInfo {
+            stages: stages.into_iter().collect(),
+            vertex_input_state: Some(vertex_input_state),
+            input_assembly_state: Some(InputAssemblyState {
+                topology: PrimitiveTopology::TriangleFan,
+                ..Default::default()
+            }),
+            viewport_state: Some(ViewportState::default()),
+            rasterization_state: Some(RasterizationState::default()),
+            multisample_state: Some(MultisampleState::default()),
+            color_blend_state: Some(blend_state),
+            dynamic_state: [DynamicState::Viewport].into_iter().collect(),
+            subpass: Some(subpass.into()),
+            ..GraphicsPipelineCreateInfo::layout(layout)
+        },
+    )
+    .unwrap()
+}
