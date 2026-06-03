@@ -1,2 +1,2 @@
-pub mod window;
 pub mod vulkan;
+pub mod window;

@@ -152,46 +152,6 @@ impl Default for DrawableCreateInfo {
     }
 }
 
-/// Structure which contains list of all objects
-pub struct Children {
-    /// List of all drawable objects
-    drawables: Vec<Drawable>,
-}
-
-impl Children {
-    /// Push drawable to the [`Children::drawables`]
-    pub(crate) fn add(&mut self, item: Drawable) {
-        self.drawables.push(item);
-    }
-
-    /// # Returns
-    /// [`Drawable`]
-    pub fn get(&self, index: u32) -> Option<&Drawable> {
-        self.drawables.get(index as usize)
-    }
-
-    /// # Returns
-    /// [`Iter`]
-    pub fn iter(&self) -> Iter<'_, Drawable> {
-        self.drawables.iter()
-    }
-
-    /// # Returns
-    /// Children length
-    /// [`usize`]
-    pub fn len(&self) -> usize {
-        self.drawables.len()
-    }
-}
-
-impl Default for Children {
-    fn default() -> Self {
-        Self {
-            drawables: Default::default(),
-        }
-    }
-}
-
 pub struct Mesh {
     vertex: Vec<MyVertex>,
     /// ID need for find matrix in buffer

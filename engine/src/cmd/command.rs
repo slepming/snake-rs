@@ -7,7 +7,10 @@ use winit::{event::WindowEvent, event_loop::ActiveEventLoop, window::Window};
 
 use crate::{
     EngineContext,
-    drw::drawable::{Children, Drawable, DrawableCreateInfo},
+    drw::{
+        children::Children,
+        drawable::{Drawable, DrawableCreateInfo},
+    },
     geom::shapes::Shapes,
     mv::phys::movement::PhysicsContext,
     res::cache::CacheProvider,

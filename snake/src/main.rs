@@ -6,7 +6,7 @@ use rapier2d::math::Vec2;
 use snake_engine::{
     EngineContext,
     cmd::command::{CommandQueue, DrawCommand},
-    drw::drawable::{Children, DrawableCreateInfo},
+    drw::{children::Children, drawable::DrawableCreateInfo},
     geom::shapes::Shapes,
     mv::phys::movement::PhysicsContext,
     res::assets::AssetsManager,
@@ -39,7 +39,12 @@ fn main() -> Result<(), impl std::error::Error> {
             let (r, g, b) = (rng.random::<u8>(), rng.random::<u8>(), rng.random::<u8>());
             let drawable_info = DrawableCreateInfo::default()
                 .with_size(Vec2::new(1000.0, 1000.0))
-                .with_color(Rgba8 { r, g, b, a: 255 })
+                .with_color(Rgba8 {
+                    r,
+                    g,
+                    b,
+                    a: if i % 2 == 0 { 255 } else { 0 },
+                })
                 .with_position(Vec2::new(
                     300.0 * i as f32,
                     monitor_size.height as f32 / 2.0,
@@ -64,7 +69,7 @@ fn main() -> Result<(), impl std::error::Error> {
         }
     };
 
-    let redraw_closure = |_ch: &mut Children,
+    let redraw_closure = |ch: &mut Children,
                           _pc: &mut PhysicsContext,
                           assets: &mut AssetsManager,
                           event: &WindowEvent,
@@ -74,6 +79,7 @@ fn main() -> Result<(), impl std::error::Error> {
                 if event.state == ElementState::Pressed && !event.repeat {
                     match event.key_without_modifiers().as_ref() {
                         Key::Named(NamedKey::Escape) => exit(0),
+                        Key::Character("c") => ch.clear(),
                         Key::Named(NamedKey::Enter) => {
                             let mut shapes: Vec<Shapes> = Vec::with_capacity(2);
                             shapes.extend(vec![

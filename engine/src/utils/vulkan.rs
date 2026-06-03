@@ -1,7 +1,27 @@
 use std::sync::Arc;
 
 use tracing::{debug, info};
-use vulkano::{device::{Device, DeviceCreateInfo, DeviceExtensions, Queue, QueueCreateInfo, QueueFlags, physical::PhysicalDeviceType}, instance::Instance, pipeline::{DynamicState, GraphicsPipeline, PipelineLayout, PipelineShaderStageCreateInfo, graphics::{GraphicsPipelineCreateInfo, color_blend::ColorBlendState, input_assembly::{InputAssemblyState, PrimitiveTopology}, multisample::MultisampleState, rasterization::RasterizationState, vertex_input::{Vertex, VertexDefinition}, viewport::ViewportState}, layout::PipelineDescriptorSetLayoutCreateInfo}, render_pass::{RenderPass, Subpass}};
+use vulkano::{
+    device::{
+        Device, DeviceCreateInfo, DeviceExtensions, Queue, QueueCreateInfo, QueueFlags,
+        physical::PhysicalDeviceType,
+    },
+    instance::Instance,
+    pipeline::{
+        DynamicState, GraphicsPipeline, PipelineLayout, PipelineShaderStageCreateInfo,
+        graphics::{
+            GraphicsPipelineCreateInfo,
+            color_blend::ColorBlendState,
+            input_assembly::{InputAssemblyState, PrimitiveTopology},
+            multisample::MultisampleState,
+            rasterization::RasterizationState,
+            vertex_input::{Vertex, VertexDefinition},
+            viewport::ViewportState,
+        },
+        layout::PipelineDescriptorSetLayoutCreateInfo,
+    },
+    render_pass::{RenderPass, Subpass},
+};
 use winit::raw_window_handle::HasDisplayHandle;
 
 use crate::MyVertex;

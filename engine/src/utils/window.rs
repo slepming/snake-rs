@@ -1,6 +1,9 @@
 use std::sync::Arc;
 
-use vulkano::{image::{Image, view::ImageView}, render_pass::{Framebuffer, FramebufferCreateInfo, RenderPass}};
+use vulkano::{
+    image::{Image, view::ImageView},
+    render_pass::{Framebuffer, FramebufferCreateInfo, RenderPass},
+};
 
 pub fn window_size_dependent_setup(
     images: &[Arc<Image>],
@@ -22,4 +25,3 @@ pub fn window_size_dependent_setup(
         })
         .collect()
 }
-

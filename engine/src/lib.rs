@@ -15,9 +15,7 @@ use vulkano::{
         AutoCommandBufferBuilder, CommandBufferUsage, RenderPassBeginInfo, SubpassBeginInfo,
         SubpassContents,
     },
-    device::{
-        Device, DeviceExtensions, Queue,
-    },
+    device::{Device, DeviceExtensions, Queue},
     image::{
         ImageUsage,
         sampler::{Filter, Sampler, SamplerAddressMode, SamplerCreateInfo},
@@ -31,7 +29,8 @@ use vulkano::{
     },
     memory::allocator::{AllocationCreateInfo, MemoryAllocator, MemoryTypeFilter},
     pipeline::{
-        Pipeline, graphics::{
+        Pipeline,
+        graphics::{
             color_blend::{AttachmentBlend, ColorBlendAttachmentState, ColorBlendState},
             vertex_input::Vertex,
             viewport::Viewport,
@@ -59,19 +58,28 @@ use winit::platform::wayland::WindowAttributesExtWayland;
 
 use crate::{
     cmd::command::{CommandDispatcher, CommandQueue},
-    drw::drawable::{Children, DrawableComponent, DrawableGPU},
+    drw::{
+        children::Children,
+        drawable::{DrawableComponent, DrawableGPU},
+    },
     geom::matrix::Transform,
     mem::engine_memory::EngineMemory,
     mv::phys::movement::{PhysicsContext, PhysicsSpace},
-    res::{assets::AssetsManager, cache::{CacheProvider, DescriptorSetCache, PipelineCache}},
+    res::{
+        assets::AssetsManager,
+        cache::{CacheProvider, DescriptorSetCache, PipelineCache},
+    },
     shaders::{
         circle_shader::{circle_fs, circle_vs},
         cube_shader::{cube_fs, cube_vs},
         image_shader::{image_fs, image_vs},
-    }, utils::{vulkan::{create_pipeline, select_render_device}, window::window_size_dependent_setup},
+    },
+    utils::{
+        vulkan::{create_pipeline, select_render_device},
+        window::window_size_dependent_setup,
+    },
 };
 
-pub mod utils;
 pub mod cmd;
 pub mod drw;
 pub mod geom;
@@ -79,6 +87,7 @@ pub mod mem;
 pub mod mv;
 pub mod res;
 pub mod shaders;
+pub mod utils;
 
 #[cfg(feature = "tracing")]
 #[global_allocator]
@@ -120,7 +129,7 @@ where
 }
 
 pub(crate) struct DebugUtils {
-    debug_callback: Option<DebugUtilsMessenger>
+    debug_callback: Option<DebugUtilsMessenger>,
 }
 
 pub(crate) struct GameContext {
@@ -213,13 +222,17 @@ where
         )
         .unwrap();
 
-        let mut debug: DebugUtils = DebugUtils { debug_callback: None };
+        let mut debug: DebugUtils = DebugUtils {
+            debug_callback: None,
+        };
         #[cfg(debug_assertions)]
         {
+            // PANIC when message severity or message type is unkown
             let debug_callback = unsafe {
                 let messenger_callback = DebugUtilsMessengerCallback::new(
                     |message_severity, message_type, callback_data| {
-                        let severity = if message_severity.intersects(DebugUtilsMessageSeverity::ERROR)
+                        let severity = if message_severity
+                            .intersects(DebugUtilsMessageSeverity::ERROR)
                         {
                             "error"
                         } else if message_severity.intersects(DebugUtilsMessageSeverity::WARNING) {
