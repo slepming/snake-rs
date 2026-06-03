@@ -94,21 +94,50 @@ pub mod utils;
 static GLOBAL: tracy_client::ProfiledAllocator<std::alloc::System> =
     tracy_client::ProfiledAllocator::new(std::alloc::System, 100);
 
+pub trait StartFn: FnMut(
+    &ActiveEventLoop,
+    &mut Children,
+    &mut AssetsManager,
+    Arc<Window>,
+    &mut CommandQueue,
+) {}
+
+impl<T> StartFn for T where
+    T: FnMut(
+        &ActiveEventLoop,
+        &mut Children,
+        &mut AssetsManager,
+        Arc<Window>,
+        &mut CommandQueue,
+    )
+{}
+
+pub trait RedrawFn: FnMut(
+    &mut Children,
+    &mut PhysicsContext,
+    &mut AssetsManager,
+    &WindowEvent,
+    &mut CommandQueue,
+) {}
+
+impl<T> RedrawFn for T where
+    T: FnMut(
+        &mut Children,
+        &mut PhysicsContext,
+        &mut AssetsManager,
+        &WindowEvent,
+        &mut CommandQueue,
+    )
+{}
+
 /// The main entry point into the engine
 /// # Generics
 /// `Redraw` -> Event generic which calls every frame
 /// `Start` -> Event generic which calls after window, pipelines, swapchain initialization
 pub struct EngineContext<Redraw, Start>
 where
-    Redraw: FnMut(
-        &mut Children,
-        &mut PhysicsContext,
-        &mut AssetsManager,
-        &WindowEvent,
-        &mut CommandQueue,
-    ),
-    Start:
-        FnMut(&ActiveEventLoop, &mut Children, &mut AssetsManager, Arc<Window>, &mut CommandQueue),
+    Redraw: RedrawFn,
+    Start: StartFn,
 {
     instance: Arc<Instance>,
     /// One of the most important parts of the engine - vulkan context
@@ -155,15 +184,8 @@ struct MeshBuffers(Subbuffer<[MyVertex]>, Vec<Transform>, Vec<u32>);
 
 impl<Redraw, Start> EngineContext<Redraw, Start>
 where
-    Redraw: FnMut(
-        &mut Children,
-        &mut PhysicsContext,
-        &mut AssetsManager,
-        &WindowEvent,
-        &mut CommandQueue,
-    ),
-    Start:
-        FnMut(&ActiveEventLoop, &mut Children, &mut AssetsManager, Arc<Window>, &mut CommandQueue),
+    Redraw: RedrawFn,
+    Start: StartFn,
 {
     pub fn new(event_loop: &EventLoop<()>, start: Start, redraw: Redraw) -> Self {
         tracing_subscriber::fmt::init();
@@ -425,15 +447,8 @@ where
 
 impl<Redraw, Start> ApplicationHandler for EngineContext<Redraw, Start>
 where
-    Redraw: FnMut(
-        &mut Children,
-        &mut PhysicsContext,
-        &mut AssetsManager,
-        &WindowEvent,
-        &mut CommandQueue,
-    ),
-    Start:
-        FnMut(&ActiveEventLoop, &mut Children, &mut AssetsManager, Arc<Window>, &mut CommandQueue),
+    Redraw: RedrawFn,
+    Start: StartFn,
 {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         #[cfg(feature = "tracing")]

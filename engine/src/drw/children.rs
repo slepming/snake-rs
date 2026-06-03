@@ -35,8 +35,7 @@ impl Children {
         self.drawables.len()
     }
 
-    pub fn clear(&mut self) {
-        info!("Clear drawables: {}", self.len());
+    pub(crate) fn clear(&mut self) {
         self.drawables.clear();
     }
 }

@@ -18,6 +18,7 @@ use crate::{
 
 pub enum DrawCommand {
     DrawObject(Shapes, DrawableCreateInfo),
+    ClearDrawables,
 }
 
 pub enum DrawCommandReceive<'a> {
@@ -116,6 +117,11 @@ where
                         "Object created"
                     );
                 }
+                DrawCommand::ClearDrawables => {
+                    info!("Clear drawables: {}", self.game.children.len());
+                    self.game.children.clear();
+                },
+                _ => panic!("no-impl command")
             }
         }
     }

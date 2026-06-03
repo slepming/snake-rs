@@ -11,6 +11,7 @@ use snake_engine::{
     mv::phys::movement::PhysicsContext,
     res::assets::AssetsManager,
 };
+use tracing::info;
 use winit::{
     event::{ElementState, WindowEvent},
     event_loop::{ActiveEventLoop, EventLoop},
@@ -79,7 +80,7 @@ fn main() -> Result<(), impl std::error::Error> {
                 if event.state == ElementState::Pressed && !event.repeat {
                     match event.key_without_modifiers().as_ref() {
                         Key::Named(NamedKey::Escape) => exit(0),
-                        Key::Character("c") => ch.clear(),
+                        Key::Character("c") => command.append(DrawCommand::ClearDrawables),
                         Key::Named(NamedKey::Enter) => {
                             let mut shapes: Vec<Shapes> = Vec::with_capacity(2);
                             shapes.extend(vec![
@@ -87,7 +88,8 @@ fn main() -> Result<(), impl std::error::Error> {
                                 Shapes::Square,
                                 Shapes::Image(assets.load(std::path::Path::new("image.png"), true)),
                             ]);
-                            let variant = shapes.choose(&mut rng_init.clone()).unwrap();
+                            info!(children_length=ch.len());
+                            let variant = if ch.len() % 2 == 0 || ch.len() == 0 { shapes[2].clone() } else { shapes[1].clone() };
                             command.append(DrawCommand::DrawObject(
                                 variant.clone(),
                                 DrawableCreateInfo::default()
