@@ -7,7 +7,7 @@ use std::{
     ops::RangeInclusive,
     sync::{Arc, RwLock},
 };
-use tracing::{debug, info};
+use tracing::{debug, info, warn, error};
 use vulkano::{
     Validated, VulkanError, VulkanLibrary,
     buffer::{Buffer, BufferContents, BufferCreateInfo, BufferUsage, Subbuffer},
@@ -81,6 +81,7 @@ use crate::{
 };
 
 pub mod cmd;
+pub mod gpu;
 pub mod drw;
 pub mod geom;
 pub mod mem;
@@ -250,59 +251,10 @@ where
         #[cfg(debug_assertions)]
         {
             // PANIC when message severity or message type is unkown
-            let debug_callback = unsafe {
-                let messenger_callback = DebugUtilsMessengerCallback::new(
-                    |message_severity, message_type, callback_data| {
-                        let severity = if message_severity
-                            .intersects(DebugUtilsMessageSeverity::ERROR)
-                        {
-                            "error"
-                        } else if message_severity.intersects(DebugUtilsMessageSeverity::WARNING) {
-                            "warning"
-                        } else if message_severity.intersects(DebugUtilsMessageSeverity::INFO) {
-                            "information"
-                        } else if message_severity.intersects(DebugUtilsMessageSeverity::VERBOSE) {
-                            "verbose"
-                        } else {
-                            panic!("no-impl");
-                        };
 
-                        let ty = if message_type.intersects(DebugUtilsMessageType::GENERAL) {
-                            "general"
-                        } else if message_type.intersects(DebugUtilsMessageType::VALIDATION) {
-                            "validation"
-                        } else if message_type.intersects(DebugUtilsMessageType::PERFORMANCE) {
-                            "performance"
-                        } else {
-                            panic!("no-impl");
-                        };
+            use crate::gpu::debug::debug_callback;
 
-                        println!(
-                            "{} {} {}: {}",
-                            callback_data.message_id_name.unwrap_or("unknown"),
-                            ty,
-                            severity,
-                            callback_data.message
-                        );
-                    },
-                );
-                DebugUtilsMessenger::new(
-                    instance.clone(),
-                    DebugUtilsMessengerCreateInfo {
-                        message_severity: DebugUtilsMessageSeverity::ERROR
-                            | DebugUtilsMessageSeverity::WARNING
-                            | DebugUtilsMessageSeverity::INFO
-                            | DebugUtilsMessageSeverity::VERBOSE,
-                        message_type: DebugUtilsMessageType::GENERAL
-                            | DebugUtilsMessageType::VALIDATION
-                            | DebugUtilsMessageType::PERFORMANCE,
-                        ..DebugUtilsMessengerCreateInfo::user_callback(messenger_callback)
-                    },
-                )
-            }
-            .ok();
-
-            debug.debug_callback = debug_callback;
+            debug.debug_callback = debug_callback(instance.clone());
         }
 
         // Choose device extensions that we're going to use. In order to present images to a
