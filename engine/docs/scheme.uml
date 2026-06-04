@@ -55,19 +55,23 @@ package "engine" {
         - instance: Arc<Instance>
         - device: Arc<Device>
         - queue: Arc<Queue>
-        - memory: EngineMemory
-        - rcx: Option<RenderContext>
-        - pipelines: PipelineCache
-        - descriptors: DescriptorSetCache
+        - memory: Arc<EngineMemory>
+        - pipelines: Arc<PipelineCache>
+        - descriptors: Arc<DescriptorSetCache>
         - sampler: Arc<Sampler>
-        + physics_context: PhysicsContext
-        + children: Children
-        + assets: AssetsManager
-        + frames: u64
+        - rcx: Option<RenderContext>
+        - game: GameContext
+        - debug: DebugUtils
         - redraw: Redraw
         - start: Start
         + new(event_loop: &EventLoop<()>, start: Start, redraw: Redraw) -> EngineContext
-        + calculate_drawables(...) -> (Subbuffer<[MyVertex]>, Vec<Transform>, Vec<u32>)
+    }
+
+    struct GameContext {
+        + children: Children
+        + assets: AssetsManager
+        + frames: u64
+        + game_command_queue: CommandQueue
     }
 
     struct RenderContext {
@@ -94,16 +98,17 @@ package "engine" {
 
 package "Commands" {
     struct CommandQueue {
-        - commands: Vec<DrawCommand>
+        - commands: VecDeque<DrawCommand>
         + append(&mut self, command: DrawCommand)
     }
 
     enum DrawCommand {
         DrawObject(Shapes, DrawableCreateInfo)
+        ClearDrawables
     }
 
     interface CommandDispatcher << (T,ORANGE) >> {
-        + flush_commands(&mut self, commands: CommandQueue)
+        + flush_commands(&mut self)
     }
 }
 
@@ -120,7 +125,8 @@ package "Resources" {
     struct AssetsManager {
         ~ queue: Arc<Queue>
         ~ memory_allocs: Arc<EngineMemory>
-        + load(&self, file_name: &Path, internal: bool) -> TextureHandler
+        ~ texture_pool: RwLock<HashMap<String, Arc<TextureHandler>>>
+        + load(&self, file_name: &Path, internal: bool) -> Arc<TextureHandler>
     }
 
     struct TextureHandler {
@@ -130,6 +136,7 @@ package "Resources" {
     interface "CacheProvider<A>" as CacheProvider << (T,ORANGE) >> {
         + get(&self, key: &str) -> Option<A>
         + insert(&self, value: (String, A)) -> Option<A>
+        + len(&self) -> usize
     }
     
     struct PipelineCache {
@@ -148,47 +155,17 @@ package "Movement" {
         + get_matrix_mut(&mut self) -> &mut [[f32; 4]; 4]
         + get_matrix(&self) -> &[[f32; 4]; 4]
     }
-    
-    interface Entity << (T,ORANGE) >> {
-        + rigid_body<'a>(&self, ctx: &'a mut PhysicsContext) -> &'a mut RigidBody
-        + rb_handle(&self) -> RigidBodyHandle
-    }
-    
-    package "Physics" {
-        struct PhysicsContext {
-            + rigid_body_set: RigidBodySet
-            + collider_set: ColliderSet
-            + space: PhysicsSpace
-            + new(...) -> PhysicsContext
-            + step(&mut self)
-            + create_phys_square(...) -> PhysicsDrawable
-        }
-
-        struct PhysicsSpace {
-            - integration_parameters: IntegrationParameters
-            - pipeline: PhysicsPipeline
-            - island_manager: IslandManager
-            - broad_phase: DefaultBroadPhase
-            - narrow_phase: NarrowPhase
-            - impulse_joint_set: ImpulseJointSet
-            - multibody_joint_set: MultibodyJointSet
-            - ccd_solver: CCDSolver
-            - physics_hooks: ()
-            - event_handler: ()
-            + new() -> PhysicsSpace
-        }
-
-        interface DynamicObject << (T,ORANGE) >> {
-            + teleport(&mut self, ctx: &mut PhysicsContext, vec: Vec2)
-        }
-    }
 }
 
 package "Drawing" {
     struct Children {
-        + drawables: Vec<Drawable>
+        - drawables: Vec<Drawable>
         + new() -> Children
-        + add_drawable(&mut self, item: Drawable)
+        + add(&mut self, item: Drawable)
+        + get(&self, index: usize) -> Option<&Drawable>
+        + iter(&self) -> Iter<'_, Drawable>
+        + len(&self) -> usize
+        + clear(&mut self)
     }
 
     struct Drawable {
@@ -196,18 +173,7 @@ package "Drawing" {
         - color: Rgba8
         ~ render: DrawableRenderContext
         + new(...) -> Drawable
-        + new_with_color(...) -> Drawable
-        + from_shape(shape: Shapes, drw: DrawableCreateInfo, pipeline: Arc<dyn Pipeline>, mem_alloc: Arc<dyn MemoryAllocator>, desc_alloc: Arc<dyn DescriptorSetAllocator>, sampler: Option<Arc<Sampler>>) -> (Drawable, Option<Arc<DescriptorSet>>)
-    }
-
-    struct PhysicsDrawable {
-        - rb_h: RigidBodyHandle
-        - drawable: Drawable
-        + new(rb_h: RigidBodyHandle, drawable: Drawable) -> PhysicsDrawable
-        + get_rb(...) -> &mut RigidBody
-        + get_rb_handle(&self) -> RigidBodyHandle
-        + get_drawable(&self) -> &Drawable
-        + get_mut_drawable(&mut self) -> &mut Drawable
+        + from_shape(...) -> (Drawable, Option<Arc<DescriptorSet>>)
     }
 
     struct DrawableRenderContext {
@@ -272,8 +238,8 @@ package "Geometry" {
     enum Shapes {
         Square
         Circle
-        Image(TextureHandler)
-        + get_vertex_and_descriptor(&self, pipeline: Arc<dyn Pipeline>, mem_alloc: Arc<dyn MemoryAllocator>, desc_alloc: Arc<dyn DescriptorSetAllocator>, sampler: Option<Arc<Sampler>>) -> (Vec<MyVertex>, Option<Arc<DescriptorSet>>)
+        Image(Arc<TextureHandler>)
+        + get_vertex_and_descriptor(...) -> (Vec<MyVertex>, Option<Arc<DescriptorSet>>)
     }
 }
 
@@ -285,26 +251,20 @@ CacheProvider <|.. PipelineCache : implement
 CacheProvider <|.. DescriptorSetCache : implement
 
 EngineContext o-- RenderContext : contains (Option)
+EngineContext *-- GameContext : own
 EngineContext *-- EngineMemory : own
 EngineContext *-- PipelineCache : own
 EngineContext *-- DescriptorSetCache : own
-EngineContext *-- PhysicsContext : own
-EngineContext *-- Children : own
-EngineContext *-- AssetsManager : own
-PhysicsContext *-- PhysicsSpace : own
+
+GameContext *-- Children : own
+GameContext *-- AssetsManager : own
+GameContext *-- CommandQueue : own
 
 CommandQueue o-- DrawCommand : contains
 
 DrawableGPU <|-- DrawableComponent : extend
 DrawableComponent <|.. Drawable : implement
 DrawableGPU <|.. Drawable : implement
-DrawableComponent <|.. PhysicsDrawable : implement
-DrawableGPU <|.. PhysicsDrawable : implement
-
-DynamicObject <|.. PhysicsDrawable : implement
-Entity <|.. PhysicsDrawable : implement
-Entity --|> DrawableComponent : extend
-Entity --|> DynamicObject : extend
 
 Position <|.. Transform : implement
 
@@ -317,7 +277,6 @@ DrawableRenderContext *-- PipelineID : own
 DrawableRenderContext *-- DescriptorID : own
 Mesh *-- MyVertex : own
 
-PhysicsDrawable *-- Drawable : own
 Shapes o-- TextureHandler : contains
 
 note right of EngineContext
