@@ -368,7 +368,7 @@ where
 
         children.iter().for_each(|drawable| {
             let verts = drawable.get_vertex();
-            let matrix = drawable.get_transform_clone();
+            let matrix = drawable.transform_clone();
             let offset = vertices.len() as u32;
 
             offsets.push(offset);

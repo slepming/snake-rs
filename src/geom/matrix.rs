@@ -1,6 +1,6 @@
 use vulkano::buffer::BufferContents;
 
-use crate::mv::transform::Position;
+use crate::mv::transform::HasTransform;
 
 #[repr(C)]
 #[derive(BufferContents, Clone, Copy, Debug)]
@@ -18,11 +18,11 @@ impl std::fmt::Display for Transform {
     }
 }
 
-impl Position for Transform {
-    fn get_matrix_mut(&mut self) -> &mut [[f32; 4]; 4] {
+impl HasTransform for Transform {
+    fn matrix_mut(&mut self) -> &mut [[f32; 4]; 4] {
         &mut self.transform
     }
-    fn get_matrix(&self) -> &[[f32; 4]; 4] {
+    fn matrix(&self) -> &[[f32; 4]; 4] {
         &self.transform
     }
 }

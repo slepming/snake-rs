@@ -1,6 +1,6 @@
 //! Managing Drawable states
 
-use std::{slice::Iter, sync::Arc};
+use std::sync::Arc;
 
 use rapier2d::{
     math::Vec2,
@@ -15,7 +15,7 @@ use crate::{
     MyVertex,
     drw::texture::Texture,
     geom::{matrix::Transform, shapes::Shapes},
-    mv::{phys::movement::PhysicsContext, transform::Entity},
+    mv::{phys::movement::PhysicsContext, transform::{Entity, Positioned}},
     res::cache::{DescriptorSetCache, PipelineCache},
 };
 
@@ -175,8 +175,9 @@ pub trait DrawableGPU {
 }
 
 pub trait DrawableComponent: DrawableGPU {
-    fn get_transform(&self) -> &Transform;
-    fn get_transform_clone(&self) -> Transform;
+    fn transform(&self) -> &Transform;
+    fn transform_mut(&mut self) -> &mut Transform;
+    fn transform_clone(&self) -> Transform;
     fn set_transform(&mut self, transform: Transform);
     /// # Returns
     /// Reference to drawable
@@ -229,7 +230,7 @@ impl Drawable {
     /// Creates allocations, pipeline descriptors for drawable and calls [`Self::new_with_color`]
     ///
     /// # Returns
-    /// [`Drawable`], [`vulkano::descriptor_set::DescriptorSet`]
+    /// ([`Drawable`], [`vulkano::descriptor_set::DescriptorSet`])
     pub fn from_shape(
         shape: Shapes,
         drw: DrawableCreateInfo,
@@ -277,11 +278,11 @@ impl DrawableGPU for Drawable {
 }
 
 impl DrawableComponent for Drawable {
-    fn get_transform(&self) -> &Transform {
+    fn transform(&self) -> &Transform {
         &self.transform
     }
 
-    fn get_transform_clone(&self) -> Transform {
+    fn transform_clone(&self) -> Transform {
         self.transform.clone() // TODO: This method not the best, but idk what function I need instead of this 
     }
 
@@ -295,6 +296,10 @@ impl DrawableComponent for Drawable {
 
     fn drawable_mut(&mut self) -> &mut Drawable {
         self
+    }
+
+    fn transform_mut(&mut self) -> &mut Transform {
+        &mut self.transform
     }
 }
 
@@ -317,12 +322,12 @@ impl DrawableGPU for PhysicsDrawable {
 }
 
 impl DrawableComponent for PhysicsDrawable {
-    fn get_transform(&self) -> &Transform {
-        self.drawable.get_transform()
+    fn transform(&self) -> &Transform {
+        self.drawable.transform()
     }
 
-    fn get_transform_clone(&self) -> Transform {
-        self.drawable.get_transform_clone()
+    fn transform_clone(&self) -> Transform {
+        self.drawable.transform_clone()
     }
 
     fn set_transform(&mut self, transform: Transform) {
@@ -335,6 +340,10 @@ impl DrawableComponent for PhysicsDrawable {
 
     fn drawable_mut(&mut self) -> &mut Drawable {
         self.get_mut_drawable()
+    }
+
+    fn transform_mut(&mut self) -> &mut Transform {
+        &mut self.drawable.transform
     }
 }
 
@@ -367,5 +376,20 @@ impl Entity for PhysicsDrawable {
 
     fn rb_handle(&self) -> RigidBodyHandle {
         self.get_rb_handle()
+    }
+}
+
+impl Positioned for Drawable {
+    fn position(&self) -> Vec2 {
+        let transform = self.transform.transform.as_ref();
+
+        Vec2::new(transform[0][0], transform[1][1])
+    }
+
+    fn set_position(&mut self, vec: Vec2) {
+        let current_transform = self.transform_mut();
+
+        current_transform.transform[0][0] = vec.x;
+        current_transform.transform[1][1] = vec.y;
     }
 }
