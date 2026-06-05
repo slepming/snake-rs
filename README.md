@@ -4,6 +4,8 @@
 
 During my college studies, I developed a Snake game using Python in the terminal environment, which proved enjoyable. For this project, I am implementing Snake in Rust for personal interest. Departing from convention, I am creating a graphical user interface (GUI) using Vulkan rather than a terminal-based approach.
 
+My first step is creating engine for this.
+
 ## Dependencies
 
 The graphics library selected is **Vulkano**, providing high-level abstractions over complex Vulkan operations with minimal `unsafe` code-simpler than alternatives.
