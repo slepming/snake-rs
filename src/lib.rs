@@ -174,7 +174,6 @@ struct RenderContext {
     viewport: Viewport,
     recreate_swapchain: bool,
     previous_frame_end: Option<Box<dyn GpuFuture>>,
-    scale: Vec2,
 }
 
 /// Used for drawable calculations
@@ -347,9 +346,6 @@ where
         // children.physics_drawables.iter_mut().for_each(|drawable| {
         //     let object = physics_context.rigid_body_set[drawable.rb_handle()].clone();
         //     let mut transform = drawable.drawable().get_transform_clone();
-
-        //     let ndc_x = object.translation().x * rcx.scale[0] - 1.0;
-        //     let ndc_y = object.translation().y * rcx.scale[1];
 
         //     transform.get_matrix_mut()[0][3] = ndc_x;
         //     transform.get_matrix_mut()[1][3] = -ndc_y;
@@ -664,10 +660,6 @@ where
         self.flush_commands();
 
         self.rcx = Some(RenderContext {
-            scale: Vec2::new(
-                2.0 / window.clone().inner_size().width as f32,
-                2.0 / window.clone().inner_size().height as f32,
-            ),
             window,
             swapchain,
             render_pass,
