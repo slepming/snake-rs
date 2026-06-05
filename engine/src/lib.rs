@@ -7,7 +7,7 @@ use std::{
     ops::RangeInclusive,
     sync::{Arc, RwLock},
 };
-use tracing::{debug, info, warn, error};
+use tracing::{debug, info};
 use vulkano::{
     Validated, VulkanError, VulkanLibrary,
     buffer::{Buffer, BufferContents, BufferCreateInfo, BufferUsage, Subbuffer},
@@ -22,10 +22,7 @@ use vulkano::{
     },
     instance::{
         Instance, InstanceCreateFlags, InstanceCreateInfo,
-        debug::{
-            DebugUtilsMessageSeverity, DebugUtilsMessageType, DebugUtilsMessenger,
-            DebugUtilsMessengerCallback, DebugUtilsMessengerCreateInfo,
-        },
+        debug:: DebugUtilsMessenger,
     },
     memory::allocator::{AllocationCreateInfo, MemoryAllocator, MemoryTypeFilter},
     pipeline::{
@@ -340,9 +337,10 @@ where
         #[cfg(feature = "tracing")]
         let _span = tracy_client::span!("Engine::calculate_drawables");
 
-        let mut vertices: Vec<MyVertex> = Vec::new();
-        let mut matrices: Vec<Transform> = Vec::new();
-        let mut offsets: Vec<u32> = Vec::new();
+        // Predicting the possible vector size
+        let mut vertices: Vec<MyVertex> = Vec::with_capacity(children.len() * 2);
+        let mut matrices: Vec<Transform> = Vec::with_capacity(children.len());
+        let mut offsets: Vec<u32> = Vec::with_capacity(children.len());
 
         // TODO: in the future I must think about join this iteration loops through abstractions or
         // compositing structures
