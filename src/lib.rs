@@ -1,5 +1,4 @@
 use rapier2d::{
-    math::Vec2,
     prelude::{ColliderSet, RigidBodySet},
 };
 use std::{
@@ -695,9 +694,6 @@ where
                 #[cfg(feature = "tracing")]
                 let _span = tracy_client::span!("Engine::resize");
                 rcx.recreate_swapchain = true;
-                let scale_x = 2.0 / rcx.window.inner_size().width as f32;
-                let scale_y = 2.0 / rcx.window.inner_size().height as f32;
-                (rcx.scale.x, rcx.scale.y) = (scale_x, scale_y);
             }
             WindowEvent::KeyboardInput { event, .. } => {
                 if event.state == ElementState::Pressed {
