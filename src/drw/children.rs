@@ -28,7 +28,7 @@ impl Children {
     }
 
     /// Returns the last element of the drawable, or `None` if it is empty.
-    /// # Returns 
+    /// # Returns
     /// [`Drawable`]
     pub fn last(&self) -> Option<&Drawable> {
         self.drawables.last()

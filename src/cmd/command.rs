@@ -25,20 +25,27 @@ pub enum DrawCommandReceive<'a> {
     Drawable(&'a Drawable),
 }
 
-/// FIFO Queue for execute engine commands
+/// FCFS Queue commands
 pub struct CommandQueue {
     commands: VecDeque<DrawCommand>,
 }
 
 impl CommandQueue {
+    /// Append command to the top of the queue
     pub fn append(&mut self, command: DrawCommand) {
         self.commands.push_back(command);
     }
 
+    /// Returns command queue size
+    /// # Returns
+    /// [`usize`]
     pub fn len(&self) -> usize {
         self.commands.len()
     }
 
+    /// Returns true if commands queue size equals zero
+    /// # Returns
+    /// [`bool`]
     pub fn is_empty(&self) -> bool {
         self.commands.is_empty()
     }
@@ -53,6 +60,7 @@ impl Default for CommandQueue {
 }
 
 pub trait CommandDispatcher {
+    /// Executes each command from [`CommandQueue`]
     fn flush_commands(&mut self);
 }
 
@@ -120,8 +128,7 @@ where
                 DrawCommand::ClearDrawables => {
                     info!("Clear drawables: {}", self.game.children.len());
                     self.game.children.clear();
-                },
-                _ => panic!("no-impl command")
+                }
             }
         }
     }

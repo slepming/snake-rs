@@ -1,6 +1,4 @@
-use rapier2d::{
-    prelude::{ColliderSet, RigidBodySet},
-};
+use rapier2d::prelude::{ColliderSet, RigidBodySet};
 use std::{
     collections::HashMap,
     ops::RangeInclusive,
@@ -19,10 +17,7 @@ use vulkano::{
         ImageUsage,
         sampler::{Filter, Sampler, SamplerAddressMode, SamplerCreateInfo},
     },
-    instance::{
-        Instance, InstanceCreateFlags, InstanceCreateInfo,
-        debug:: DebugUtilsMessenger,
-    },
+    instance::{Instance, InstanceCreateFlags, InstanceCreateInfo, debug::DebugUtilsMessenger},
     memory::allocator::{AllocationCreateInfo, MemoryAllocator, MemoryTypeFilter},
     pipeline::{
         Pipeline,
@@ -77,9 +72,9 @@ use crate::{
 };
 
 pub mod cmd;
-pub mod gpu;
 pub mod drw;
 pub mod geom;
+pub mod gpu;
 pub mod mem;
 pub mod mv;
 pub mod res;
@@ -91,31 +86,20 @@ pub mod utils;
 static GLOBAL: tracy_client::ProfiledAllocator<std::alloc::System> =
     tracy_client::ProfiledAllocator::new(std::alloc::System, 100);
 
-pub trait StartFn: FnMut(
-    &ActiveEventLoop,
-    &mut Children,
-    &mut AssetsManager,
-    Arc<Window>,
-    &mut CommandQueue,
-) {}
+pub trait StartFn:
+    FnMut(&ActiveEventLoop, &mut Children, &mut AssetsManager, Arc<Window>, &mut CommandQueue)
+{
+}
 
 impl<T> StartFn for T where
-    T: FnMut(
-        &ActiveEventLoop,
-        &mut Children,
-        &mut AssetsManager,
-        Arc<Window>,
-        &mut CommandQueue,
-    )
-{}
+    T: FnMut(&ActiveEventLoop, &mut Children, &mut AssetsManager, Arc<Window>, &mut CommandQueue)
+{
+}
 
-pub trait RedrawFn: FnMut(
-    &mut Children,
-    &mut PhysicsContext,
-    &mut AssetsManager,
-    &WindowEvent,
-    &mut CommandQueue,
-) {}
+pub trait RedrawFn:
+    FnMut(&mut Children, &mut PhysicsContext, &mut AssetsManager, &WindowEvent, &mut CommandQueue)
+{
+}
 
 impl<T> RedrawFn for T where
     T: FnMut(
@@ -125,7 +109,8 @@ impl<T> RedrawFn for T where
         &WindowEvent,
         &mut CommandQueue,
     )
-{}
+{
+}
 
 /// The main entry point into the engine
 /// # Generics
