@@ -10,6 +10,21 @@ pub struct Transform {
     pub transform: [[f32; 4]; 4],
 }
 
+impl PartialEq for Transform {
+    fn eq(&self, other: &Self) -> bool {
+        for i in 0..4 {
+            for j in 0..4 {
+                if self.transform[i][j].to_bits() != other.transform[i][j].to_bits() {
+                    return false;
+                }
+            }
+        }
+        true
+    }
+}
+
+impl Eq for Transform {}
+
 impl Hash for Transform {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         for row in &self.transform {

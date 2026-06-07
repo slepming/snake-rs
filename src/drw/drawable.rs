@@ -26,6 +26,7 @@ use color::Rgba8;
 use vulkano::descriptor_set::DescriptorSet;
 
 /// The main element that is rendered by the Vulkan
+#[derive(PartialEq)]
 pub struct Drawable {
     transform: Transform,
     color: Rgba8,
@@ -33,19 +34,20 @@ pub struct Drawable {
 }
 
 /// Pipeline id structure
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct PipelineID {
     /// String ID to search pipelines
     pub id: String,
 }
 
 /// Descriptor set id structure
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct DescriptorID {
     /// String ID to search descriptor sets
     pub id: String,
 }
 
+#[derive(PartialEq)]
 pub(crate) struct DrawableRenderContext {
     /// Memory descriptor key(id). Drawable doesn't know anything about the descriptor
     pub(crate) descriptor_id: DescriptorID,
@@ -161,6 +163,13 @@ pub struct Mesh {
     id: u32,
 }
 
+impl PartialEq for Mesh {
+    fn eq(&self, other: &Self) -> bool {
+        self.vertex == other.vertex
+    }
+}
+
+#[derive(PartialEq)]
 pub struct PhysicsDrawable {
     rb_h: RigidBodyHandle,
     drawable: Drawable,

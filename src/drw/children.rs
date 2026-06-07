@@ -14,6 +14,11 @@ impl Children {
         self.drawables.push(item);
     }
 
+    /// Check if drawable exists
+    pub fn contains(&self, item: &Drawable) -> bool {
+        self.drawables.contains(item)
+    }
+
     /// # Returns
     /// [`Drawable`]
     pub fn get(&self, index: usize) -> Option<&Drawable> {

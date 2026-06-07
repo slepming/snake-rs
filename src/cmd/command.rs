@@ -2,7 +2,7 @@
 
 use std::{collections::VecDeque, sync::Arc};
 
-use tracing::{debug, info};
+use tracing::{debug, info, warn};
 use winit::{event::WindowEvent, event_loop::ActiveEventLoop, window::Window};
 
 use crate::{
@@ -105,6 +105,12 @@ where
                         self.descriptors.clone(),
                         Some(self.sampler.clone()),
                     );
+
+                    if self.game.children.contains(&drw.0) {
+                        warn!("Object exists, dropping");
+                        drop(drw);
+                        return;
+                    }
 
                     if let Some(descriptor) = drw.1 {
                         if self
