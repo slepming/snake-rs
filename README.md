@@ -32,10 +32,10 @@ It's build steps **for GNU/Linux and FreeBSD**
 
 First step is building shaders
 ```sh
-for shader in "./engine/shaders"/*; do
+for shader in "./shaders"/*; do
   if [[ "${shader}" == *.frag || "${shader}" == *.vert ]]; then
     glslangValidator -V "$shader" -o "$shader.spv"
   fi
 done
 ```
-And then you can build engine and game with `cargo build` or `cargo run`
+And then you can build engine and game with `cargo build` or `cargo run` for game
