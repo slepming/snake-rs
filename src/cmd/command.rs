@@ -3,17 +3,14 @@
 use std::{collections::VecDeque, sync::Arc};
 
 use tracing::{debug, info, warn};
+use vulkano::descriptor_set::DescriptorSet;
 use winit::{event::WindowEvent, event_loop::ActiveEventLoop, window::Window};
 
 use crate::{
-    EngineContext,
-    drw::{
+    EngineContext, RedrawFn, StartFn, drw::{
         children::Children,
         drawable::{Drawable, DrawableCreateInfo},
-    },
-    geom::shapes::Shapes,
-    mv::phys::movement::PhysicsContext,
-    res::cache::CacheProvider,
+    }, geom::shapes::Shapes, mv::phys::movement::PhysicsContext, res::cache::CacheProvider
 };
 
 pub enum DrawCommand {
@@ -66,20 +63,8 @@ pub trait CommandDispatcher {
 
 impl<Redraw, Start> CommandDispatcher for EngineContext<Redraw, Start>
 where
-    Redraw: FnMut(
-        &mut Children,
-        &mut PhysicsContext,
-        &mut crate::res::assets::AssetsManager,
-        &WindowEvent,
-        &mut CommandQueue,
-    ),
-    Start: FnMut(
-        &ActiveEventLoop,
-        &mut Children,
-        &mut crate::res::assets::AssetsManager,
-        Arc<Window>,
-        &mut CommandQueue,
-    ),
+    Redraw: RedrawFn,
+    Start: StartFn,
 {
     fn flush_commands(&mut self) {
         #[cfg(feature = "tracing")]
@@ -91,45 +76,31 @@ where
 
         let commands_count = self.game.game_command_queue.commands.len();
         debug!(commands_count = commands_count, "Flush commands");
-        let commands = self.game.game_command_queue.commands.drain(..);
+        let commands: Vec<_> = self.game.game_command_queue.commands.drain(..).collect();
         for command in commands {
             match command {
                 DrawCommand::DrawObject(s, drw) => {
                     let pipeline_name = s.as_ref().to_lowercase();
-                    let drw = Drawable::from_shape(
-                        s.clone(),
-                        drw.with_id(self.game.children.len() as u32 + 1),
-                        self.memory.memory_allocator.clone(),
-                        self.memory.descriptor_allocator.clone(),
-                        self.pipelines.clone(),
-                        self.descriptors.clone(),
-                        Some(self.sampler.clone()),
-                    );
-
-                    if self.game.children.contains(&drw.0) {
-                        warn!("Object exists, dropping");
-                        drop(drw);
-                        return;
-                    }
-
-                    if let Some(descriptor) = drw.1 {
-                        if self
-                            .descriptors
-                            .get(pipeline_name.clone().as_str())
-                            .is_none()
-                        {
-                            self.descriptors
-                                .insert((pipeline_name.clone(), descriptor.clone()));
+                    if let Some(drw) = draw_object(self, s, drw, false) {
+                        if let Some(descriptor) = drw.1 {
+                            if self
+                                .descriptors
+                                .get(pipeline_name.clone().as_str())
+                                .is_none()
+                            {
+                                self.descriptors
+                                    .insert((pipeline_name.clone(), descriptor.clone()));
+                            }
                         }
-                    }
 
-                    let drw_id = drw.0.render.mesh.get_id().clone();
-                    self.game.children.add(drw.0);
-                    info!(
-                        pipeline_name = &pipeline_name,
-                        drw_id = drw_id,
-                        "Object created"
-                    );
+                        let drw_id = drw.0.render.mesh.get_id().clone();
+                        self.game.children.add(drw.0);
+                        info!(
+                            pipeline_name = &pipeline_name,
+                            drw_id = drw_id,
+                            "Object created"
+                        );
+                    }
                 }
                 DrawCommand::ClearDrawables => {
                     info!("Clear drawables: {}", self.game.children.len());
@@ -138,4 +109,28 @@ where
             }
         }
     }
+}
+
+fn draw_object<Redraw, Start>(context: &EngineContext<Redraw, Start>,shape: Shapes, create_info: DrawableCreateInfo, force: bool) -> Option<(Drawable, Option<Arc<DescriptorSet>>)> 
+where
+    Redraw: RedrawFn,
+    Start: StartFn,
+{
+        let drw = Drawable::from_shape(
+            shape.clone(),
+            create_info.with_id(context.game.children.len() as u32 + 1),
+            context.memory.memory_allocator.clone(),
+            context.memory.descriptor_allocator.clone(),
+            context.pipelines.clone(),
+            context.descriptors.clone(),
+            Some(context.sampler.clone()),
+        );
+
+        if context.game.children.contains(&drw.0) && !force {
+            warn!("Object exists, dropping");
+            drop(drw);
+            return None;
+        }
+
+        Some(drw)
 }
