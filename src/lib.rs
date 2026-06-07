@@ -1,4 +1,7 @@
 use rapier2d::prelude::{ColliderSet, RigidBodySet};
+#[cfg(debug_assertions)]
+#[cfg(feature = "tracing")]
+use tracy_client::GpuContext;
 use std::{
     collections::HashMap,
     ops::RangeInclusive,
@@ -133,7 +136,6 @@ where
     rcx: Option<RenderContext>,
     pub(crate) physics_context: PhysicsContext,
     game: GameContext,
-    #[allow(dead_code)]
     debug: DebugUtils,
     redraw: Redraw,
     start: Start,
@@ -141,6 +143,8 @@ where
 
 pub(crate) struct DebugUtils {
     debug_callback: Option<DebugUtilsMessenger>,
+    #[cfg(feature = "tracing")]
+    tracing: GpuContext
 }
 
 pub(crate) struct GameContext {

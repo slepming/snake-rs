@@ -19,10 +19,14 @@ impl Children {
         self.drawables.contains(item)
     }
 
-    /// # Returns
-    /// [`Drawable`]
+    /// Returns [`Drawable`]
     pub fn get(&self, index: usize) -> Option<&Drawable> {
         self.drawables.get(index)
+    }
+
+    /// Returns mutable [`Drawable`] reference
+    pub fn get_mut(&mut self, index: usize) -> Option<&mut Drawable> {
+        self.drawables.get_mut(index)
     }
 
     /// Drawables iterator
@@ -33,15 +37,14 @@ impl Children {
     }
 
     /// Returns the last element of the drawable, or `None` if it is empty.
+    ///
     /// # Returns
     /// [`Drawable`]
     pub fn last(&self) -> Option<&Drawable> {
         self.drawables.last()
     }
 
-    /// # Returns
-    /// Children length
-    /// [`usize`]
+    /// Returns Children length
     pub fn len(&self) -> usize {
         self.drawables.len()
     }
