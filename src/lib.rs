@@ -825,7 +825,10 @@ where
                     // TODO: Document state setting and how it affects subsequent draw commands.
                     .set_viewport(0, [rcx.viewport.clone()].into_iter().collect())
                     .unwrap();
+
                 if let Some(mesh) = mesh_buffers {
+                    #[cfg(feature = "tracing")]
+                    let _span_draw = tracy_client::span!("Engine:: Preparing Objects for Rendering");
                     builder.bind_vertex_buffers(0, mesh.0.clone()).unwrap();
                     let all_items = self.game.children.iter();
 
@@ -864,6 +867,8 @@ where
                             .descriptors
                             .get(&item.drawable().render.descriptor_id.id)
                         {
+                            #[cfg(feature = "tracing")]
+                            let _span_draw = tracy_client::span!("Engine: Getting descriptors");
                             builder
                                 .bind_descriptor_sets(
                                     vulkano::pipeline::PipelineBindPoint::Graphics,

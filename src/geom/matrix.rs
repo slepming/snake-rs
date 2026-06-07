@@ -1,3 +1,5 @@
+use std::hash::Hash;
+
 use vulkano::buffer::BufferContents;
 
 use crate::mv::transform::HasTransform;
@@ -6,6 +8,16 @@ use crate::mv::transform::HasTransform;
 #[derive(BufferContents, Clone, Copy, Debug)]
 pub struct Transform {
     pub transform: [[f32; 4]; 4],
+}
+
+impl Hash for Transform {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        for row in &self.transform {
+            for &v in row {
+                state.write_u32(v.to_bits());
+            }
+        }
+    }
 }
 
 impl std::fmt::Display for Transform {
