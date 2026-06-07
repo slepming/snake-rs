@@ -7,10 +7,14 @@ use vulkano::descriptor_set::DescriptorSet;
 use winit::{event::WindowEvent, event_loop::ActiveEventLoop, window::Window};
 
 use crate::{
-    EngineContext, RedrawFn, StartFn, drw::{
+    EngineContext, RedrawFn, StartFn,
+    drw::{
         children::Children,
         drawable::{Drawable, DrawableCreateInfo},
-    }, geom::shapes::Shapes, mv::phys::movement::PhysicsContext, res::cache::CacheProvider
+    },
+    geom::shapes::Shapes,
+    mv::phys::movement::PhysicsContext,
+    res::cache::CacheProvider,
 };
 
 pub enum DrawCommand {
@@ -111,26 +115,31 @@ where
     }
 }
 
-fn draw_object<Redraw, Start>(context: &EngineContext<Redraw, Start>,shape: Shapes, create_info: DrawableCreateInfo, force: bool) -> Option<(Drawable, Option<Arc<DescriptorSet>>)> 
+fn draw_object<Redraw, Start>(
+    context: &EngineContext<Redraw, Start>,
+    shape: Shapes,
+    create_info: DrawableCreateInfo,
+    force: bool,
+) -> Option<(Drawable, Option<Arc<DescriptorSet>>)>
 where
     Redraw: RedrawFn,
     Start: StartFn,
 {
-        let drw = Drawable::from_shape(
-            shape.clone(),
-            create_info.with_id(context.game.children.len() as u32 + 1),
-            context.memory.memory_allocator.clone(),
-            context.memory.descriptor_allocator.clone(),
-            context.pipelines.clone(),
-            context.descriptors.clone(),
-            Some(context.sampler.clone()),
-        );
+    let drw = Drawable::from_shape(
+        shape.clone(),
+        create_info.with_id(context.game.children.len() as u32 + 1),
+        context.memory.memory_allocator.clone(),
+        context.memory.descriptor_allocator.clone(),
+        context.pipelines.clone(),
+        context.descriptors.clone(),
+        Some(context.sampler.clone()),
+    );
 
-        if context.game.children.contains(&drw.0) && !force {
-            warn!("Object exists, dropping");
-            drop(drw);
-            return None;
-        }
+    if context.game.children.contains(&drw.0) && !force {
+        warn!("Object exists, dropping");
+        drop(drw);
+        return None;
+    }
 
-        Some(drw)
+    Some(drw)
 }

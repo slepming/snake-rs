@@ -828,7 +828,8 @@ where
 
                 if let Some(mesh) = mesh_buffers {
                     #[cfg(feature = "tracing")]
-                    let _span_draw = tracy_client::span!("Engine:: Preparing Objects for Rendering");
+                    let _span_draw =
+                        tracy_client::span!("Engine:: Preparing Objects for Rendering");
                     builder.bind_vertex_buffers(0, mesh.0.clone()).unwrap();
                     let all_items = self.game.children.iter();
 
