@@ -143,8 +143,6 @@ where
 
 pub(crate) struct DebugUtils {
     debug_callback: Option<DebugUtilsMessenger>,
-    #[cfg(feature = "tracing")]
-    tracing: GpuContext
 }
 
 pub(crate) struct GameContext {
@@ -232,6 +230,7 @@ where
         let mut debug: DebugUtils = DebugUtils {
             debug_callback: None,
         };
+
         #[cfg(debug_assertions)]
         {
             // PANIC when message severity or message type is unkown
@@ -325,7 +324,7 @@ where
         let _span = tracy_client::span!("Engine::calculate_drawables");
 
         // Predicting the possible vector size
-        let mut vertices: Vec<MyVertex> = Vec::with_capacity(children.len() * 2);
+        let mut vertices: Vec<MyVertex> = Vec::with_capacity(children.len());
         let mut matrices: Vec<Transform> = Vec::with_capacity(children.len());
         let mut offsets: Vec<u32> = Vec::with_capacity(children.len());
 

@@ -17,7 +17,7 @@ use crate::{
     geom::{matrix::Transform, shapes::Shapes},
     mv::{
         phys::movement::PhysicsContext,
-        transform::{Entity, Positioned},
+        transform::{Entity, HasTransform, Positioned},
     },
     res::cache::{DescriptorSetCache, PipelineCache},
 };
@@ -217,14 +217,14 @@ impl Drawable {
         vertex: Vec<MyVertex>,
     ) -> Self {
         let pos = drawable_info.position;
-        let transform = Transform {
-            transform: [
+        let transform = Transform (
+            [
                 [drawable_info.size[0], 0.0, 0.0, 0.0],
                 [0.0, drawable_info.size[1], 0.0, 0.0],
                 [0.0, 0.0, 1.0, 0.0],
                 [pos[0], pos[1], 0.0, 1.0],
             ],
-        };
+        );
 
         let drawable = Drawable {
             color: drawable_info.color,
@@ -393,15 +393,16 @@ impl Entity for PhysicsDrawable {
 
 impl Positioned for Drawable {
     fn position(&self) -> Vec2 {
-        let transform = self.transform.transform.as_ref();
+        let transform = self.transform.matrix();
 
         Vec2::new(transform[0][0], transform[1][1])
     }
 
     fn set_position(&mut self, vec: Vec2) {
         let current_transform = self.transform_mut();
+        let current_matrix = current_transform.matrix_mut();
 
-        current_transform.transform[0][0] = vec.x;
-        current_transform.transform[1][1] = vec.y;
+        current_matrix[0][0] = vec.x;
+        current_matrix[1][1] = vec.y;
     }
 }
