@@ -5,6 +5,7 @@ use std::{
     sync::{Arc, RwLock},
 };
 
+use rust_embed::Embed;
 use tracing::debug;
 use vulkano::{
     DeviceSize,
@@ -19,6 +20,10 @@ use vulkano::{
 };
 
 use crate::{drw::texture::Texture, mem::engine_memory::EngineMemory};
+
+#[derive(Embed)]
+#[folder = "assets/"]
+pub(crate) struct Asset; // TODO: Binary file large
 
 pub struct AssetsManager {
     pub(crate) queue: Arc<Queue>,
@@ -79,7 +84,7 @@ impl AssetsManager {
                         | MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
                     ..Default::default()
                 },
-                (texture.dimensions.0 * texture.dimensions.1 * 4) as DeviceSize,
+                (texture.dimension.dimension.x * texture.dimension.dimension.y * 4 as f32) as DeviceSize,
             )
             .unwrap();
 
@@ -93,7 +98,7 @@ impl AssetsManager {
                 ImageCreateInfo {
                     image_type: vulkano::image::ImageType::Dim2d,
                     format: vulkano::format::Format::R8G8B8A8_UNORM,
-                    extent: [texture.dimensions.0, texture.dimensions.1, 1],
+                    extent: [texture.dimension.dimension.x as u32, texture.dimension.dimension.y as u32, 1],
                     usage: ImageUsage::TRANSFER_DST | ImageUsage::SAMPLED,
                     ..Default::default()
                 },

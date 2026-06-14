@@ -74,6 +74,7 @@ use crate::{
     },
 };
 
+pub mod fnt;
 pub mod cmd;
 pub mod drw;
 pub mod geom;
@@ -83,6 +84,8 @@ pub mod mv;
 pub mod res;
 pub mod shaders;
 pub mod utils;
+
+pub type Vector = rapier2d::math::Vec2;
 
 #[cfg(feature = "tracing")]
 #[global_allocator]
