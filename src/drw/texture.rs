@@ -16,7 +16,7 @@ impl Texture {
     pub fn new(stream: Vec<u8>, dimension: Dimension) -> Self {
         Self {
             image: stream,
-            dimension
+            dimension,
         }
     }
     /// Retrives texture from image file

@@ -217,14 +217,12 @@ impl Drawable {
         vertex: Vec<MyVertex>,
     ) -> Self {
         let pos = drawable_info.position;
-        let transform = Transform (
-            [
-                [drawable_info.size[0], 0.0, 0.0, 0.0],
-                [0.0, drawable_info.size[1], 0.0, 0.0],
-                [0.0, 0.0, 1.0, 0.0],
-                [pos[0], pos[1], 0.0, 1.0],
-            ],
-        );
+        let transform = Transform([
+            [drawable_info.size[0], 0.0, 0.0, 0.0],
+            [0.0, drawable_info.size[1], 0.0, 0.0],
+            [0.0, 0.0, 1.0, 0.0],
+            [pos[0], pos[1], 0.0, 1.0],
+        ]);
 
         let drawable = Drawable {
             color: drawable_info.color,

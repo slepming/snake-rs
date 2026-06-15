@@ -1,13 +1,13 @@
 use rapier2d::prelude::{ColliderSet, RigidBodySet};
-#[cfg(debug_assertions)]
-#[cfg(feature = "tracing")]
-use tracy_client::GpuContext;
 use std::{
     collections::HashMap,
     ops::RangeInclusive,
     sync::{Arc, RwLock},
 };
 use tracing::{debug, info};
+#[cfg(debug_assertions)]
+#[cfg(feature = "tracing")]
+use tracy_client::GpuContext;
 use vulkano::{
     Validated, VulkanError, VulkanLibrary,
     buffer::{Buffer, BufferContents, BufferCreateInfo, BufferUsage, Subbuffer},
@@ -60,7 +60,7 @@ use crate::{
     mem::engine_memory::EngineMemory,
     mv::phys::movement::{PhysicsContext, PhysicsSpace},
     res::{
-        assets::AssetsManager,
+        assets::Storage,
         cache::{CacheProvider, DescriptorSetCache, PipelineCache},
     },
     shaders::{
@@ -74,9 +74,9 @@ use crate::{
     },
 };
 
-pub mod fnt;
 pub mod cmd;
 pub mod drw;
+pub mod fnt;
 pub mod geom;
 pub mod gpu;
 pub mod mem;
@@ -93,28 +93,22 @@ static GLOBAL: tracy_client::ProfiledAllocator<std::alloc::System> =
     tracy_client::ProfiledAllocator::new(std::alloc::System, 100);
 
 pub trait StartFn:
-    FnMut(&ActiveEventLoop, &mut Children, &mut AssetsManager, Arc<Window>, &mut CommandQueue)
+    FnMut(&ActiveEventLoop, &mut Children, &mut Storage, Arc<Window>, &mut CommandQueue)
 {
 }
 
 impl<T> StartFn for T where
-    T: FnMut(&ActiveEventLoop, &mut Children, &mut AssetsManager, Arc<Window>, &mut CommandQueue)
+    T: FnMut(&ActiveEventLoop, &mut Children, &mut Storage, Arc<Window>, &mut CommandQueue)
 {
 }
 
 pub trait RedrawFn:
-    FnMut(&mut Children, &mut PhysicsContext, &mut AssetsManager, &WindowEvent, &mut CommandQueue)
+    FnMut(&mut Children, &mut PhysicsContext, &mut Storage, &WindowEvent, &mut CommandQueue)
 {
 }
 
 impl<T> RedrawFn for T where
-    T: FnMut(
-        &mut Children,
-        &mut PhysicsContext,
-        &mut AssetsManager,
-        &WindowEvent,
-        &mut CommandQueue,
-    )
+    T: FnMut(&mut Children, &mut PhysicsContext, &mut Storage, &WindowEvent, &mut CommandQueue)
 {
 }
 
@@ -150,7 +144,7 @@ pub(crate) struct DebugUtils {
 
 pub(crate) struct GameContext {
     pub children: Children,
-    pub assets: AssetsManager,
+    pub assets: Storage,
     pub frames: u64,
     pub game_command_queue: CommandQueue,
 }
@@ -281,7 +275,7 @@ where
         info!("Initializing Physics context");
         let ph_context = PhysicsContext::new(rbs, cds, space);
 
-        let assets = AssetsManager {
+        let assets = Storage {
             queue: queue.clone(),
             memory_allocs: memory.clone(),
             texture_pool: RwLock::new(HashMap::new()),

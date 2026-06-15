@@ -1,10 +1,12 @@
 use std::{
+    borrow::Cow,
     collections::HashMap,
     fmt::Debug,
     path::Path,
     sync::{Arc, RwLock},
 };
 
+use anyhow::Error;
 use rust_embed::Embed;
 use tracing::debug;
 use vulkano::{
@@ -25,7 +27,7 @@ use crate::{drw::texture::Texture, mem::engine_memory::EngineMemory};
 #[folder = "assets/"]
 pub(crate) struct Asset; // TODO: Binary file large
 
-pub struct AssetsManager {
+pub struct Storage {
     pub(crate) queue: Arc<Queue>,
     pub(crate) memory_allocs: Arc<EngineMemory>,
     pub(crate) texture_pool: RwLock<HashMap<String, Arc<TextureHandler>>>,
@@ -36,15 +38,22 @@ pub struct TextureHandler {
     pub(crate) view: Arc<ImageView>,
 }
 
-impl AssetsManager {
-    pub fn load(&self, file_name: &Path, internal: bool) -> Arc<TextureHandler> {
+impl Storage {
+    pub fn load(&self, file_name: &Path) -> Result<Cow<'static, [u8]>, Error> {
+        let file = file_name.to_string_lossy();
+        match Asset::get(&file) {
+            Some(f) => Ok(f.data),
+            None => Err(Error::msg("The file is not available in the storage")),
+        }
+    }
+
+    pub fn load_texture(&self, file_name: &Path, internal: bool) -> Arc<TextureHandler> {
         #[cfg(feature = "tracing")]
         let _span = tracy_client::span!("Engine::load_texture");
         let file = file_name
             .file_name()
             .unwrap()
-            .to_str()
-            .unwrap()
+            .to_string_lossy()
             .to_string()
             .to_lowercase();
 
@@ -84,7 +93,8 @@ impl AssetsManager {
                         | MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
                     ..Default::default()
                 },
-                (texture.dimension.dimension.x * texture.dimension.dimension.y * 4 as f32) as DeviceSize,
+                (texture.dimension.dimension.x * texture.dimension.dimension.y * 4 as f32)
+                    as DeviceSize,
             )
             .unwrap();
 
@@ -98,7 +108,11 @@ impl AssetsManager {
                 ImageCreateInfo {
                     image_type: vulkano::image::ImageType::Dim2d,
                     format: vulkano::format::Format::R8G8B8A8_UNORM,
-                    extent: [texture.dimension.dimension.x as u32, texture.dimension.dimension.y as u32, 1],
+                    extent: [
+                        texture.dimension.dimension.x as u32,
+                        texture.dimension.dimension.y as u32,
+                        1,
+                    ],
                     usage: ImageUsage::TRANSFER_DST | ImageUsage::SAMPLED,
                     ..Default::default()
                 },

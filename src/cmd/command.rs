@@ -4,21 +4,18 @@ use std::{collections::VecDeque, sync::Arc};
 
 use tracing::{debug, info, warn};
 use vulkano::descriptor_set::DescriptorSet;
-use winit::{event::WindowEvent, event_loop::ActiveEventLoop, window::Window};
 
 use crate::{
     EngineContext, RedrawFn, StartFn,
-    drw::{
-        children::Children,
-        drawable::{Drawable, DrawableCreateInfo},
-    },
+    drw::drawable::{Drawable, DrawableCreateInfo},
+    fnt::font::Font,
     geom::shapes::Shapes,
-    mv::phys::movement::PhysicsContext,
     res::cache::CacheProvider,
 };
 
 pub enum DrawCommand {
     DrawObject(Shapes, DrawableCreateInfo),
+    DrawText(Font),
     ClearDrawables,
 }
 
@@ -110,6 +107,7 @@ where
                     info!("Clear drawables: {}", self.game.children.len());
                     self.game.children.clear();
                 }
+                DrawCommand::DrawText(_font) => todo!(),
             }
         }
     }
