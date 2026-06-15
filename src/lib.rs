@@ -324,7 +324,7 @@ where
         let _span = tracy_client::span!("Engine::calculate_drawables");
 
         // Predicting the possible vector size
-        let mut vertices: Vec<MyVertex> = Vec::with_capacity(children.len());
+        let mut vertices: Vec<MyVertex> = Vec::with_capacity(children.len() * 2);
         let mut matrices: Vec<Transform> = Vec::with_capacity(children.len());
         let mut offsets: Vec<u32> = Vec::with_capacity(children.len());
 
@@ -352,6 +352,12 @@ where
         children.iter().for_each(|drawable| {
             let verts = drawable.get_vertex();
             let matrix = drawable.transform_clone();
+            // We have few MyVertex elements for each drawable component. For this we create offset
+            // relative each drawable MyVertex elements. We have drawables with 
+            // [MyVertex; n] where n is **dynamic** number, to resolve this problem this iteration
+            // write to the offsets vector offset for each drawable element. For first drawble is
+            // 4(bec MyVertex; 4), for second drawable is 12(bec second drawable have MyVertex; 8 ->
+            // 4+8)
             let offset = vertices.len() as u32;
 
             offsets.push(offset);
@@ -862,7 +868,7 @@ where
                                 .unwrap();
                         }
 
-                        let vertex_cursor = mesh.2[i] as u32;
+                        let vertex_cursor = mesh.2[i];
                         let vertex_count = item.get_vertex().len() as u32;
 
                         builder.bind_pipeline_graphics(pipeline.clone()).unwrap();
