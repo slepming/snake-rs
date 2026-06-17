@@ -8,14 +8,14 @@ use vulkano::descriptor_set::DescriptorSet;
 use crate::{
     EngineContext, RedrawFn, StartFn,
     drw::drawable::{Drawable, DrawableCreateInfo},
-    fnt::font::Font,
+    fnt::font::TextFont,
     geom::shapes::Shapes,
     res::cache::CacheProvider,
 };
 
 pub enum DrawCommand {
     DrawObject(Shapes, DrawableCreateInfo),
-    DrawText(Font),
+    DrawText(TextFont),
     ClearDrawables,
 }
 
