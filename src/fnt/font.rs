@@ -3,6 +3,7 @@ use std::{borrow::Cow, path::Path};
 use ab_glyph::{Font, FontVec, Glyph, Point, PxScale, ScaleFont, point};
 use color::Rgba8;
 use image::{DynamicImage, ImageBuffer, Rgba};
+use tracing::info;
 
 use crate::res::assets::Storage;
 
@@ -21,6 +22,8 @@ impl TextFont {
         let font = FontVec::try_from_vec(font_in_bytes.into_owned()).unwrap();
         let mut fonts: Vec<FontVec> = Vec::with_capacity(1);
         fonts.push(font);
+
+        info!("New font with family: {} imported", family);
 
         Self { size, fonts }
     }
@@ -43,7 +46,7 @@ impl TextFont {
         let scaled_font = self.fonts[font].as_scaled(scale);
 
         let mut glyphs = Vec::with_capacity(30);
-        layout_paragraph(scaled_font, point(20.0, 20.0), 9999.0, &text, &mut glyphs);
+        layout_paragraph(scaled_font, point(20.0, 20.0), 15.0, &text, &mut glyphs);
         // to work out the exact size needed for the drawn glyphs we need to outline
         // them and use their `px_bounds` which hold the coords of their render bounds.
         let outlined: Vec<_> = glyphs

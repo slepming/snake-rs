@@ -39,10 +39,8 @@ pub struct TextureHandler {
 }
 
 impl Storage {
-    pub fn load_texture_from_bytes(&self, bytes: &[u8]) -> Arc<TextureHandler> { 
-        let texture: Texture = {
-            Texture::from_slice(bytes).unwrap()
-        };
+    pub fn load_texture_from_bytes(&self, bytes: &[u8]) -> Arc<TextureHandler> {
+        let texture: Texture = { Texture::from_slice(bytes).unwrap() };
 
         debug!(
             loaded_image_size = texture.image.len(),
@@ -53,7 +51,7 @@ impl Storage {
 
         texture_handler
     }
-    
+
     /// Returns Copy on Write byte slice
     pub fn load<'a>(&self, file_name: &Path) -> Result<Cow<'a, [u8]>, Error> {
         let file = file_name.to_string_lossy();
@@ -124,15 +122,11 @@ impl Storage {
                         | MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
                     ..Default::default()
                 },
-                (dimension.dimension.x * dimension.dimension.y * 4 as f32)
-                    as DeviceSize,
+                (dimension.dimension.x * dimension.dimension.y * 4 as f32) as DeviceSize,
             )
             .unwrap();
 
-            upload_buffer
-                .write()
-                .unwrap()
-                .copy_from_slice(texture);
+            upload_buffer.write().unwrap().copy_from_slice(texture);
 
             let image = Image::new(
                 self.memory_allocs.memory_allocator.clone(),

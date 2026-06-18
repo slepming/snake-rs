@@ -71,7 +71,7 @@ impl Texture {
 
         Some(Self {
             image: img.into_rgba8().as_raw().to_vec(),
-            dimension: Dimension::from(dimension)
+            dimension: Dimension::from(dimension),
         })
     }
 }
