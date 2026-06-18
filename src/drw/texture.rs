@@ -1,6 +1,7 @@
 //! Image processing and creation
 use image::GenericImageView;
-use tracing::info;
+use rapier2d::na::dimension;
+use tracing::{debug, info};
 
 use crate::{geom::dimension::Dimension, res::assets::Asset};
 
@@ -57,5 +58,20 @@ impl Texture {
                 None
             }
         }
+    }
+
+    pub fn from_slice(bytes: &[u8]) -> Option<Self> {
+        if bytes.len() == 0 {
+            return None;
+        }
+
+        debug!("Load texture from byte slice");
+        let img = image::load_from_memory(bytes).unwrap();
+        let dimension = img.dimensions();
+
+        Some(Self {
+            image: img.into_rgba8().as_raw().to_vec(),
+            dimension: Dimension::from(dimension)
+        })
     }
 }

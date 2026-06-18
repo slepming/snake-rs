@@ -21,7 +21,7 @@ use vulkano::{
     sync::GpuFuture,
 };
 
-use crate::{drw::texture::Texture, mem::engine_memory::EngineMemory};
+use crate::{drw::texture::Texture, geom::dimension::Dimension, mem::engine_memory::EngineMemory};
 
 #[derive(Embed)]
 #[folder = "assets/"]
@@ -39,6 +39,21 @@ pub struct TextureHandler {
 }
 
 impl Storage {
+    pub fn load_texture_from_bytes(&self, bytes: &[u8]) -> Arc<TextureHandler> { 
+        let texture: Texture = {
+            Texture::from_slice(bytes).unwrap()
+        };
+
+        debug!(
+            loaded_image_size = texture.image.len(),
+            loaded_image_size_mb = texture.image.len() / 1024 / 1024
+        );
+
+        let texture_handler = self.create_texture_handler(texture.dimension, &texture.image);
+
+        texture_handler
+    }
+    
     /// Returns Copy on Write byte slice
     pub fn load<'a>(&self, file_name: &Path) -> Result<Cow<'a, [u8]>, Error> {
         let file = file_name.to_string_lossy();
@@ -75,6 +90,21 @@ impl Storage {
             loaded_image_size_mb = texture.image.len() / 1024 / 1024
         );
 
+        let texture_handler = self.create_texture_handler(texture.dimension, &texture.image);
+        self.texture_pool
+            .write()
+            .unwrap()
+            .insert(file.clone(), texture_handler);
+
+        self.texture_pool
+            .read()
+            .unwrap()
+            .get(&file)
+            .expect(format!("texture pool not contain {}", file).as_str())
+            .clone()
+    }
+
+    fn create_texture_handler(&self, dimension: Dimension, texture: &[u8]) -> Arc<TextureHandler> {
         let mut uploads = AutoCommandBufferBuilder::primary(
             self.memory_allocs.command_buffer_allocator.clone(),
             self.queue.queue_family_index(),
@@ -94,7 +124,7 @@ impl Storage {
                         | MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
                     ..Default::default()
                 },
-                (texture.dimension.dimension.x * texture.dimension.dimension.y * 4 as f32)
+                (dimension.dimension.x * dimension.dimension.y * 4 as f32)
                     as DeviceSize,
             )
             .unwrap();
@@ -102,7 +132,7 @@ impl Storage {
             upload_buffer
                 .write()
                 .unwrap()
-                .copy_from_slice(&texture.image);
+                .copy_from_slice(texture);
 
             let image = Image::new(
                 self.memory_allocs.memory_allocator.clone(),
@@ -110,8 +140,8 @@ impl Storage {
                     image_type: vulkano::image::ImageType::Dim2d,
                     format: vulkano::format::Format::R8G8B8A8_UNORM,
                     extent: [
-                        texture.dimension.dimension.x as u32,
-                        texture.dimension.dimension.y as u32,
+                        dimension.dimension.x as u32,
+                        dimension.dimension.y as u32,
                         1,
                     ],
                     usage: ImageUsage::TRANSFER_DST | ImageUsage::SAMPLED,
@@ -141,16 +171,6 @@ impl Storage {
             .unwrap();
 
         let texture_handler = TextureHandler { view: image_view };
-        self.texture_pool
-            .write()
-            .unwrap()
-            .insert(file.clone(), Arc::new(texture_handler));
-
-        self.texture_pool
-            .read()
-            .unwrap()
-            .get(&file)
-            .expect(format!("texture pool not contain {}", file).as_str())
-            .clone()
+        Arc::new(texture_handler)
     }
 }

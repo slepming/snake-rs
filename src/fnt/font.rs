@@ -15,7 +15,7 @@ pub struct TextFont {
 
 impl TextFont {
     /// Returns [`TextFont`] structure
-    pub fn new(storage: Storage, size: f32, family: String) -> Self {
+    pub fn new(storage: &Storage, size: f32, family: String) -> Self {
         let path_to_font = Path::new(&family);
         let font_in_bytes = storage.load(&path_to_font).unwrap();
         let font = FontVec::try_from_vec(font_in_bytes.into_owned()).unwrap();
@@ -32,15 +32,15 @@ impl TextFont {
         self.fonts.push(font);
     }
 
-    pub fn get_glyphs<'a, F: Font>(
+    pub fn get_glyphs<'a>(
         &self,
         text: String,
         colour: Rgba8,
-        font: F,
+        font: usize,
     ) -> Cow<'a, ImageBuffer<Rgba<u8>, Vec<u8>>> {
         let scale = PxScale::from(self.size);
 
-        let scaled_font = font.as_scaled(scale);
+        let scaled_font = self.fonts[font].as_scaled(scale);
 
         let mut glyphs = Vec::with_capacity(30);
         layout_paragraph(scaled_font, point(20.0, 20.0), 9999.0, &text, &mut glyphs);
@@ -49,7 +49,7 @@ impl TextFont {
         let outlined: Vec<_> = glyphs
             .into_iter()
             // Note: not all layout glyphs have outlines (e.g. " ")
-            .filter_map(|g| font.outline_glyph(g))
+            .filter_map(|g| scaled_font.outline_glyph(g))
             .collect();
 
         // combine px_bounds to get min bounding coords for the entire layout
@@ -95,7 +95,7 @@ impl TextFont {
     }
 }
 
-pub fn layout_paragraph<F, SF>(
+fn layout_paragraph<F, SF>(
     font: SF,
     position: Point,
     max_width: f32,

@@ -2,6 +2,8 @@
 
 use std::{collections::VecDeque, sync::Arc};
 
+use ab_glyph::{Font, FontVec};
+use color::Rgba8;
 use tracing::{debug, info, warn};
 use vulkano::descriptor_set::DescriptorSet;
 
@@ -10,12 +12,12 @@ use crate::{
     drw::drawable::{Drawable, DrawableCreateInfo},
     fnt::font::TextFont,
     geom::shapes::Shapes,
-    res::cache::CacheProvider,
+    res::{assets::TextureHandler, cache::CacheProvider},
 };
 
 pub enum DrawCommand {
     DrawObject(Shapes, DrawableCreateInfo),
-    DrawText(TextFont),
+    DrawText(DrawableCreateInfo),
     ClearDrawables,
 }
 
@@ -107,7 +109,9 @@ where
                     info!("Clear drawables: {}", self.game.children.len());
                     self.game.children.clear();
                 }
-                DrawCommand::DrawText(_font) => todo!(),
+                DrawCommand::DrawText(drw) => {
+                    let s = Shapes::Image(self.game.assets.load_texture_from_bytes(self.game.fonts.get_glyphs("sfds".to_string(), Rgba8 { r: 255, g: 255, b: 255, a: 255 }, 0).as_raw()));
+                },
             }
         }
     }

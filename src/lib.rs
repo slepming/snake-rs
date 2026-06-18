@@ -51,27 +51,20 @@ use winit::{
 use winit::platform::wayland::WindowAttributesExtWayland;
 
 use crate::{
-    cmd::command::{CommandDispatcher, CommandQueue},
-    drw::{
+    cmd::command::{CommandDispatcher, CommandQueue}, drw::{
         children::Children,
         drawable::{DrawableComponent, DrawableGPU},
-    },
-    geom::matrix::Transform,
-    mem::engine_memory::EngineMemory,
-    mv::phys::movement::{PhysicsContext, PhysicsSpace},
-    res::{
+    }, fnt::font::TextFont, geom::matrix::Transform, mem::engine_memory::EngineMemory, mv::phys::movement::{PhysicsContext, PhysicsSpace}, res::{
         assets::Storage,
         cache::{CacheProvider, DescriptorSetCache, PipelineCache},
-    },
-    shaders::{
+    }, shaders::{
         circle_shader::{circle_fs, circle_vs},
         cube_shader::{cube_fs, cube_vs},
         image_shader::{image_fs, image_vs},
-    },
-    utils::{
+    }, utils::{
         vulkan::{create_pipeline, select_render_device},
         window::window_size_dependent_setup,
-    },
+    }
 };
 
 pub mod cmd;
@@ -147,6 +140,7 @@ pub(crate) struct GameContext {
     pub assets: Storage,
     pub frames: u64,
     pub game_command_queue: CommandQueue,
+    pub fonts: TextFont
 }
 
 struct RenderContext {
@@ -281,12 +275,15 @@ where
             texture_pool: RwLock::new(HashMap::new()),
         };
 
+        let fonts = TextFont::new(&assets, 10.0, String::from("Fonts/freedom.otf"));
+
         Self {
             game: GameContext {
                 children: Children::default(),
                 assets,
                 frames: 0,
                 game_command_queue: CommandQueue::default(),
+                fonts
             },
             descriptors: Arc::new(DescriptorSetCache::default()),
             pipelines: Arc::new(PipelineCache::default()),
