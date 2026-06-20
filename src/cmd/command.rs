@@ -112,7 +112,7 @@ where
                 }
                 DrawCommand::DrawText(drw) => {
                     let glyphs_image = self.game.fonts.get_glyphs(
-                        "sfds".to_string(),
+                        "Hello, world!".to_string(),
                         Rgba8 {
                             r: 255,
                             g: 255,

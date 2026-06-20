@@ -46,7 +46,7 @@ impl TextFont {
         let scaled_font = self.fonts[font].as_scaled(scale);
 
         let mut glyphs = Vec::with_capacity(30);
-        layout_paragraph(scaled_font, point(20.0, 20.0), 15.0, &text, &mut glyphs);
+        layout_paragraph(scaled_font, point(20.0, 20.0), 999.0, &text, &mut glyphs);
         // to work out the exact size needed for the drawn glyphs we need to outline
         // them and use their `px_bounds` which hold the coords of their render bounds.
         let outlined: Vec<_> = glyphs
@@ -86,11 +86,11 @@ impl TextFont {
             let img_left = bounds.min.x as u32 - all_px_bounds.min.x as u32;
             let img_top = bounds.min.y as u32 - all_px_bounds.min.y as u32;
             // Draw the glyph into the image per-pixel by using the draw closure
-            glyph.draw(|x, y, _| {
+            glyph.draw(|x, y, v| {
                 // Offset the position by the glyph bounding box
                 let px = image.get_pixel_mut(img_left + x, img_top + y);
                 // Turn the coverage into an alpha value (blended with any previous)
-                *px = Rgba([colour.r, colour.g, colour.b, colour.a]);
+                *px = Rgba([colour.r, colour.g, colour.b, px.0[3].saturating_add((v * 255.0) as u8)]);
             });
         }
 
