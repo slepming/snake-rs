@@ -14,11 +14,12 @@ use crate::{
     fnt::font::TextFont,
     geom::shapes::Shapes,
     res::{assets::TextureHandler, cache::CacheProvider},
+    text::sprite_text::SpriteTextCreateInfo,
 };
 
 pub enum DrawCommand {
     DrawObject(Shapes, DrawableCreateInfo),
-    DrawText(DrawableCreateInfo),
+    DrawText(SpriteTextCreateInfo),
     ClearDrawables,
 }
 
@@ -110,17 +111,12 @@ where
                     info!("Clear drawables: {}", self.game.children.len());
                     self.game.children.clear();
                 }
-                DrawCommand::DrawText(drw) => {
-                    let glyphs_image = self.game.fonts.get_glyphs(
-                        "Hello, world!".to_string(),
-                        Rgba8 {
-                            r: 255,
-                            g: 255,
-                            b: 255,
-                            a: 255,
-                        },
-                        0,
-                    );
+                DrawCommand::DrawText(text) => {
+                    let drw_create_info = DrawableCreateInfo {
+                        position: text.position,
+                        ..Default::default()
+                    };
+                    let glyphs_image = self.game.fonts.get_glyphs(text);
 
                     let buffer: ImageBuffer<Rgba<u8>, Vec<u8>> = glyphs_image.into_owned();
 
@@ -133,7 +129,7 @@ where
                         .expect("Failed to write PNG");
                     let s = Shapes::Image(self.game.assets.load_texture_from_bytes(&png_bytes));
                     let pipeline_name = s.as_ref().to_lowercase();
-                    if let Some(drw) = draw_object(self, s, drw, false) {
+                    if let Some(drw) = draw_object(self, s, drw_create_info, false) {
                         if let Some(descriptor) = drw.1 {
                             if self
                                 .descriptors

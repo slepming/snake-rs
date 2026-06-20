@@ -84,6 +84,7 @@ pub mod mem;
 pub mod mv;
 pub mod res;
 pub mod shaders;
+pub mod text;
 pub mod utils;
 
 pub type Vector = rapier2d::math::Vec2;
@@ -355,7 +356,7 @@ where
             let verts = drawable.get_vertex();
             let matrix = drawable.transform_clone();
             // We have few MyVertex elements for each drawable component. For this we create offset
-            // relative each drawable MyVertex elements. We have drawables with 
+            // relative each drawable MyVertex elements. We have drawables with
             // [MyVertex; n] where n is **dynamic** number, to resolve this problem this iteration
             // write to the offsets vector offset for each drawable element. For first drawble is
             // 4(bec MyVertex; 4), for second drawable is 12(bec second drawable have MyVertex; 8 ->

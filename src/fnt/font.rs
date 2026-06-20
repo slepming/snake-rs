@@ -1,16 +1,14 @@
 use std::{borrow::Cow, path::Path};
 
 use ab_glyph::{Font, FontVec, Glyph, Point, PxScale, ScaleFont, point};
-use color::Rgba8;
 use image::{DynamicImage, ImageBuffer, Rgba};
 use tracing::info;
 
-use crate::res::assets::Storage;
+use crate::{res::assets::Storage, text::sprite_text::SpriteTextCreateInfo};
 
 /// Stores the necessary parameters for fonts
 pub struct TextFont {
     /// Character size
-    size: f32,
     fonts: Vec<FontVec>,
 }
 
@@ -25,7 +23,7 @@ impl TextFont {
 
         info!("New font with family: {} imported", family);
 
-        Self { size, fonts }
+        Self { fonts }
     }
 
     pub fn add_font(&mut self, storage: Storage, family: String) {
@@ -35,18 +33,23 @@ impl TextFont {
         self.fonts.push(font);
     }
 
+    /// Returns text sprite through buffer
     pub fn get_glyphs<'a>(
         &self,
-        text: String,
-        colour: Rgba8,
-        font: usize,
+        text: SpriteTextCreateInfo,
     ) -> Cow<'a, ImageBuffer<Rgba<u8>, Vec<u8>>> {
-        let scale = PxScale::from(self.size);
+        let scale = PxScale::from(text.scale);
 
-        let scaled_font = self.fonts[font].as_scaled(scale);
+        let scaled_font = self.fonts[text.font].as_scaled(scale);
 
-        let mut glyphs = Vec::with_capacity(30);
-        layout_paragraph(scaled_font, point(20.0, 20.0), 999.0, &text, &mut glyphs);
+        let mut glyphs = Vec::with_capacity(text.text.len());
+        layout_paragraph(
+            scaled_font,
+            point(0.0, 0.0),
+            999.0,
+            &text.text,
+            &mut glyphs,
+        );
         // to work out the exact size needed for the drawn glyphs we need to outline
         // them and use their `px_bounds` which hold the coords of their render bounds.
         let outlined: Vec<_> = glyphs
@@ -90,7 +93,12 @@ impl TextFont {
                 // Offset the position by the glyph bounding box
                 let px = image.get_pixel_mut(img_left + x, img_top + y);
                 // Turn the coverage into an alpha value (blended with any previous)
-                *px = Rgba([colour.r, colour.g, colour.b, px.0[3].saturating_add((v * 255.0) as u8)]);
+                *px = Rgba([
+                    text.color.r,
+                    text.color.g,
+                    text.color.b,
+                    px.0[3].saturating_add((v * 255.0) as u8),
+                ]);
             });
         }
 

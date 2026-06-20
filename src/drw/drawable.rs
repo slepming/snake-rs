@@ -12,7 +12,7 @@ use vulkano::{
 };
 
 use crate::{
-    MyVertex,
+    MyVertex, Vector,
     drw::texture::Texture,
     geom::{matrix::Transform, shapes::Shapes},
     mv::{
@@ -59,7 +59,7 @@ pub(crate) struct DrawableRenderContext {
 /// Information about the object to be drawn
 pub struct DrawableCreateInfo {
     /// Positional coordinates
-    pub position: Vec2,
+    pub position: Vector,
     /// Texture for drawable object
     pub texture: Option<Texture>,
     /// Set radius to circle object
