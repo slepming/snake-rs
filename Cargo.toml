@@ -8,6 +8,8 @@ version = "0.35.2"
 
 [dependencies]
 vulkano-shaders = "0.35.0"
+#fontdue = "0.9.3"
+ab_glyph = "0.2.32"
 tracing = "0.1"
 tracing-subscriber = "0.3"
 rapier2d = "0.32.0"

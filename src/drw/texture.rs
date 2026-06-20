@@ -1,21 +1,25 @@
 //! Image processing and creation
 use image::GenericImageView;
-use rust_embed::Embed;
-use tracing::info;
+use rapier2d::na::dimension;
+use tracing::{debug, info};
 
-#[derive(Embed)]
-#[folder = "assets/"]
-pub(crate) struct Asset; // TODO: Binary file large
+use crate::{geom::dimension::Dimension, res::assets::Asset};
 
 /// Texture image struct which storage image in vector bytes and metadata
 #[derive(Clone)]
 pub struct Texture {
     #[allow(dead_code)]
     pub(crate) image: Vec<u8>,
-    pub dimensions: (u32, u32),
+    pub dimension: Dimension,
 }
 
 impl Texture {
+    pub fn new(stream: Vec<u8>, dimension: Dimension) -> Self {
+        Self {
+            image: stream,
+            dimension,
+        }
+    }
     /// Retrives texture from image file
     /// # Returns
     /// Texture struct
@@ -25,7 +29,7 @@ impl Texture {
                 info!("File import was successful");
                 Some(Self {
                     image: img.clone().into_rgba8().into_raw().to_vec(),
-                    dimensions: img.dimensions(),
+                    dimension: Dimension::from(img.dimensions()),
                 })
             }
             None => {
@@ -43,10 +47,10 @@ impl Texture {
             Some(f) => {
                 info!("File from internal storage import was successful");
                 let img = image::load_from_memory(f.data.as_ref()).unwrap();
-                let dimensions = img.dimensions();
+                let dimension = img.dimensions();
                 Some(Self {
                     image: img.into_rgba8().as_raw().to_vec(),
-                    dimensions,
+                    dimension: Dimension::from(dimension),
                 })
             }
             None => {
@@ -54,5 +58,20 @@ impl Texture {
                 None
             }
         }
+    }
+
+    pub fn from_slice(bytes: &[u8]) -> Option<Self> {
+        if bytes.len() == 0 {
+            return None;
+        }
+
+        debug!("Load texture from byte slice");
+        let img = image::load_from_memory(bytes).unwrap();
+        let dimension = img.dimensions();
+
+        Some(Self {
+            image: img.into_rgba8().as_raw().to_vec(),
+            dimension: Dimension::from(dimension),
+        })
     }
 }

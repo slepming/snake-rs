@@ -2,23 +2,23 @@
 
 use std::{collections::VecDeque, sync::Arc};
 
+use ab_glyph::{Font, FontVec};
+use color::Rgba8;
+use image::{ImageBuffer, Rgba};
 use tracing::{debug, info, warn};
 use vulkano::descriptor_set::DescriptorSet;
-use winit::{event::WindowEvent, event_loop::ActiveEventLoop, window::Window};
 
 use crate::{
     EngineContext, RedrawFn, StartFn,
-    drw::{
-        children::Children,
-        drawable::{Drawable, DrawableCreateInfo},
-    },
+    drw::drawable::{Drawable, DrawableCreateInfo},
+    fnt::font::TextFont,
     geom::shapes::Shapes,
-    mv::phys::movement::PhysicsContext,
-    res::cache::CacheProvider,
+    res::{assets::TextureHandler, cache::CacheProvider},
 };
 
 pub enum DrawCommand {
     DrawObject(Shapes, DrawableCreateInfo),
+    DrawText(DrawableCreateInfo),
     ClearDrawables,
 }
 
@@ -109,6 +109,50 @@ where
                 DrawCommand::ClearDrawables => {
                     info!("Clear drawables: {}", self.game.children.len());
                     self.game.children.clear();
+                }
+                DrawCommand::DrawText(drw) => {
+                    let glyphs_image = self.game.fonts.get_glyphs(
+                        "sfds".to_string(),
+                        Rgba8 {
+                            r: 255,
+                            g: 255,
+                            b: 255,
+                            a: 255,
+                        },
+                        0,
+                    );
+
+                    let buffer: ImageBuffer<Rgba<u8>, Vec<u8>> = glyphs_image.into_owned();
+
+                    let mut png_bytes = Vec::new();
+                    buffer
+                        .write_to(
+                            &mut std::io::Cursor::new(&mut png_bytes),
+                            image::ImageFormat::Png,
+                        )
+                        .expect("Failed to write PNG");
+                    let s = Shapes::Image(self.game.assets.load_texture_from_bytes(&png_bytes));
+                    let pipeline_name = s.as_ref().to_lowercase();
+                    if let Some(drw) = draw_object(self, s, drw, false) {
+                        if let Some(descriptor) = drw.1 {
+                            if self
+                                .descriptors
+                                .get(pipeline_name.clone().as_str())
+                                .is_none()
+                            {
+                                self.descriptors
+                                    .insert((pipeline_name.clone(), descriptor.clone()));
+                            }
+                        }
+
+                        let drw_id = drw.0.render.mesh.get_id().clone();
+                        self.game.children.add(drw.0);
+                        info!(
+                            pipeline_name = &pipeline_name,
+                            drw_id = drw_id,
+                            "Object created"
+                        );
+                    }
                 }
             }
         }

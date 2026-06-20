@@ -1,10 +1,13 @@
 use std::{
+    borrow::Cow,
     collections::HashMap,
     fmt::Debug,
     path::Path,
     sync::{Arc, RwLock},
 };
 
+use anyhow::Error;
+use rust_embed::Embed;
 use tracing::debug;
 use vulkano::{
     DeviceSize,
@@ -18,9 +21,13 @@ use vulkano::{
     sync::GpuFuture,
 };
 
-use crate::{drw::texture::Texture, mem::engine_memory::EngineMemory};
+use crate::{drw::texture::Texture, geom::dimension::Dimension, mem::engine_memory::EngineMemory};
 
-pub struct AssetsManager {
+#[derive(Embed)]
+#[folder = "assets/"]
+pub(crate) struct Asset; // TODO: Binary file large
+
+pub struct Storage {
     pub(crate) queue: Arc<Queue>,
     pub(crate) memory_allocs: Arc<EngineMemory>,
     pub(crate) texture_pool: RwLock<HashMap<String, Arc<TextureHandler>>>,
@@ -31,15 +38,36 @@ pub struct TextureHandler {
     pub(crate) view: Arc<ImageView>,
 }
 
-impl AssetsManager {
-    pub fn load(&self, file_name: &Path, internal: bool) -> Arc<TextureHandler> {
+impl Storage {
+    pub fn load_texture_from_bytes(&self, bytes: &[u8]) -> Arc<TextureHandler> {
+        let texture: Texture = { Texture::from_slice(bytes).unwrap() };
+
+        debug!(
+            loaded_image_size = texture.image.len(),
+            loaded_image_size_mb = texture.image.len() / 1024 / 1024
+        );
+
+        let texture_handler = self.create_texture_handler(texture.dimension, &texture.image);
+
+        texture_handler
+    }
+
+    /// Returns Copy on Write byte slice
+    pub fn load<'a>(&self, file_name: &Path) -> Result<Cow<'a, [u8]>, Error> {
+        let file = file_name.to_string_lossy();
+        match Asset::get(&file) {
+            Some(f) => Ok(f.data),
+            None => Err(Error::msg("The file is not available in the storage")),
+        }
+    }
+
+    pub fn load_texture(&self, file_name: &Path, internal: bool) -> Arc<TextureHandler> {
         #[cfg(feature = "tracing")]
         let _span = tracy_client::span!("Engine::load_texture");
         let file = file_name
             .file_name()
             .unwrap()
-            .to_str()
-            .unwrap()
+            .to_string_lossy()
             .to_string()
             .to_lowercase();
 
@@ -60,6 +88,21 @@ impl AssetsManager {
             loaded_image_size_mb = texture.image.len() / 1024 / 1024
         );
 
+        let texture_handler = self.create_texture_handler(texture.dimension, &texture.image);
+        self.texture_pool
+            .write()
+            .unwrap()
+            .insert(file.clone(), texture_handler);
+
+        self.texture_pool
+            .read()
+            .unwrap()
+            .get(&file)
+            .expect(format!("texture pool not contain {}", file).as_str())
+            .clone()
+    }
+
+    fn create_texture_handler(&self, dimension: Dimension, texture: &[u8]) -> Arc<TextureHandler> {
         let mut uploads = AutoCommandBufferBuilder::primary(
             self.memory_allocs.command_buffer_allocator.clone(),
             self.queue.queue_family_index(),
@@ -79,21 +122,22 @@ impl AssetsManager {
                         | MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
                     ..Default::default()
                 },
-                (texture.dimensions.0 * texture.dimensions.1 * 4) as DeviceSize,
+                (dimension.dimension.x * dimension.dimension.y * 4 as f32) as DeviceSize,
             )
             .unwrap();
 
-            upload_buffer
-                .write()
-                .unwrap()
-                .copy_from_slice(&texture.image);
+            upload_buffer.write().unwrap().copy_from_slice(texture);
 
             let image = Image::new(
                 self.memory_allocs.memory_allocator.clone(),
                 ImageCreateInfo {
                     image_type: vulkano::image::ImageType::Dim2d,
                     format: vulkano::format::Format::R8G8B8A8_UNORM,
-                    extent: [texture.dimensions.0, texture.dimensions.1, 1],
+                    extent: [
+                        dimension.dimension.x as u32,
+                        dimension.dimension.y as u32,
+                        1,
+                    ],
                     usage: ImageUsage::TRANSFER_DST | ImageUsage::SAMPLED,
                     ..Default::default()
                 },
@@ -121,16 +165,6 @@ impl AssetsManager {
             .unwrap();
 
         let texture_handler = TextureHandler { view: image_view };
-        self.texture_pool
-            .write()
-            .unwrap()
-            .insert(file.clone(), Arc::new(texture_handler));
-
-        self.texture_pool
-            .read()
-            .unwrap()
-            .get(&file)
-            .expect(format!("texture pool not contain {}", file).as_str())
-            .clone()
+        Arc::new(texture_handler)
     }
 }
