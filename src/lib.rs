@@ -287,7 +287,7 @@ where
             texture_pool: RwLock::new(HashMap::new()),
         };
 
-        let fonts = TextFont::new(&assets, 30.0, String::from("Fonts/freedom.otf"));
+        let fonts = TextFont::new(&assets, String::from("Fonts/freedom.otf"));
 
         Self {
             game: GameContext {

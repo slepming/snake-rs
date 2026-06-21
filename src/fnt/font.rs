@@ -14,7 +14,7 @@ pub struct TextFont {
 
 impl TextFont {
     /// Returns [`TextFont`] structure
-    pub fn new(storage: &Storage, size: f32, family: String) -> Self {
+    pub fn new(storage: &Storage, family: String) -> Self {
         let path_to_font = Path::new(&family);
         let font_in_bytes = storage.load(&path_to_font).unwrap();
         let font = FontVec::try_from_vec(font_in_bytes.into_owned()).unwrap();
@@ -26,6 +26,7 @@ impl TextFont {
         Self { fonts }
     }
 
+    /// Adds a font
     pub fn add_font(&mut self, storage: Storage, family: String) {
         let path_to_font = Path::new(&family);
         let font_in_bytes = storage.load(&path_to_font).unwrap();
@@ -43,13 +44,7 @@ impl TextFont {
         let scaled_font = self.fonts[text.font].as_scaled(scale);
 
         let mut glyphs = Vec::with_capacity(text.text.len());
-        layout_paragraph(
-            scaled_font,
-            point(0.0, 0.0),
-            9999.0,
-            &text.text,
-            &mut glyphs,
-        );
+        layout_paragraph(scaled_font, point(0.0, 0.0), 999.0, &text.text, &mut glyphs);
         // to work out the exact size needed for the drawn glyphs we need to outline
         // them and use their `px_bounds` which hold the coords of their render bounds.
         let outlined: Vec<_> = glyphs

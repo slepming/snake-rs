@@ -2,8 +2,6 @@
 
 use std::{collections::VecDeque, sync::Arc};
 
-use ab_glyph::{Font, FontVec};
-use color::Rgba8;
 use image::{ImageBuffer, Rgba};
 use tracing::{debug, info, warn};
 use vulkano::descriptor_set::DescriptorSet;
@@ -11,9 +9,8 @@ use vulkano::descriptor_set::DescriptorSet;
 use crate::{
     EngineContext, RedrawFn, StartFn,
     drw::drawable::{Drawable, DrawableCreateInfo},
-    fnt::font::TextFont,
     geom::shapes::Shapes,
-    res::{assets::TextureHandler, cache::CacheProvider},
+    res::cache::CacheProvider,
     text::sprite_text::SpriteTextCreateInfo,
 };
 
