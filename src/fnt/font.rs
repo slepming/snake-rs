@@ -46,7 +46,7 @@ impl TextFont {
         layout_paragraph(
             scaled_font,
             point(0.0, 0.0),
-            999.0,
+            9999.0,
             &text.text,
             &mut glyphs,
         );

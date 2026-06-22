@@ -39,7 +39,7 @@ use vulkano::{
 };
 use winit::{
     application::ApplicationHandler,
-    dpi::{PhysicalSize, Size},
+    dpi::{PhysicalPosition, PhysicalSize, Size},
     event::{ElementState, WindowEvent},
     event_loop::{ActiveEventLoop, EventLoop},
     keyboard::{Key, NamedKey},
@@ -69,6 +69,7 @@ use crate::{
         cube_shader::{cube_fs, cube_vs},
         image_shader::{image_fs, image_vs},
     },
+    testing::finder::Finder,
     utils::{
         vulkan::{create_pipeline, select_render_device},
         window::window_size_dependent_setup,
@@ -84,6 +85,7 @@ pub mod mem;
 pub mod mv;
 pub mod res;
 pub mod shaders;
+pub mod testing;
 pub mod text;
 pub mod utils;
 
@@ -150,6 +152,7 @@ pub(crate) struct GameContext {
     pub frames: u64,
     pub game_command_queue: CommandQueue,
     pub fonts: TextFont,
+    pub mouse_position: Option<PhysicalPosition<f64>>
 }
 
 struct RenderContext {
@@ -175,12 +178,12 @@ where
         #[cfg(feature = "tracing")]
         let _span = tracy_client::span!("Engine::new");
 
-        info!("Initializing Vulkan library");
+        debug!("Initializing Vulkan library");
         let library = VulkanLibrary::new().expect(
             "Vulkan not found. You may not have Vulkan support or an up-to-date GPU driver.",
         );
 
-        info!("Gathering required Vulkan extensions for windowing");
+        debug!("Gathering required Vulkan extensions for windowing");
         // The first step of any Vulkan program is to create an instance.
         //
         // When we create an instance, we have to pass a list of extensions that we want to enable.
@@ -193,13 +196,13 @@ where
         let supported_extensions = library.supported_extensions();
 
         for extension in supported_extensions.clone().into_iter().filter(|e| e.1) {
-            info!("Supported extension: {}", extension.0);
+            debug!("Supported extension: {}", extension.0);
         }
 
         required_extensions &= *supported_extensions;
 
         for enabled_extension in required_extensions.clone().into_iter().filter(|e| e.1) {
-            info!("Enabled extension: {}", enabled_extension.0);
+            debug!("Enabled extension: {}", enabled_extension.0);
         }
 
         let mut enabled_layers: Vec<String> = vec![];
@@ -210,10 +213,10 @@ where
         }
 
         for layer in enabled_layers.iter() {
-            info!("Enabled layer: {}", layer);
+            debug!("Enabled layer: {}", layer);
         }
 
-        info!("Creating Vulkan instance");
+        debug!("Creating Vulkan instance");
         let instance = Instance::new(
             library.clone(),
             InstanceCreateInfo {
@@ -265,17 +268,17 @@ where
             },
         )
         .unwrap();
-        info!("Initializing Rigidbody set");
+        debug!("Initializing Rigidbody set");
 
         // Create physics
         let rbs = RigidBodySet::new();
-        info!("Initializing Collider set");
+        debug!("Initializing Collider set");
         let cds = ColliderSet::new();
 
-        info!("Initializing Physics space");
+        debug!("Initializing Physics space");
         let space = PhysicsSpace::new();
 
-        info!("Initializing Physics context");
+        debug!("Initializing Physics context");
         let ph_context = PhysicsContext::new(rbs, cds, space);
 
         let assets = Storage {
@@ -293,6 +296,7 @@ where
                 frames: 0,
                 game_command_queue: CommandQueue::default(),
                 fonts,
+                mouse_position: None
             },
             descriptors: Arc::new(DescriptorSetCache::default()),
             pipelines: Arc::new(PipelineCache::default()),
@@ -396,7 +400,7 @@ where
         #[cfg(feature = "tracing")]
         let _span = tracy_client::span!("Engine::resumed");
         let window: Arc<Window>;
-        info!("Creating window");
+        debug!("Creating window");
         #[cfg(target_family = "unix")]
         {
             window = Arc::new(
@@ -684,6 +688,9 @@ where
         );
 
         match event {
+            WindowEvent::CursorMoved { position, .. } => {
+                self.game.mouse_position = Some(position);
+            }
             WindowEvent::CloseRequested => {
                 event_loop.exit();
             }
@@ -702,6 +709,20 @@ where
                                 descriptor_sets_count = self.descriptors.len()
                             );
                             debug!("!!! DEBUG INFORMATION END !!!");
+                        }
+                        #[cfg(debug_assertions)]
+                        Key::Character("o") => {
+                            if let Some(cursor) = self.game.mouse_position {
+                                let drawable = self.game.children.get_by_position(cursor);
+                                if drawable.len() >= 1 {
+                                    debug!(
+                                        "drawable with id: {}",
+                                        drawable[0].render.mesh.get_id()
+                                    );
+                                } else {
+                                    debug!("There are no objects in the current position");
+                                }
+                            }
                         }
                         _ => {}
                     }
