@@ -27,6 +27,7 @@ use crate::{drw::texture::Texture, geom::dimension::Dimension, mem::engine_memor
 #[folder = "assets/"]
 pub(crate) struct Asset; // TODO: Binary file large
 
+/// Texture storage
 pub struct Storage {
     pub(crate) queue: Arc<Queue>,
     pub(crate) memory_allocs: Arc<EngineMemory>,
@@ -39,6 +40,7 @@ pub struct TextureHandler {
 }
 
 impl Storage {
+    /// Returns Arc<[`TextureHandler`]> from bytes
     pub fn load_texture_from_bytes(&self, bytes: &[u8]) -> Arc<TextureHandler> {
         let texture: Texture = { Texture::from_slice(bytes).unwrap() };
 
@@ -61,6 +63,7 @@ impl Storage {
         }
     }
 
+    /// Returns Arc<[`TextureHandler`]> from file system
     pub fn load_texture(&self, file_name: &Path, internal: bool) -> Arc<TextureHandler> {
         #[cfg(feature = "tracing")]
         let _span = tracy_client::span!("Engine::load_texture");

@@ -1,6 +1,5 @@
 //! Image processing and creation
 use image::GenericImageView;
-use rapier2d::na::dimension;
 use tracing::{debug, info};
 
 use crate::{geom::dimension::Dimension, res::assets::Asset};

@@ -1,3 +1,4 @@
+//! Handle physics movement
 use rapier2d::{
     math::Vec2,
     prelude::{
@@ -26,9 +27,12 @@ const GRAVITY: Vec2 = Vec2::new(0.0, -9.81 * 60.0); // * 60 is magick value. I w
 /// ph.step();
 /// ```
 pub struct PhysicsContext {
-    pub rigid_body_set: RigidBodySet,
-    pub collider_set: ColliderSet,
-    pub space: PhysicsSpace,
+    #[allow(missing_docs)]
+    pub(crate) rigid_body_set: RigidBodySet,
+    #[allow(missing_docs)]
+    pub(crate) collider_set: ColliderSet,
+    #[allow(missing_docs)]
+    pub(crate) space: PhysicsSpace,
 }
 
 /// Contains all files for using physics.

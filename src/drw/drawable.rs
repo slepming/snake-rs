@@ -237,7 +237,7 @@ impl Drawable {
         drawable
     }
 
-    /// Creates allocations, pipeline descriptors for drawable and calls [`Self::new_with_color`]
+    /// Creates allocations, pipeline descriptors for drawable and calls [`Drawable::new_with_color`]
     ///
     /// # Returns
     /// ([`Drawable`], [`vulkano::descriptor_set::DescriptorSet`])

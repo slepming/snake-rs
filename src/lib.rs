@@ -1,3 +1,4 @@
+#![warn(missing_docs)]
 use rapier2d::prelude::{ColliderSet, RigidBodySet};
 use std::{
     collections::HashMap,
@@ -137,6 +138,7 @@ where
     rcx: Option<RenderContext>,
     pub(crate) physics_context: PhysicsContext,
     game: GameContext,
+    #[allow(dead_code)]
     debug: DebugUtils,
     redraw: Redraw,
     start: Start,
