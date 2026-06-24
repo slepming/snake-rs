@@ -180,11 +180,11 @@ pub trait DrawableGPU {
     #[allow(dead_code)]
     fn set_vertex(&mut self, vertex: Vec<MyVertex>);
     #[allow(dead_code)]
-    fn get_vertex_clone(&self) -> Vec<MyVertex>;
-    fn get_vertex(&self) -> &Vec<MyVertex>;
+    fn vertex_clone(&self) -> Vec<MyVertex>;
+    fn vertex(&self) -> &Vec<MyVertex>;
     /// # Returns
     /// Colour for shader
-    fn get_colour(&self) -> &Rgba8;
+    fn colour(&self) -> &Rgba8;
 }
 
 pub trait DrawableComponent: DrawableGPU {
@@ -282,15 +282,15 @@ impl DrawableGPU for Drawable {
         self.render.mesh.vertex = vertex;
     }
 
-    fn get_vertex_clone(&self) -> Vec<MyVertex> {
+    fn vertex_clone(&self) -> Vec<MyVertex> {
         self.render.mesh.vertex.clone()
     }
 
-    fn get_vertex(&self) -> &Vec<MyVertex> {
+    fn vertex(&self) -> &Vec<MyVertex> {
         &self.render.mesh.vertex
     }
 
-    fn get_colour(&self) -> &Rgba8 {
+    fn colour(&self) -> &Rgba8 {
         &self.color
     }
 }
@@ -301,7 +301,7 @@ impl DrawableComponent for Drawable {
     }
 
     fn transform_clone(&self) -> Transform {
-        self.transform.clone() // TODO: This method not the best, but idk what function I need instead of this 
+        self.transform.clone() 
     }
 
     fn set_transform(&mut self, transform: Transform) {
@@ -326,15 +326,15 @@ impl DrawableGPU for PhysicsDrawable {
         self.drawable.set_vertex(vertex);
     }
 
-    fn get_vertex_clone(&self) -> Vec<MyVertex> {
-        self.drawable.get_vertex_clone()
+    fn vertex_clone(&self) -> Vec<MyVertex> {
+        self.drawable.vertex_clone()
     }
 
-    fn get_vertex(&self) -> &Vec<MyVertex> {
-        self.drawable.get_vertex()
+    fn vertex(&self) -> &Vec<MyVertex> {
+        self.drawable.vertex()
     }
 
-    fn get_colour(&self) -> &Rgba8 {
+    fn colour(&self) -> &Rgba8 {
         &self.drawable.color
     }
 }
@@ -401,7 +401,7 @@ impl Positioned for Drawable {
     fn position(&self) -> Vec2 {
         let transform = self.transform.matrix();
 
-        Vec2::new(transform[0][0], transform[1][1])
+        Vec2::new(transform[3][0], transform[3][1])
     }
 
     fn set_position(&mut self, vec: Vec2) {

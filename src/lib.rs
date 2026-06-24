@@ -358,7 +358,7 @@ where
         // });
 
         children.iter().for_each(|drawable| {
-            let verts = drawable.get_vertex();
+            let verts = drawable.vertex();
             let matrix = drawable.transform_clone();
             // We have few MyVertex elements for each drawable component. For this we create offset
             // relative each drawable MyVertex elements. We have drawables with
@@ -703,7 +703,7 @@ where
             WindowEvent::KeyboardInput { event, .. } => {
                 if event.state == ElementState::Pressed {
                     match event.key_without_modifiers().as_ref() {
-                        Key::Named(NamedKey::F1) => {
+                        Key::Named(NamedKey::F2) => {
                             debug!("!!! DEBUG INFORMATION START !!!");
                             debug!(
                                 pipelines_count = self.pipelines.len(),
@@ -712,7 +712,7 @@ where
                             debug!("!!! DEBUG INFORMATION END !!!");
                         }
                         #[cfg(debug_assertions)]
-                        Key::Character("o") => {
+                        Key::Named(NamedKey::F1) => {
                             if let Some(cursor) = self.game.mouse_position {
                                 let drawable = self.game.children.get_by_position(cursor);
                                 if drawable.len() >= 1 {
@@ -870,7 +870,7 @@ where
                     all_items.enumerate().for_each(|(i, item)| {
                         #[cfg(feature = "tracing")]
                         let _span_draw = tracy_client::span!("GPU: Draw Item");
-                        let colour = item.get_colour().clone();
+                        let colour = item.colour().clone();
                         let matrix = mesh.1[i].clone();
                         let constants = Constants(
                             matrix,
@@ -895,7 +895,7 @@ where
                         }
 
                         let vertex_cursor = mesh.2[i];
-                        let vertex_count = item.get_vertex().len() as u32;
+                        let vertex_count = item.vertex().len() as u32;
 
                         builder.bind_pipeline_graphics(pipeline.clone()).unwrap();
 
