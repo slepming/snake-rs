@@ -1,4 +1,3 @@
-#![warn(missing_docs)]
 use rapier2d::prelude::{ColliderSet, RigidBodySet};
 use std::{
     collections::HashMap,
@@ -872,8 +871,9 @@ where
                         #[cfg(feature = "tracing")]
                         let _span_draw = tracy_client::span!("GPU: Draw Item");
                         let colour = item.get_colour().clone();
+                        let matrix = mesh.1[i].clone();
                         let constants = Constants(
-                            mesh.1[i].clone(),
+                            matrix,
                             rcx.window.inner_size().into(),
                             (colour.r as u32)
                                 | (colour.g as u32) << 8

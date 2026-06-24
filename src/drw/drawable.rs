@@ -77,7 +77,7 @@ impl DrawableCreateInfo {
     /// Sets the position of the object
     ///
     /// # Returns
-    /// [`Drawable`]
+    /// [`DrawableCreateInfo`]
     pub fn with_position(mut self, position: Vec2) -> Self {
         self.position = position;
         self
@@ -86,7 +86,7 @@ impl DrawableCreateInfo {
     /// Sets the texture of the object(if supported)
     ///
     /// # Returns
-    /// [`Drawable`]
+    /// [`DrawableCreateInfo`]
     pub fn with_texture(mut self, texture: Texture) -> Self {
         self.texture = Some(texture);
         self
@@ -95,7 +95,7 @@ impl DrawableCreateInfo {
     /// Sets the radius of the object(if supported)
     ///
     /// # Returns
-    /// [`Drawable`]
+    /// [`DrawableCreateInfo`]
     pub fn with_radius(mut self, radius: f32) -> Self {
         self.radius = radius;
         self
@@ -104,7 +104,7 @@ impl DrawableCreateInfo {
     /// Sets the thickness of the object(if supported)
     ///
     /// # Returns
-    /// [`Drawable`]
+    /// [`DrawableCreateInfo`]
     pub fn with_thickness(mut self, thickness: f32) -> Self {
         self.thickness = thickness;
         self
@@ -113,7 +113,7 @@ impl DrawableCreateInfo {
     /// Sets the size of the object
     ///
     /// # Returns
-    /// [`Drawable`]
+    /// [`DrawableCreateInfo`]
     pub fn with_size(mut self, size: Vec2) -> Self {
         self.size = size;
         self
@@ -122,7 +122,7 @@ impl DrawableCreateInfo {
     /// Sets id of the object
     ///
     /// # Returns
-    /// [`Drawable`]
+    /// [`DrawableCreateInfo`]
     pub(crate) fn with_id(mut self, id: u32) -> Self {
         self.id = id;
         self
@@ -131,7 +131,7 @@ impl DrawableCreateInfo {
     /// Sets the color for the object
     ///
     /// # Returns
-    /// [`Drawable`]
+    /// [`DrawableCreateInfo`]
     pub fn with_color(mut self, color: Rgba8) -> Self {
         self.color = color;
         self
