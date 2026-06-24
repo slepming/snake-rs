@@ -1,6 +1,6 @@
 use crate::Vector;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct Dimension {
     pub dimension: Vector,
 }

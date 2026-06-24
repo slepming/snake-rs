@@ -111,6 +111,7 @@ where
                 DrawCommand::DrawText(text) => {
                     let drw_create_info = DrawableCreateInfo {
                         position: text.position,
+                        size: text.size,
                         ..Default::default()
                     };
                     let glyphs_image = self.game.fonts.get_glyphs(text);

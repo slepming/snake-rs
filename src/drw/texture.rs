@@ -1,4 +1,6 @@
 //! Image processing and creation
+use std::fmt::Debug;
+
 use image::GenericImageView;
 use tracing::{debug, info};
 
@@ -72,5 +74,11 @@ impl Texture {
             image: img.into_rgba8().as_raw().to_vec(),
             dimension: Dimension::from(dimension),
         })
+    }
+}
+
+impl Debug for Texture {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Texture").field("image_len", &self.image.len()).field("dimension", &self.dimension).finish()
     }
 }

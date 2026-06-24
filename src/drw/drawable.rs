@@ -57,6 +57,7 @@ pub(crate) struct DrawableRenderContext {
 }
 
 /// Information about the object to be drawn
+#[derive(Debug, Clone)]
 pub struct DrawableCreateInfo {
     /// Positional coordinates
     pub position: Vector,
@@ -187,9 +188,16 @@ pub trait DrawableGPU {
 }
 
 pub trait DrawableComponent: DrawableGPU {
+    /// # Returns
+    /// [`Transform`] pointer
     fn transform(&self) -> &Transform;
+    /// # Returns
+    /// [`Transform`] mutable pointer
     fn transform_mut(&mut self) -> &mut Transform;
+    /// # Returns
+    /// [`Transform`] clone
     fn transform_clone(&self) -> Transform;
+    /// Sets transform matrix
     fn set_transform(&mut self, transform: Transform);
     /// # Returns
     /// Reference to drawable
