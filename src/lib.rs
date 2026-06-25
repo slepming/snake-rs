@@ -85,7 +85,7 @@ pub mod testing;
 pub mod text;
 pub mod utils;
 
-pub type Vector = rapier2d::math::Vec2;
+pub type Vector = glam::Vec2;
 
 
 #[global_allocator]

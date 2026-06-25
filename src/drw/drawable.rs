@@ -3,7 +3,6 @@
 use std::sync::Arc;
 
 use rapier2d::{
-    math::Vec2,
     prelude::{RigidBody, RigidBodyHandle},
 };
 use vulkano::{
@@ -15,9 +14,7 @@ use crate::{
     MyVertex, Vector,
     drw::texture::Texture,
     geom::{matrix::Transform, shapes::Shapes},
-    mv::{
-        transform::{HasTransform, Positioned},
-    },
+    mv::transform::{HasTransform, Positioned},
     res::cache::{DescriptorSetCache, PipelineCache},
 };
 
@@ -67,7 +64,7 @@ pub struct DrawableCreateInfo {
     /// TODO
     pub thickness: f32,
     /// Drawable object size
-    pub size: Vec2,
+    pub size: Vector,
     pub(crate) id: u32,
     /// Object color
     pub color: Rgba8,
@@ -78,7 +75,7 @@ impl DrawableCreateInfo {
     ///
     /// # Returns
     /// [`DrawableCreateInfo`]
-    pub fn with_position(mut self, position: Vec2) -> Self {
+    pub fn with_position(mut self, position: Vector) -> Self {
         self.position = position;
         self
     }
@@ -114,7 +111,7 @@ impl DrawableCreateInfo {
     ///
     /// # Returns
     /// [`DrawableCreateInfo`]
-    pub fn with_size(mut self, size: Vec2) -> Self {
+    pub fn with_size(mut self, size: Vector) -> Self {
         self.size = size;
         self
     }
@@ -339,13 +336,13 @@ impl DrawableGPU for PhysicsDrawable {
 }
 
 impl Positioned for Drawable {
-    fn position(&self) -> Vec2 {
+    fn position(&self) -> Vector {
         let transform = self.transform.matrix();
 
-        Vec2::new(transform[3][0], transform[3][1])
+        Vector::new(transform[3][0], transform[3][1])
     }
 
-    fn set_position(&mut self, vec: Vec2) {
+    fn set_position(&mut self, vec: Vector) {
         let current_transform = self.transform_mut();
         let current_matrix = current_transform.matrix_mut();
 

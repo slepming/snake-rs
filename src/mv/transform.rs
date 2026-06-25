@@ -1,6 +1,4 @@
-use rapier2d::{
-    math::Vec2,
-};
+use crate::Vector;
 
 pub trait HasTransform {
     fn matrix_mut(&mut self) -> &mut [[f32; 4]; 4];
@@ -8,6 +6,6 @@ pub trait HasTransform {
 }
 
 pub trait Positioned {
-    fn position(&self) -> Vec2;
-    fn set_position(&mut self, vec: Vec2);
+    fn position(&self) -> Vector;
+    fn set_position(&mut self, vec: Vector);
 }
