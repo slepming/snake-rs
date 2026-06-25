@@ -14,9 +14,9 @@ pub struct TextFont {
 
 impl TextFont {
     /// Returns [`TextFont`] structure
-    pub fn new(storage: &Storage, family: String) -> Self {
+    pub fn new(family: String) -> Self {
         let path_to_font = Path::new(&family);
-        let font_in_bytes = storage.load(&path_to_font).unwrap();
+        let font_in_bytes = Storage::load(&path_to_font).unwrap();
         let font = FontVec::try_from_vec(font_in_bytes.into_owned()).unwrap();
         let mut fonts: Vec<FontVec> = Vec::with_capacity(1);
         fonts.push(font);
@@ -27,9 +27,9 @@ impl TextFont {
     }
 
     /// Adds a font
-    pub fn add_font(&mut self, storage: Storage, family: String) {
+    pub fn add_font(&mut self, family: String) {
         let path_to_font = Path::new(&family);
-        let font_in_bytes = storage.load(&path_to_font).unwrap();
+        let font_in_bytes = Storage::load(&path_to_font).unwrap();
         let font = FontVec::try_from_vec(font_in_bytes.into_owned()).unwrap();
         self.fonts.push(font);
     }
@@ -39,7 +39,7 @@ impl TextFont {
         &self,
         text: SpriteTextCreateInfo,
     ) -> Cow<'a, ImageBuffer<Rgba<u8>, Vec<u8>>> {
-        let scale = PxScale::from(text.scale);
+        let scale = PxScale::from(text.scale * 1.5);
 
         let scaled_font = self.fonts[text.font].as_scaled(scale);
 
@@ -138,5 +138,19 @@ fn layout_paragraph<F, SF>(
         }
 
         target.push(glyph);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn get_glyph_buffer() {
+        let sprite_text = SpriteTextCreateInfo::default().with_text(String::from("Hello, world"));
+
+        let font = TextFont::new(String::from("Fonts/freedom.otf"));
+
+        assert!(font.get_glyphs(sprite_text).len() > 0)
     }
 }

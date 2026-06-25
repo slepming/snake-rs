@@ -55,7 +55,7 @@ impl Storage {
     }
 
     /// Returns Copy on Write byte slice
-    pub fn load<'a>(&self, file_name: &Path) -> Result<Cow<'a, [u8]>, Error> {
+    pub fn load<'a>(file_name: &Path) -> Result<Cow<'a, [u8]>, Error> {
         let file = file_name.to_string_lossy();
         match Asset::get(&file) {
             Some(f) => Ok(f.data),

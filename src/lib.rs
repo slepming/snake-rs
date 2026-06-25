@@ -59,7 +59,6 @@ use crate::{
     fnt::font::TextFont,
     geom::matrix::Transform,
     mem::engine_memory::EngineMemory,
-    mv::phys::movement::{PhysicsContext, PhysicsSpace},
     res::{
         assets::Storage,
         cache::{CacheProvider, DescriptorSetCache, PipelineCache},
@@ -107,12 +106,12 @@ impl<T> StartFn for T where
 }
 
 pub trait RedrawFn:
-    FnMut(&mut Children, &mut PhysicsContext, &mut Storage, &WindowEvent, &mut CommandQueue)
+    FnMut(&mut Children, &mut Storage, &WindowEvent, &mut CommandQueue)
 {
 }
 
 impl<T> RedrawFn for T where
-    T: FnMut(&mut Children, &mut PhysicsContext, &mut Storage, &WindowEvent, &mut CommandQueue)
+    T: FnMut(&mut Children, &mut Storage, &WindowEvent, &mut CommandQueue)
 {
 }
 
@@ -135,7 +134,6 @@ where
     descriptors: Arc<DescriptorSetCache>,
     sampler: Arc<Sampler>,
     rcx: Option<RenderContext>,
-    pub(crate) physics_context: PhysicsContext,
     game: GameContext,
     #[allow(dead_code)]
     debug: DebugUtils,
@@ -269,18 +267,6 @@ where
             },
         )
         .unwrap();
-        debug!("Initializing Rigidbody set");
-
-        // Create physics
-        let rbs = RigidBodySet::new();
-        debug!("Initializing Collider set");
-        let cds = ColliderSet::new();
-
-        debug!("Initializing Physics space");
-        let space = PhysicsSpace::new();
-
-        debug!("Initializing Physics context");
-        let ph_context = PhysicsContext::new(rbs, cds, space);
 
         let assets = Storage {
             queue: queue.clone(),
@@ -288,7 +274,7 @@ where
             texture_pool: RwLock::new(HashMap::new()),
         };
 
-        let fonts = TextFont::new(&assets, String::from("Fonts/freedom.otf"));
+        let fonts = TextFont::new(String::from("Fonts/freedom.otf"));
 
         Self {
             game: GameContext {
@@ -307,7 +293,6 @@ where
             queue,
             sampler,
             rcx: None,
-            physics_context: ph_context,
             debug,
             start: start,
             redraw: redraw,
@@ -320,7 +305,6 @@ where
     /// tuple with buffer for vertices, matrices, offsets vectors
     pub(crate) fn calculate_drawables(
         memory_allocator: Arc<dyn MemoryAllocator>,
-        _physics_context: &PhysicsContext,
         children: &mut Children,
         _rcx: &mut RenderContext,
     ) -> Option<MeshBuffers> {
@@ -682,7 +666,6 @@ where
 
         (self.redraw)(
             &mut self.game.children,
-            &mut self.physics_context,
             &mut self.game.assets,
             &event,
             &mut self.game.game_command_queue,
@@ -773,7 +756,6 @@ where
 
                 let mesh_buffers = EngineContext::<Redraw, Start>::calculate_drawables(
                     self.memory.memory_allocator.clone(),
-                    &self.physics_context,
                     &mut self.game.children,
                     rcx,
                 );

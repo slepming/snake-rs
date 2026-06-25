@@ -16,8 +16,7 @@ use crate::{
     drw::texture::Texture,
     geom::{matrix::Transform, shapes::Shapes},
     mv::{
-        phys::movement::PhysicsContext,
-        transform::{Entity, HasTransform, Positioned},
+        transform::{HasTransform, Positioned},
     },
     res::cache::{DescriptorSetCache, PipelineCache},
 };
@@ -336,64 +335,6 @@ impl DrawableGPU for PhysicsDrawable {
 
     fn colour(&self) -> &Rgba8 {
         &self.drawable.color
-    }
-}
-
-impl DrawableComponent for PhysicsDrawable {
-    fn transform(&self) -> &Transform {
-        self.drawable.transform()
-    }
-
-    fn transform_clone(&self) -> Transform {
-        self.drawable.transform_clone()
-    }
-
-    fn set_transform(&mut self, transform: Transform) {
-        self.drawable.set_transform(transform);
-    }
-
-    fn drawable(&self) -> &Drawable {
-        self.get_drawable()
-    }
-
-    fn drawable_mut(&mut self) -> &mut Drawable {
-        self.get_mut_drawable()
-    }
-
-    fn transform_mut(&mut self) -> &mut Transform {
-        &mut self.drawable.transform
-    }
-}
-
-impl PhysicsDrawable {
-    pub fn new(rb_h: RigidBodyHandle, drawable: Drawable) -> Self {
-        PhysicsDrawable { drawable, rb_h }
-    }
-
-    pub fn get_rb<'a>(&self, ctx: &'a mut PhysicsContext) -> &'a mut RigidBody {
-        ctx.rigid_body_set.get_mut(self.rb_h).unwrap()
-    }
-
-    pub fn get_rb_handle(&self) -> RigidBodyHandle {
-        self.rb_h
-    }
-
-    pub fn get_drawable(&self) -> &Drawable {
-        &self.drawable
-    }
-
-    pub fn get_mut_drawable(&mut self) -> &mut Drawable {
-        &mut self.drawable
-    }
-}
-
-impl Entity for PhysicsDrawable {
-    fn rigid_body<'a>(&self, ctx: &'a mut PhysicsContext) -> &'a mut RigidBody {
-        self.get_rb(ctx)
-    }
-
-    fn rb_handle(&self) -> RigidBodyHandle {
-        self.get_rb_handle()
     }
 }
 
