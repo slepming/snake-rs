@@ -29,8 +29,7 @@ use vulkano::{
     },
     render_pass::{Framebuffer, RenderPass},
     swapchain::{
-        CompositeAlpha, Surface, Swapchain, SwapchainCreateInfo, SwapchainPresentInfo,
-        acquire_next_image,
+        CompositeAlpha, Surface, SurfaceInfo, Swapchain, SwapchainCreateInfo, SwapchainPresentInfo, acquire_next_image
     },
     sync::{self, GpuFuture},
 };
@@ -470,6 +469,10 @@ where
                         .expect("Device don't support CompositeAlpha")
                 });
 
+            let supported_present_modes = self.device.physical_device().surface_present_modes(&surface, SurfaceInfo::default()).unwrap();
+
+            debug!("Supported present mode: {:?}", supported_present_modes);
+
             // Please take a look at the docs for the meaning of the parameters we didn't mention.
             Swapchain::new(
                 self.device.clone(),
@@ -503,6 +506,7 @@ where
                     // For example, you can choose whether the window will be
                     // opaque or transparent.
                     composite_alpha: supported_composite_alpha,
+                    present_mode: supported_present_modes.first().unwrap_or(&vulkano::swapchain::PresentMode::Fifo).clone(),
 
                     ..Default::default()
                 },
