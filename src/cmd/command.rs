@@ -69,7 +69,6 @@ where
     Start: StartFn,
 {
     fn flush_commands(&mut self) {
-        #[cfg(feature = "tracing")]
         let span_submit = tracy_client::span!("Engine: Flush commands");
 
         if self.game.game_command_queue.commands.is_empty() {

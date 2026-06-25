@@ -1,13 +1,10 @@
-use rapier2d::prelude::{ColliderSet, RigidBodySet};
 use std::{
     collections::HashMap,
     ops::RangeInclusive,
     sync::{Arc, RwLock},
 };
-use tracing::{debug, info};
-#[cfg(debug_assertions)]
-#[cfg(feature = "tracing")]
-use tracy_client::GpuContext;
+use tracing::{debug};
+
 use vulkano::{
     Validated, VulkanError, VulkanLibrary,
     buffer::{Buffer, BufferContents, BufferCreateInfo, BufferUsage, Subbuffer},
@@ -90,7 +87,7 @@ pub mod utils;
 
 pub type Vector = rapier2d::math::Vec2;
 
-#[cfg(feature = "tracing")]
+
 #[global_allocator]
 static GLOBAL: tracy_client::ProfiledAllocator<std::alloc::System> =
     tracy_client::ProfiledAllocator::new(std::alloc::System, 100);
@@ -174,7 +171,7 @@ where
 {
     pub fn new(event_loop: &EventLoop<()>, start: Start, redraw: Redraw) -> Self {
         tracing_subscriber::fmt::init();
-        #[cfg(feature = "tracing")]
+        
         let _span = tracy_client::span!("Engine::new");
 
         debug!("Initializing Vulkan library");
@@ -312,7 +309,7 @@ where
             return None;
         }
 
-        #[cfg(feature = "tracing")]
+        
         let _span = tracy_client::span!("Engine::calculate_drawables");
 
         // Predicting the possible vector size
@@ -382,7 +379,7 @@ where
     Start: StartFn,
 {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
-        #[cfg(feature = "tracing")]
+        
         let _span = tracy_client::span!("Engine::resumed");
         let window: Arc<Window>;
         debug!("Creating window");
@@ -679,7 +676,7 @@ where
                 event_loop.exit();
             }
             WindowEvent::Resized(_) => {
-                #[cfg(feature = "tracing")]
+                
                 let _span = tracy_client::span!("Engine::resize");
                 rcx.recreate_swapchain = true;
             }
@@ -713,7 +710,7 @@ where
                 }
             }
             WindowEvent::RedrawRequested => {
-                #[cfg(feature = "tracing")]
+                
                 let _span = tracy_client::span!("Engine::update");
                 let window_size = rcx.window.inner_size();
 
@@ -767,7 +764,7 @@ where
                 //
                 // This function can block if no image is available. The parameter is an optional
                 // timeout after which the function call will return an error.
-                #[cfg(feature = "tracing")]
+                
                 let span_acquire = tracy_client::span!("GPU: Acquire Next Image");
                 let (image_index, suboptimal, acquire_future) = match acquire_next_image(
                     rcx.swapchain.clone(),
@@ -782,7 +779,7 @@ where
                     }
                     Err(e) => panic!("failed to acquire next image: {e}"),
                 };
-                #[cfg(feature = "tracing")]
+                
                 drop(span_acquire);
 
                 // `acquire_next_image` can be successful, but suboptimal. This means that the
@@ -802,10 +799,9 @@ where
                 //
                 // Note that we have to pass a queue family when we create the command buffer. The
                 // command buffer will only be executable on that given queue family.
-                #[cfg(feature = "tracing")]
+                
                 let span_cmd = tracy_client::span!("GPU: Record Command Buffer");
-                let mut builder = AutoCommandBufferBuilder::primary(
-                    self.memory.command_buffer_allocator.clone(),
+                let mut builder = AutoCommandBufferBuilder::primary( self.memory.command_buffer_allocator.clone(),
                     self.queue.queue_family_index(),
                     CommandBufferUsage::OneTimeSubmit,
                 )
@@ -843,15 +839,15 @@ where
                     .unwrap();
 
                 if let Some(mesh) = mesh_buffers {
-                    #[cfg(feature = "tracing")]
+                    
                     let _span_draw =
                         tracy_client::span!("Engine:: Preparing Objects for Rendering");
                     builder.bind_vertex_buffers(0, mesh.0.clone()).unwrap();
                     let all_items = self.game.children.iter();
 
                     all_items.enumerate().for_each(|(i, item)| {
-                        #[cfg(feature = "tracing")]
-                        let _span_draw = tracy_client::span!("GPU: Draw Item");
+                        
+                        let _span_draw = tracy_client::span!("Engine: Draw Item");
                         let colour = item.colour().clone();
                         let matrix = mesh.1[i].clone();
                         let constants = Constants(
@@ -885,7 +881,7 @@ where
                             .descriptors
                             .get(&item.drawable().render.descriptor_id.id)
                         {
-                            #[cfg(feature = "tracing")]
+                            
                             let _span_draw = tracy_client::span!("Engine: Getting descriptors");
                             builder
                                 .bind_descriptor_sets(
@@ -911,10 +907,10 @@ where
 
                 // Finish recording the command buffer by calling `end`.
                 let command_buffer = builder.build().unwrap();
-                #[cfg(feature = "tracing")]
+                
                 drop(span_cmd);
 
-                #[cfg(feature = "tracing")]
+                
                 let span_submit = tracy_client::span!("GPU: Submit & Present");
                 let future = rcx
                     .previous_frame_end
@@ -953,10 +949,10 @@ where
                         // previous_frame_end = Some(sync::now(&device).boxed());
                     }
                 }
-                #[cfg(feature = "tracing")]
+                
                 drop(span_submit);
                 //self.physics_context.step(); TODO: In the future I must uncomment this code block
-                #[cfg(feature = "tracing")]
+                //
                 tracy_client::Client::running().unwrap().frame_mark();
 
                 self.flush_commands();

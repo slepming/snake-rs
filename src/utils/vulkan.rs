@@ -31,7 +31,7 @@ pub fn select_render_device(
     device_extensions: DeviceExtensions,
     event_loop: &impl HasDisplayHandle,
 ) -> (Arc<Device>, impl ExactSizeIterator<Item = Arc<Queue>>) {
-    #[cfg(feature = "tracing")]
+    
     let _span = tracy_client::span!("VULKAN: Selecting a device");
     info!("Selecting physical device (GPU)");
     // We then choose which physical device to use. First, we enumerate all the available
@@ -153,7 +153,7 @@ pub fn create_pipeline(
     fs: vulkano::shader::EntryPoint,
     blend_state: ColorBlendState,
 ) -> Arc<GraphicsPipeline> {
-    #[cfg(feature = "tracing")]
+    
     let _span = tracy_client::span!("Engine: Creating pipeline");
     let vertex_input_state = MyVertex::per_vertex().definition(&vs).unwrap();
     let stages = [

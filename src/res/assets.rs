@@ -65,7 +65,6 @@ impl Storage {
 
     /// Returns Arc<[`TextureHandler`]> from file system
     pub fn load_texture(&self, file_name: &Path, internal: bool) -> Arc<TextureHandler> {
-        #[cfg(feature = "tracing")]
         let _span = tracy_client::span!("Engine::load_texture");
         let file = file_name
             .file_name()
