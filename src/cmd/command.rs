@@ -69,7 +69,7 @@ where
     Start: StartFn,
 {
     fn flush_commands(&mut self) {
-        let span_submit = tracy_client::span!("Engine: Flush commands");
+        let _span_submit = tracy_client::span!("Engine: Flush commands");
 
         if self.game.game_command_queue.commands.is_empty() {
             return;
@@ -94,13 +94,7 @@ where
                             }
                         }
 
-                        let drw_id = drw.0.render.mesh.get_id().clone();
                         self.game.children.add(drw.0);
-                        info!(
-                            pipeline_name = &pipeline_name,
-                            drw_id = drw_id,
-                            "Object created"
-                        );
                     }
                 }
                 DrawCommand::ClearDrawables => {

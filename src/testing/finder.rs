@@ -26,11 +26,21 @@ impl Finder for Children {
     /// # Arguments
     /// `position` - Position at which the object is located.
     fn get_by_position(&self, position: PhysicalPosition<f64>) -> Vec<&Drawable> {
-        self.iter()
-            .for_each(|d| { debug!("drawable position: {}, drawable size: {}", d.position(), d.transform()); });
-        self.iter().filter(|d| d.position() == position.into_vector())
+        let vector_position = position.into_vector();
+        self.iter().filter(|&d| into_range(d, vector_position))
             .collect()
     }
+}
+
+/// Calculate drawable is into position range
+fn into_range(drawable: &Drawable, position: Vector) -> bool {
+    let drawable_size = drawable.size();
+    let drawable_position = drawable.position();
+    let drawable_sum = drawable_position + drawable_size;
+    let drawable_position_gt = position.element_sum() >= drawable_position.element_sum();
+    let drawable_position_lt = position.element_sum() <= drawable_sum.element_sum();
+    debug!("{:?} > {:?} = {:?}; {:?} < {:?} = {:?}", position, drawable_position, drawable_position_gt, position, drawable_sum, drawable_position_lt);
+    drawable_position_gt && drawable_position_lt
 }
 
 impl IntoVector for PhysicalPosition<f64> {

@@ -166,12 +166,6 @@ impl PartialEq for Mesh {
     }
 }
 
-#[derive(PartialEq)]
-pub struct PhysicsDrawable {
-    rb_h: RigidBodyHandle,
-    drawable: Drawable,
-}
-
 pub trait DrawableGPU {
     #[allow(dead_code)]
     fn set_vertex(&mut self, vertex: Vec<MyVertex>);
@@ -201,6 +195,8 @@ pub trait DrawableComponent: DrawableGPU {
     /// # Returns
     /// Mutable drawable
     fn drawable_mut(&mut self) -> &mut Drawable;
+    /// Returns drawable size
+    fn size(&self) -> Vector;
 }
 
 impl Mesh {
@@ -296,6 +292,10 @@ impl DrawableComponent for Drawable {
         &self.transform
     }
 
+    fn transform_mut(&mut self) -> &mut Transform {
+        &mut self.transform
+    }
+
     fn transform_clone(&self) -> Transform {
         self.transform.clone() 
     }
@@ -312,26 +312,8 @@ impl DrawableComponent for Drawable {
         self
     }
 
-    fn transform_mut(&mut self) -> &mut Transform {
-        &mut self.transform
-    }
-}
-
-impl DrawableGPU for PhysicsDrawable {
-    fn set_vertex(&mut self, vertex: Vec<MyVertex>) {
-        self.drawable.set_vertex(vertex);
-    }
-
-    fn vertex_clone(&self) -> Vec<MyVertex> {
-        self.drawable.vertex_clone()
-    }
-
-    fn vertex(&self) -> &Vec<MyVertex> {
-        self.drawable.vertex()
-    }
-
-    fn colour(&self) -> &Rgba8 {
-        &self.drawable.color
+    fn size(&self) -> Vector {
+        Vector::new(self.transform.0[0][0], self.transform.0[1][0])
     }
 }
 
