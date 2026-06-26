@@ -313,7 +313,7 @@ impl DrawableComponent for Drawable {
     }
 
     fn size(&self) -> Vector {
-        Vector::new(self.transform.0[0][0], self.transform.0[1][0])
+        Vector::new(self.transform.0[0][0], self.transform.0[1][1]) // 0 0 -> width; 1 1 -> height
     }
 }
 

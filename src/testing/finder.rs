@@ -34,13 +34,40 @@ impl Finder for Children {
 
 /// Calculate drawable is into position range
 fn into_range(drawable: &Drawable, position: Vector) -> bool {
-    let drawable_size = drawable.size();
+let drawable_size = drawable.size();
     let drawable_position = drawable.position();
-    let drawable_sum = drawable_position + drawable_size;
-    let drawable_position_gt = position.element_sum() >= drawable_position.element_sum();
-    let drawable_position_lt = position.element_sum() <= drawable_sum.element_sum();
-    debug!("{:?} > {:?} = {:?}; {:?} < {:?} = {:?}", position, drawable_position, drawable_position_gt, position, drawable_sum, drawable_position_lt);
-    drawable_position_gt && drawable_position_lt
+    let drawable_max = drawable_position + drawable_size;
+
+    let inside_x = position.x >= drawable_position.x && position.x <= drawable_max.x;
+    let inside_y = position.y >= drawable_position.y && position.y <= drawable_max.y;
+
+    let ge_check = position.cmpge(drawable_position);
+    let le_check = position.cmple(drawable_max);
+    let inside = ge_check.all() && le_check.all();
+
+    debug!(
+        "--- checking object ---"
+    );
+    debug!(
+        "cursor: {:?}", position
+    );
+    debug!(
+        "object position (min): {:?}, object size: {:?}", drawable_position, drawable_size
+    );
+    debug!(
+        "object max bounds: {:?}", drawable_max
+    );
+    debug!(
+        "axis x check ({:.1} <= {:.1} <= {:.1}): {}", drawable_position.x, position.x, drawable_max.x, inside_x
+    );
+    debug!(
+        "axis y check ({:.1} <= {:.1} <= {:.1}): {}", drawable_position.y, position.y, drawable_max.y, inside_y
+    );
+    debug!(
+        "final result -> inside: {}", inside
+    );
+
+    inside
 }
 
 impl IntoVector for PhysicalPosition<f64> {
