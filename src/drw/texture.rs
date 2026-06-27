@@ -66,7 +66,6 @@ impl Texture {
             return None;
         }
 
-        debug!("Load texture from byte slice");
         let img = image::load_from_memory(bytes).unwrap();
         let dimension = img.dimensions();
 

@@ -44,11 +44,6 @@ impl Storage {
     pub fn load_texture_from_bytes(&self, bytes: &[u8]) -> Arc<TextureHandler> {
         let texture: Texture = { Texture::from_slice(bytes).unwrap() };
 
-        debug!(
-            loaded_image_size = texture.image.len(),
-            loaded_image_size_mb = texture.image.len() / 1024 / 1024
-        );
-
         let texture_handler = self.create_texture_handler(texture.dimension, &texture.image);
 
         texture_handler

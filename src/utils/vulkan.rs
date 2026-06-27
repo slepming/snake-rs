@@ -37,7 +37,7 @@ pub fn select_render_device(
     // We then choose which physical device to use. First, we enumerate all the available
     // physical devices, then apply filters to narrow them down to those that can support our
     // needs.
-    let (physical_device, queue_family_index) = instance
+    let (physical_device, graphics_index, transfer_index) = instance
         .enumerate_physical_devices()
         .unwrap()
         .filter(|p| {
@@ -60,7 +60,8 @@ pub fn select_render_device(
             // to handle data transfers in parallel with graphics operations.
             // You may also need a separate queue for compute operations, if
             // your application uses those.
-            p.queue_family_properties()
+            let family = p.queue_family_properties();
+            let graphics = family
                 .iter()
                 .enumerate()
                 .position(|(i, q)| {
@@ -75,7 +76,26 @@ pub fn select_render_device(
                 // The code here searches for the first queue family that is suitable. If none
                 // is found, `None` is returned to `filter_map`, which
                 // disqualifies this physical device.
-                .map(|i| (p, i as u32))
+                .map(|i| i as u32);
+
+            let transfer = family
+                .iter()
+                .enumerate()
+                .position(|(_i, q)| {
+                    // We select a queue family that supports graphics operations. When drawing
+                    // to a window surface, as we do in this example, we also need to check
+                    // that queues in this queue family are capable of presenting images to the
+                    // surface.
+                    q.queue_flags.intersects(QueueFlags::TRANSFER) && !q.queue_flags.contains(QueueFlags::GRAPHICS)
+                })
+                // The code here searches for the first queue family that is suitable. If none
+                // is found, `None` is returned to `filter_map`, which
+                // disqualifies this physical device.
+                .map(|i| i as u32).or(graphics);
+            match (graphics, transfer) {
+                (Some(g), Some(t)) => Some((p, g, t)),
+                _ => panic!("Graphics device not found")
+            }
         })
         // All the physical devices that pass the filters above are suitable for the
         // application. However, not every device is equal, some are preferred over others.
@@ -85,7 +105,7 @@ pub fn select_render_device(
         // In this example, we simply select the best-scoring device to use in the application.
         // In a real-world setting, you may want to use the best-scoring device only as a
         // "default" or "recommended" device, and let the user choose the device themself.
-        .min_by_key(|(p, _)| {
+        .min_by_key(|(p, _, _)| {
             // We assign a lower score to device types that are likely to be faster/better.
             match p.properties().device_type {
                 PhysicalDeviceType::DiscreteGpu => 0,
@@ -118,10 +138,11 @@ pub fn select_render_device(
             // is the `khr_swapchain` extension that allows us to draw to a window.
             enabled_extensions: device_extensions.clone(),
 
-            // The list of queues that we are going to use. Here we only use one queue, from
-            // the previously chosen queue family.
             queue_create_infos: vec![QueueCreateInfo {
-                queue_family_index,
+                queue_family_index: graphics_index,
+                ..Default::default()
+            }, QueueCreateInfo {
+                queue_family_index: transfer_index,
                 ..Default::default()
             }],
 
