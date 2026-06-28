@@ -3,7 +3,7 @@ use std::{
     ops::RangeInclusive,
     sync::{Arc, RwLock},
 };
-use tracing::{debug};
+use tracing::debug;
 
 use vulkano::{
     Validated, VulkanError, VulkanLibrary,
@@ -29,7 +29,8 @@ use vulkano::{
     },
     render_pass::{Framebuffer, RenderPass},
     swapchain::{
-        CompositeAlpha, Surface, SurfaceInfo, Swapchain, SwapchainCreateInfo, SwapchainPresentInfo, acquire_next_image
+        CompositeAlpha, Surface, SurfaceInfo, Swapchain, SwapchainCreateInfo, SwapchainPresentInfo,
+        acquire_next_image,
     },
     sync::{self, GpuFuture},
 };
@@ -86,7 +87,6 @@ pub mod utils;
 
 pub type Vector = glam::Vec2;
 
-
 #[global_allocator]
 static GLOBAL: tracy_client::ProfiledAllocator<std::alloc::System> =
     tracy_client::ProfiledAllocator::new(std::alloc::System, 100);
@@ -101,15 +101,9 @@ impl<T> StartFn for T where
 {
 }
 
-pub trait RedrawFn:
-    FnMut(&mut Children, &mut Storage, &WindowEvent, &mut CommandQueue)
-{
-}
+pub trait RedrawFn: FnMut(&mut Children, &mut Storage, &WindowEvent, &mut CommandQueue) {}
 
-impl<T> RedrawFn for T where
-    T: FnMut(&mut Children, &mut Storage, &WindowEvent, &mut CommandQueue)
-{
-}
+impl<T> RedrawFn for T where T: FnMut(&mut Children, &mut Storage, &WindowEvent, &mut CommandQueue) {}
 
 /// The main entry point into the engine
 /// # Generics
@@ -124,7 +118,7 @@ where
     /// One of the most important parts of the engine - vulkan context
     device: Arc<Device>,
     /// GPU possible queues(Currently is first GRAPHICS queue)
-    queue: Arc<Queue>,
+    queues: Vec<Arc<Queue>>,
     memory: Arc<EngineMemory>,
     pipelines: Arc<PipelineCache>,
     descriptors: Arc<DescriptorSetCache>,
@@ -147,7 +141,7 @@ pub(crate) struct GameContext {
     pub frames: u64,
     pub game_command_queue: CommandQueue,
     pub fonts: TextFont,
-    pub mouse_position: Option<PhysicalPosition<f64>>
+    pub mouse_position: Option<PhysicalPosition<f64>>,
 }
 
 struct RenderContext {
@@ -170,7 +164,7 @@ where
 {
     pub fn new(event_loop: &EventLoop<()>, start: Start, redraw: Redraw) -> Self {
         tracing_subscriber::fmt::init();
-        
+
         let _span = tracy_client::span!("Engine::new");
 
         debug!("Initializing Vulkan library");
@@ -245,11 +239,10 @@ where
             ..DeviceExtensions::empty()
         };
 
-        let (device, mut queues) =
+        let (device, queues) =
             select_render_device(instance.clone(), device_extensions, event_loop);
 
-        // TODO: Save queues in HashMap with keys: GRAPHICS, COMPUTE, VIDEO_DECODE, VIDEO_ENCODE
-        let queue = queues.next().unwrap();
+        let queues = queues.collect::<Vec<_>>();
 
         let memory = Arc::new(EngineMemory::new(device.clone()));
         let sampler = Sampler::new(
@@ -265,7 +258,10 @@ where
         .unwrap();
 
         let assets = Storage {
-            queue: queue.clone(),
+            queue: queues
+                .last()
+                .expect("TRANSFER or GRAPHICS queue not found")
+                .clone(),
             memory_allocs: memory.clone(),
             texture_pool: RwLock::new(HashMap::new()),
         };
@@ -279,14 +275,14 @@ where
                 frames: 0,
                 game_command_queue: CommandQueue::default(),
                 fonts,
-                mouse_position: None
+                mouse_position: None,
             },
             descriptors: Arc::new(DescriptorSetCache::default()),
             pipelines: Arc::new(PipelineCache::default()),
             memory,
             instance,
             device,
-            queue,
+            queues,
             sampler,
             rcx: None,
             debug,
@@ -308,7 +304,6 @@ where
             return None;
         }
 
-        
         let _span = tracy_client::span!("Engine::calculate_drawables");
 
         // Predicting the possible vector size
@@ -378,7 +373,6 @@ where
     Start: StartFn,
 {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
-        
         let _span = tracy_client::span!("Engine::resumed");
         let window: Arc<Window>;
         debug!("Creating window");
@@ -469,9 +463,13 @@ where
                         .expect("Device don't support CompositeAlpha")
                 });
 
-            let supported_present_modes = self.device.physical_device().surface_present_modes(&surface, SurfaceInfo::default()).unwrap();
+            let supported_present_modes = self
+                .device
+                .physical_device()
+                .surface_present_modes(&surface, SurfaceInfo::default())
+                .unwrap();
 
-            debug!("Supported present mode: {:?}", supported_present_modes);
+            debug!("Supported present modes: {:?}", supported_present_modes);
 
             // Please take a look at the docs for the meaning of the parameters we didn't mention.
             Swapchain::new(
@@ -506,7 +504,10 @@ where
                     // For example, you can choose whether the window will be
                     // opaque or transparent.
                     composite_alpha: supported_composite_alpha,
-                    present_mode: supported_present_modes.first().unwrap_or(&vulkano::swapchain::PresentMode::Fifo).clone(),
+                    present_mode: supported_present_modes
+                        .first()
+                        .unwrap_or(&vulkano::swapchain::PresentMode::Fifo)
+                        .clone(),
 
                     ..Default::default()
                 },
@@ -680,7 +681,6 @@ where
                 event_loop.exit();
             }
             WindowEvent::Resized(_) => {
-                
                 let _span = tracy_client::span!("Engine::resize");
                 rcx.recreate_swapchain = true;
             }
@@ -714,7 +714,6 @@ where
                 }
             }
             WindowEvent::RedrawRequested => {
-                
                 let _span = tracy_client::span!("Engine::update");
                 let window_size = rcx.window.inner_size();
 
@@ -768,7 +767,7 @@ where
                 //
                 // This function can block if no image is available. The parameter is an optional
                 // timeout after which the function call will return an error.
-                
+
                 let span_acquire = tracy_client::span!("GPU: Acquire Next Image");
                 let (image_index, suboptimal, acquire_future) = match acquire_next_image(
                     rcx.swapchain.clone(),
@@ -783,7 +782,7 @@ where
                     }
                     Err(e) => panic!("failed to acquire next image: {e}"),
                 };
-                
+
                 drop(span_acquire);
 
                 // `acquire_next_image` can be successful, but suboptimal. This means that the
@@ -794,6 +793,8 @@ where
                     rcx.recreate_swapchain = true;
                 }
 
+                let graphics_queue = self.queues.first().expect("Graphics queue not found");
+
                 // In order to draw, we have to record a *command buffer*. The command buffer
                 // object holds the list of commands that are going to be executed.
                 //
@@ -803,10 +804,11 @@ where
                 //
                 // Note that we have to pass a queue family when we create the command buffer. The
                 // command buffer will only be executable on that given queue family.
-                
+
                 let span_cmd = tracy_client::span!("GPU: Record Command Buffer");
-                let mut builder = AutoCommandBufferBuilder::primary( self.memory.command_buffer_allocator.clone(),
-                    self.queue.queue_family_index(),
+                let mut builder = AutoCommandBufferBuilder::primary(
+                    self.memory.command_buffer_allocator.clone(),
+                    graphics_queue.queue_family_index(),
                     CommandBufferUsage::OneTimeSubmit,
                 )
                 .unwrap();
@@ -843,14 +845,12 @@ where
                     .unwrap();
 
                 if let Some(mesh) = mesh_buffers {
-                    
                     let _span_draw =
                         tracy_client::span!("Engine:: Preparing Objects for Rendering");
                     builder.bind_vertex_buffers(0, mesh.0.clone()).unwrap();
                     let all_items = self.game.children.iter();
 
                     all_items.enumerate().for_each(|(i, item)| {
-                        
                         let _span_draw = tracy_client::span!("Engine: Draw Item");
                         let colour = item.colour().clone();
                         let matrix = mesh.1[i].clone();
@@ -885,7 +885,6 @@ where
                             .descriptors
                             .get(&item.drawable().render.descriptor_id.id)
                         {
-                            
                             let _span_draw = tracy_client::span!("Engine: Getting descriptors");
                             builder
                                 .bind_descriptor_sets(
@@ -911,17 +910,16 @@ where
 
                 // Finish recording the command buffer by calling `end`.
                 let command_buffer = builder.build().unwrap();
-                
+
                 drop(span_cmd);
 
-                
                 let span_submit = tracy_client::span!("GPU: Submit & Present");
                 let future = rcx
                     .previous_frame_end
                     .take()
                     .unwrap()
                     .join(acquire_future)
-                    .then_execute(self.queue.clone(), command_buffer)
+                    .then_execute(graphics_queue.clone(), command_buffer)
                     .unwrap()
                     // The color output is now expected to contain our triangle. But in order to
                     // show it on the screen, we have to *present* the image by calling
@@ -932,7 +930,7 @@ where
                     // only be presented once the GPU has finished executing the command buffer
                     // that draws the triangle.
                     .then_swapchain_present(
-                        self.queue.clone(),
+                        graphics_queue.clone(),
                         SwapchainPresentInfo::swapchain_image_index(
                             rcx.swapchain.clone(),
                             image_index,
@@ -953,7 +951,7 @@ where
                         // previous_frame_end = Some(sync::now(&device).boxed());
                     }
                 }
-                
+
                 drop(span_submit);
                 //self.physics_context.step(); TODO: In the future I must uncomment this code block
                 //

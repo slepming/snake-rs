@@ -5,7 +5,10 @@ use winit::dpi::PhysicalPosition;
 
 use crate::{
     Vector,
-    drw::{children::Children, drawable::{Drawable, DrawableComponent}},
+    drw::{
+        children::Children,
+        drawable::{Drawable, DrawableComponent},
+    },
     mv::transform::Positioned,
 };
 
@@ -27,14 +30,15 @@ impl Finder for Children {
     /// `position` - Position at which the object is located.
     fn get_by_position(&self, position: PhysicalPosition<f64>) -> Vec<&Drawable> {
         let vector_position = position.into_vector();
-        self.iter().filter(|&d| into_range(d, vector_position))
+        self.iter()
+            .filter(|&d| into_range(d, vector_position))
             .collect()
     }
 }
 
 /// Calculate drawable is into position range
 fn into_range(drawable: &Drawable, position: Vector) -> bool {
-let drawable_size = drawable.size();
+    let drawable_size = drawable.size();
     let drawable_position = drawable.position();
     let drawable_max = drawable_position + drawable_size;
 
@@ -45,27 +49,22 @@ let drawable_size = drawable.size();
     let le_check = position.cmple(drawable_max);
     let inside = ge_check.all() && le_check.all();
 
+    debug!("--- checking object ---");
+    debug!("cursor: {:?}", position);
     debug!(
-        "--- checking object ---"
+        "object position (min): {:?}, object size: {:?}",
+        drawable_position, drawable_size
+    );
+    debug!("object max bounds: {:?}", drawable_max);
+    debug!(
+        "axis x check ({:.1} <= {:.1} <= {:.1}): {}",
+        drawable_position.x, position.x, drawable_max.x, inside_x
     );
     debug!(
-        "cursor: {:?}", position
+        "axis y check ({:.1} <= {:.1} <= {:.1}): {}",
+        drawable_position.y, position.y, drawable_max.y, inside_y
     );
-    debug!(
-        "object position (min): {:?}, object size: {:?}", drawable_position, drawable_size
-    );
-    debug!(
-        "object max bounds: {:?}", drawable_max
-    );
-    debug!(
-        "axis x check ({:.1} <= {:.1} <= {:.1}): {}", drawable_position.x, position.x, drawable_max.x, inside_x
-    );
-    debug!(
-        "axis y check ({:.1} <= {:.1} <= {:.1}): {}", drawable_position.y, position.y, drawable_max.y, inside_y
-    );
-    debug!(
-        "final result -> inside: {}", inside
-    );
+    debug!("final result -> inside: {}", inside);
 
     inside
 }

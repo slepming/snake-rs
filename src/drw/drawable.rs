@@ -2,9 +2,7 @@
 
 use std::sync::Arc;
 
-use rapier2d::{
-    prelude::{RigidBody, RigidBodyHandle},
-};
+use rapier2d::prelude::{RigidBody, RigidBodyHandle};
 use vulkano::{
     descriptor_set::allocator::DescriptorSetAllocator, image::sampler::Sampler,
     memory::allocator::MemoryAllocator,
@@ -297,7 +295,7 @@ impl DrawableComponent for Drawable {
     }
 
     fn transform_clone(&self) -> Transform {
-        self.transform.clone() 
+        self.transform.clone()
     }
 
     fn set_transform(&mut self, transform: Transform) {

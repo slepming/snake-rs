@@ -78,6 +78,9 @@ impl Texture {
 
 impl Debug for Texture {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Texture").field("image_len", &self.image.len()).field("dimension", &self.dimension).finish()
+        f.debug_struct("Texture")
+            .field("image_len", &self.image.len())
+            .field("dimension", &self.dimension)
+            .finish()
     }
 }

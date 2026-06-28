@@ -31,7 +31,6 @@ pub fn select_render_device(
     device_extensions: DeviceExtensions,
     event_loop: &impl HasDisplayHandle,
 ) -> (Arc<Device>, impl ExactSizeIterator<Item = Arc<Queue>>) {
-    
     let _span = tracy_client::span!("VULKAN: Selecting a device");
     info!("Selecting physical device (GPU)");
     // We then choose which physical device to use. First, we enumerate all the available
@@ -86,15 +85,17 @@ pub fn select_render_device(
                     // to a window surface, as we do in this example, we also need to check
                     // that queues in this queue family are capable of presenting images to the
                     // surface.
-                    q.queue_flags.intersects(QueueFlags::TRANSFER) && !q.queue_flags.contains(QueueFlags::GRAPHICS)
+                    q.queue_flags.intersects(QueueFlags::TRANSFER)
+                        && !q.queue_flags.contains(QueueFlags::GRAPHICS)
                 })
                 // The code here searches for the first queue family that is suitable. If none
                 // is found, `None` is returned to `filter_map`, which
                 // disqualifies this physical device.
-                .map(|i| i as u32).or(graphics);
+                .map(|i| i as u32)
+                .or(graphics);
             match (graphics, transfer) {
                 (Some(g), Some(t)) => Some((p, g, t)),
-                _ => panic!("Graphics device not found")
+                _ => panic!("Graphics device not found"),
             }
         })
         // All the physical devices that pass the filters above are suitable for the
@@ -138,13 +139,16 @@ pub fn select_render_device(
             // is the `khr_swapchain` extension that allows us to draw to a window.
             enabled_extensions: device_extensions.clone(),
 
-            queue_create_infos: vec![QueueCreateInfo {
-                queue_family_index: graphics_index,
-                ..Default::default()
-            }, QueueCreateInfo {
-                queue_family_index: transfer_index,
-                ..Default::default()
-            }],
+            queue_create_infos: vec![
+                QueueCreateInfo {
+                    queue_family_index: graphics_index,
+                    ..Default::default()
+                },
+                QueueCreateInfo {
+                    queue_family_index: transfer_index,
+                    ..Default::default()
+                },
+            ],
 
             ..Default::default()
         },
@@ -174,7 +178,6 @@ pub fn create_pipeline(
     fs: vulkano::shader::EntryPoint,
     blend_state: ColorBlendState,
 ) -> Arc<GraphicsPipeline> {
-    
     let _span = tracy_client::span!("Engine: Creating pipeline");
     let vertex_input_state = MyVertex::per_vertex().definition(&vs).unwrap();
     let stages = [
