@@ -12,7 +12,7 @@ pub struct Children {
 
 impl Children {
     /// Push drawable to the [`Children::drawables`]
-    pub(crate) fn add(&mut self, item: Drawable) {
+    pub(crate) fn add(&self, item: Drawable) {
         self.drawables
             .write()
             .unwrap()
@@ -34,7 +34,7 @@ impl Children {
     }
 
     /// Returns mutable [`Drawable`] reference
-    pub fn get_mut(&mut self, index: usize) -> Option<DrawableData> {
+    pub fn get_mut(&self, index: usize) -> Option<DrawableData> {
         let lock = self.drawables.read().unwrap();
 
         lock.get(index).cloned()
@@ -48,6 +48,13 @@ impl Children {
         for item in lock.iter().enumerate() {
             e(item);
         }
+    }
+
+    pub fn try_for_each<F>(&self, mut e: F)
+        where F: FnMut((usize, &DrawableData)),
+    {
+        let lock = self.drawables.read().unwrap();
+        lock.iter().try_for_each(e);
     }
 
     pub fn filter_each<P>(&self, mut predicate: P) -> Vec<DrawableData>
@@ -78,7 +85,7 @@ impl Children {
         self.drawables.read().unwrap().len()
     }
 
-    pub(crate) fn clear(&mut self) {
+    pub(crate) fn clear(&self) {
         self.drawables.write().unwrap().clear();
     }
 }

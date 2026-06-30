@@ -92,18 +92,18 @@ static GLOBAL: tracy_client::ProfiledAllocator<std::alloc::System> =
     tracy_client::ProfiledAllocator::new(std::alloc::System, 100);
 
 pub trait StartFn:
-    FnMut(&ActiveEventLoop, &mut Children, &mut Storage, Arc<Window>, &mut CommandQueue)
+    FnMut(&ActiveEventLoop, Arc<Children>, &mut Storage, Arc<Window>, &mut CommandQueue)
 {
 }
 
 impl<T> StartFn for T where
-    T: FnMut(&ActiveEventLoop, &mut Children, &mut Storage, Arc<Window>, &mut CommandQueue)
+    T: FnMut(&ActiveEventLoop, Arc<Children>, &mut Storage, Arc<Window>, &mut CommandQueue)
 {
 }
 
-pub trait RedrawFn: FnMut(&mut Children, &mut Storage, &WindowEvent, &mut CommandQueue) {}
+pub trait RedrawFn: FnMut(Arc<Children>, &mut Storage, &WindowEvent, &mut CommandQueue) {}
 
-impl<T> RedrawFn for T where T: FnMut(&mut Children, &mut Storage, &WindowEvent, &mut CommandQueue) {}
+impl<T> RedrawFn for T where T: FnMut(Arc<Children>, &mut Storage, &WindowEvent, &mut CommandQueue) {}
 
 /// The main entry point into the engine
 /// # Generics
@@ -117,7 +117,6 @@ where
     instance: Arc<Instance>,
     /// One of the most important parts of the engine - vulkan context
     device: Arc<Device>,
-    /// GPU possible queues(Currently is first GRAPHICS queue)
     queues: Vec<Arc<Queue>>,
     memory: Arc<EngineMemory>,
     pipelines: Arc<PipelineCache>,
@@ -136,7 +135,7 @@ pub(crate) struct DebugUtils {
 }
 
 pub(crate) struct GameContext {
-    pub children: Children,
+    pub children: Arc<Children>,
     pub assets: Storage,
     pub frames: u64,
     pub game_command_queue: CommandQueue,
@@ -270,7 +269,7 @@ where
 
         Self {
             game: GameContext {
-                children: Children::default(),
+                children: Arc::new(Children::default()),
                 assets,
                 frames: 0,
                 game_command_queue: CommandQueue::default(),
@@ -297,7 +296,7 @@ where
     /// tuple with buffer for vertices, matrices, offsets vectors
     pub(crate) fn calculate_drawables(
         memory_allocator: Arc<dyn MemoryAllocator>,
-        children: &mut Children,
+        children: Arc<Children>,
         _rcx: &mut RenderContext,
     ) -> Option<MeshBuffers> {
         if children.len() < 1 {
@@ -639,7 +638,7 @@ where
 
         (self.start)(
             &event_loop,
-            &mut game.children,
+            game.children.clone(),
             &mut game.assets,
             window.clone(),
             &mut game.game_command_queue,
@@ -668,7 +667,7 @@ where
         let rcx = self.rcx.as_mut().unwrap();
 
         (self.redraw)(
-            &mut self.game.children,
+            self.game.children.clone(),
             &mut self.game.assets,
             &event,
             &mut self.game.game_command_queue,
@@ -756,12 +755,6 @@ where
                     rcx.recreate_swapchain = false;
                 }
 
-                let mesh_buffers = EngineContext::<Redraw, Start>::calculate_drawables(
-                    self.memory.memory_allocator.clone(),
-                    &mut self.game.children,
-                    rcx,
-                );
-
                 // Before we can draw on the output, we have to *acquire* an image from the
                 // swapchain. If no image is available (which happens if you submit draw commands
                 // too quickly), then the function will block. This operation returns the index of
@@ -846,16 +839,54 @@ where
                     .set_viewport(0, [rcx.viewport.clone()].into_iter().collect())
                     .unwrap();
 
+                let mesh_buffers = EngineContext::<Redraw, Start>::calculate_drawables( // происходит
+                                                                                        // гонка
+                                                                                        // потоков.
+                                                                                        // Нужно
+                                                                                        // заблокировать
+                                                                                        // Children
+                                                                                        // или его
+                                                                                        // вектор,
+                                                                                        // чтобы за
+                                                                                        // короткое
+                                                                                        // время
+                                                                                        // перед
+                                                                                        // обработкой
+                                                                                        // mesh_buffers
+                                                                                        // не
+                                                                                        // появилось
+                                                                                        // новых
+                                                                                        // children'ов
+                                                                                        // или же в
+                                                                                        // calculate_drawables
+                                                                                        // возвращать
+                                                                                        // длину
+                                                                                        // Children
+                                                                                        // Но для
+                                                                                        // этого
+                                                                                        // придется
+                                                                                        // блокировать Children внутри
+                                                                                        // чтобы не
+                                                                                        // получить
+                                                                                        // изменений
+                                                                                        // в длине
+                    self.memory.memory_allocator.clone(),
+                    self.game.children.clone(),
+                    rcx,
+                );
+
                 if let Some(mesh) = mesh_buffers {
                     let _span_draw =
                         tracy_client::span!("Engine:: Preparing Objects for Rendering");
                     builder.bind_vertex_buffers(0, mesh.0.clone()).unwrap();
 
                     self.game.children.for_each(|(i, item)| {
+                        let matrix = match mesh.1.get(i)
+                        {
+                        }
                         let _span_draw = tracy_client::span!("Engine: Draw Item");
                         let item = item.lock().unwrap();
                         let colour = item.colour().clone();
-                        let matrix = mesh.1[i].clone();
                         let constants = Constants(
                             matrix,
                             rcx.window.inner_size().into(),
