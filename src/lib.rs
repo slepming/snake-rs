@@ -332,7 +332,8 @@ where
         //     matrices.push(matrics);
         // });
 
-        children.iter().for_each(|drawable| {
+        children.for_each(|(_, drawable)| {
+            let drawable = drawable.lock().unwrap();
             let verts = drawable.vertex();
             let matrix = drawable.transform_clone();
             // We have few MyVertex elements for each drawable component. For this we create offset
@@ -699,14 +700,15 @@ where
                         Key::Named(NamedKey::F1) => {
                             if let Some(cursor) = self.game.mouse_position {
                                 let drawable = self.game.children.get_by_position(cursor);
-                                if drawable.len() >= 1 {
-                                    debug!(
-                                        "drawable with id: {}",
-                                        drawable[0].render.mesh.get_id()
-                                    );
-                                } else {
-                                    debug!("There are no objects in the current position");
-                                }
+                                match drawable.first() {
+                                    Some(d) => {
+                                        debug!(
+                                            "drawable with id: {}",
+                                            d.lock().unwrap().render.mesh.get_id()
+                                        );
+                                    }
+                                    None => debug!("There are no objects in the current position"),
+                                };
                             }
                         }
                         _ => {}
@@ -848,10 +850,10 @@ where
                     let _span_draw =
                         tracy_client::span!("Engine:: Preparing Objects for Rendering");
                     builder.bind_vertex_buffers(0, mesh.0.clone()).unwrap();
-                    let all_items = self.game.children.iter();
 
-                    all_items.enumerate().for_each(|(i, item)| {
+                    self.game.children.for_each(|(i, item)| {
                         let _span_draw = tracy_client::span!("Engine: Draw Item");
+                        let item = item.lock().unwrap();
                         let colour = item.colour().clone();
                         let matrix = mesh.1[i].clone();
                         let constants = Constants(

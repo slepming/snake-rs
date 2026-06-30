@@ -82,7 +82,7 @@ where
             match command {
                 DrawCommand::DrawObject(s, drw) => {
                     let pipeline_name = s.as_ref().to_lowercase();
-                    if let Some(drw) = draw_object(self, s, drw, false) {
+                    if let Some(drw) = draw_object(self, s, drw) {
                         if let Some(descriptor) = drw.1 {
                             if self
                                 .descriptors
@@ -120,7 +120,7 @@ where
                         .expect("Failed to write PNG");
                     let s = Shapes::Image(self.game.assets.load_texture_from_bytes(&png_bytes));
                     let pipeline_name = s.as_ref().to_lowercase();
-                    if let Some(drw) = draw_object(self, s, drw_create_info, false) {
+                    if let Some(drw) = draw_object(self, s, drw_create_info) {
                         if let Some(descriptor) = drw.1 {
                             if self
                                 .descriptors
@@ -150,7 +150,6 @@ fn draw_object<Redraw, Start>(
     context: &EngineContext<Redraw, Start>,
     shape: Shapes,
     create_info: DrawableCreateInfo,
-    force: bool,
 ) -> Option<(Drawable, Option<Arc<DescriptorSet>>)>
 where
     Redraw: RedrawFn,
@@ -165,12 +164,6 @@ where
         context.descriptors.clone(),
         Some(context.sampler.clone()),
     );
-
-    if context.game.children.contains(&drw.0) && !force {
-        warn!("Object exists, dropping");
-        drop(drw);
-        return None;
-    }
 
     Some(drw)
 }

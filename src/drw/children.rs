@@ -1,56 +1,85 @@
-use std::slice::Iter;
+use std::sync::{Arc, Mutex, RwLock};
 
 use crate::drw::drawable::Drawable;
+
+type DrawableData = Arc<Mutex<Drawable>>;
 
 /// Structure which contains list of all objects
 pub struct Children {
     /// List of all drawable objects
-    drawables: Vec<Drawable>,
+    drawables: RwLock<Vec<Arc<Mutex<Drawable>>>>,
 }
 
 impl Children {
     /// Push drawable to the [`Children::drawables`]
     pub(crate) fn add(&mut self, item: Drawable) {
-        self.drawables.push(item);
+        self.drawables
+            .write()
+            .unwrap()
+            .push(Arc::new(Mutex::new(item)));
     }
 
-    /// Check if drawable exists
-    pub fn contains(&self, item: &Drawable) -> bool {
-        self.drawables.contains(item)
+    /// Check if arc exists
+    pub fn contains_arc(&self, item: &DrawableData) -> bool {
+        self.drawables
+            .read()
+            .unwrap()
+            .iter()
+            .any(|d| Arc::ptr_eq(d, item))
     }
 
     /// Returns [`Drawable`]
-    pub fn get(&self, index: usize) -> Option<&Drawable> {
-        self.drawables.get(index)
+    pub fn get(&self, index: usize) -> Option<DrawableData> {
+        self.drawables.read().unwrap().get(index).cloned()
     }
 
     /// Returns mutable [`Drawable`] reference
-    pub fn get_mut(&mut self, index: usize) -> Option<&mut Drawable> {
-        self.drawables.get_mut(index)
+    pub fn get_mut(&mut self, index: usize) -> Option<DrawableData> {
+        let lock = self.drawables.read().unwrap();
+
+        lock.get(index).cloned()
     }
 
-    /// Drawables iterator
-    /// # Returns
-    /// [`Iter`]
-    pub fn iter(&self) -> Iter<'_, Drawable> {
-        self.drawables.iter()
+    pub fn for_each<F>(&self, mut e: F)
+    where
+        F: FnMut((usize, &DrawableData)),
+    {
+        let lock = self.drawables.read().unwrap();
+        for item in lock.iter().enumerate() {
+            e(item);
+        }
+    }
+
+    pub fn filter_each<P>(&self, mut predicate: P) -> Vec<DrawableData>
+    where
+        P: FnMut(&Drawable) -> bool,
+    {
+        let lock = self.drawables.read().unwrap();
+
+        lock.iter()
+            .filter(|item| {
+                let guard = item.lock().unwrap();
+                predicate(&guard)
+            })
+            .cloned()
+            .collect()
     }
 
     /// Returns the last element of the drawable, or `None` if it is empty.
     ///
     /// # Returns
     /// [`Drawable`]
-    pub fn last(&self) -> Option<&Drawable> {
-        self.drawables.last()
+    pub fn last(&self) -> Option<DrawableData> {
+        self.drawables.read().unwrap().last().cloned()
     }
 
     /// Returns Children length
     pub fn len(&self) -> usize {
-        self.drawables.len()
+        self.drawables.read().unwrap().len()
     }
 
     pub(crate) fn clear(&mut self) {
-        self.drawables.clear();
+        self.drawables.write().unwrap().clear();
     }
 }
 
