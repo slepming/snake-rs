@@ -1,4 +1,4 @@
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::{Arc, Mutex, RwLock, RwLockReadGuard};
 
 use crate::drw::drawable::Drawable;
 
@@ -11,6 +11,15 @@ pub struct Children {
 }
 
 impl Children {
+    /// Locks for read drawables vector and executes fnmut with vector
+    pub(crate) fn lock_read_and_execute<F>(&self, mut f: F)
+        where F: FnMut(&RwLockReadGuard<'_, Vec<Arc<Mutex<Drawable>>>>)
+    {
+        let lock = self.drawables.read().unwrap();
+        f(&lock);
+        drop(lock);
+    }
+    
     /// Push drawable to the [`Children::drawables`]
     pub(crate) fn add(&self, item: Drawable) {
         self.drawables
@@ -40,6 +49,7 @@ impl Children {
         lock.get(index).cloned()
     }
 
+    /// Execute function for each drawable
     pub fn for_each<F>(&self, mut e: F)
     where
         F: FnMut((usize, &DrawableData)),
@@ -50,13 +60,10 @@ impl Children {
         }
     }
 
-    pub fn try_for_each<F>(&self, mut e: F)
-        where F: FnMut((usize, &DrawableData)),
-    {
-        let lock = self.drawables.read().unwrap();
-        lock.iter().try_for_each(e);
-    }
-
+    /// Filters drawables by predicate
+    ///
+    /// # Returns
+    /// Vec<[`DrawableData`]>
     pub fn filter_each<P>(&self, mut predicate: P) -> Vec<DrawableData>
     where
         P: FnMut(&Drawable) -> bool,
@@ -85,6 +92,7 @@ impl Children {
         self.drawables.read().unwrap().len()
     }
 
+    /// Clears everything drawable in vector
     pub(crate) fn clear(&self) {
         self.drawables.write().unwrap().clear();
     }

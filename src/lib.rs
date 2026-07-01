@@ -298,9 +298,9 @@ where
         memory_allocator: Arc<dyn MemoryAllocator>,
         children: Arc<Children>,
         _rcx: &mut RenderContext,
-    ) -> Option<MeshBuffers> {
+    ) -> (Option<MeshBuffers>, usize) {
         if children.len() < 1 {
-            return None;
+            return (None, 0);
         }
 
         let _span = tracy_client::span!("Engine::calculate_drawables");
@@ -309,6 +309,8 @@ where
         let mut vertices: Vec<MyVertex> = Vec::with_capacity(children.len() * 2);
         let mut matrices: Vec<Transform> = Vec::with_capacity(children.len());
         let mut offsets: Vec<u32> = Vec::with_capacity(children.len());
+
+        let mut drawable_size: usize = 0;
 
         // TODO: in the future I must think about join this iteration loops through abstractions or
         // compositing structures
@@ -331,7 +333,9 @@ where
         //     matrices.push(matrics);
         // });
 
-        children.for_each(|(_, drawable)| {
+        children.lock_read_and_execute(|drawables| {
+            drawable_size = drawables.len();
+            drawables.iter().enumerate().for_each(|(_, drawable)| {
             let drawable = drawable.lock().unwrap();
             let verts = drawable.vertex();
             let matrix = drawable.transform_clone();
@@ -346,7 +350,7 @@ where
             offsets.push(offset);
             vertices.extend_from_slice(verts);
             matrices.push(matrix);
-        });
+        })});
 
         let vertex_buffer = Buffer::from_iter(
             memory_allocator,
@@ -363,7 +367,7 @@ where
         )
         .unwrap();
 
-        Some(MeshBuffers(vertex_buffer, matrices, offsets))
+        (Some(MeshBuffers(vertex_buffer, matrices, offsets)), drawable_size)
     }
 }
 
@@ -839,37 +843,7 @@ where
                     .set_viewport(0, [rcx.viewport.clone()].into_iter().collect())
                     .unwrap();
 
-                let mesh_buffers = EngineContext::<Redraw, Start>::calculate_drawables( // происходит
-                                                                                        // гонка
-                                                                                        // потоков.
-                                                                                        // Нужно
-                                                                                        // заблокировать
-                                                                                        // Children
-                                                                                        // или его
-                                                                                        // вектор,
-                                                                                        // чтобы за
-                                                                                        // короткое
-                                                                                        // время
-                                                                                        // перед
-                                                                                        // обработкой
-                                                                                        // mesh_buffers
-                                                                                        // не
-                                                                                        // появилось
-                                                                                        // новых
-                                                                                        // children'ов
-                                                                                        // или же в
-                                                                                        // calculate_drawables
-                                                                                        // возвращать
-                                                                                        // длину
-                                                                                        // Children
-                                                                                        // Но для
-                                                                                        // этого
-                                                                                        // придется
-                                                                                        // блокировать Children внутри
-                                                                                        // чтобы не
-                                                                                        // получить
-                                                                                        // изменений
-                                                                                        // в длине
+                let (mesh_buffers, children_size) = EngineContext::<Redraw, Start>::calculate_drawables(
                     self.memory.memory_allocator.clone(),
                     self.game.children.clone(),
                     rcx,
@@ -881,9 +855,9 @@ where
                     builder.bind_vertex_buffers(0, mesh.0.clone()).unwrap();
 
                     self.game.children.for_each(|(i, item)| {
-                        let matrix = match mesh.1.get(i)
-                        {
+                        if i >= children_size {
                         }
+                        let matrix = mesh.1[i];
                         let _span_draw = tracy_client::span!("Engine: Draw Item");
                         let item = item.lock().unwrap();
                         let colour = item.colour().clone();
