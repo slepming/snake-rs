@@ -336,21 +336,22 @@ where
         children.lock_read_and_execute(|drawables| {
             drawable_size = drawables.len();
             drawables.iter().enumerate().for_each(|(_, drawable)| {
-            let drawable = drawable.lock().unwrap();
-            let verts = drawable.vertex();
-            let matrix = drawable.transform_clone();
-            // We have few MyVertex elements for each drawable component. For this we create offset
-            // relative each drawable MyVertex elements. We have drawables with
-            // [MyVertex; n] where n is **dynamic** number, to resolve this problem this iteration
-            // write to the offsets vector offset for each drawable element. For first drawble is
-            // 4(bec MyVertex; 4), for second drawable is 12(bec second drawable have MyVertex; 8 ->
-            // 4+8)
-            let offset = vertices.len() as u32;
+                let drawable = drawable.lock().unwrap();
+                let verts = drawable.vertex();
+                let matrix = drawable.transform_clone();
+                // We have few MyVertex elements for each drawable component. For this we create offset
+                // relative each drawable MyVertex elements. We have drawables with
+                // [MyVertex; n] where n is **dynamic** number, to resolve this problem this iteration
+                // write to the offsets vector offset for each drawable element. For first drawble is
+                // 4(bec MyVertex; 4), for second drawable is 12(bec second drawable have MyVertex; 8 ->
+                // 4+8)
+                let offset = vertices.len() as u32;
 
-            offsets.push(offset);
-            vertices.extend_from_slice(verts);
-            matrices.push(matrix);
-        })});
+                offsets.push(offset);
+                vertices.extend_from_slice(verts);
+                matrices.push(matrix);
+            })
+        });
 
         let vertex_buffer = Buffer::from_iter(
             memory_allocator,
@@ -367,7 +368,10 @@ where
         )
         .unwrap();
 
-        (Some(MeshBuffers(vertex_buffer, matrices, offsets)), drawable_size)
+        (
+            Some(MeshBuffers(vertex_buffer, matrices, offsets)),
+            drawable_size,
+        )
     }
 }
 
@@ -843,19 +847,21 @@ where
                     .set_viewport(0, [rcx.viewport.clone()].into_iter().collect())
                     .unwrap();
 
-                let (mesh_buffers, children_size) = EngineContext::<Redraw, Start>::calculate_drawables(
-                    self.memory.memory_allocator.clone(),
-                    self.game.children.clone(),
-                    rcx,
-                );
+                let (mesh_buffers, children_size) =
+                    EngineContext::<Redraw, Start>::calculate_drawables(
+                        self.memory.memory_allocator.clone(),
+                        self.game.children.clone(),
+                        rcx,
+                    );
 
                 if let Some(mesh) = mesh_buffers {
                     let _span_draw =
                         tracy_client::span!("Engine:: Preparing Objects for Rendering");
                     builder.bind_vertex_buffers(0, mesh.0.clone()).unwrap();
 
-                    self.game.children.for_each(|(i, item)| {
+                    self.game.children.try_for_each(|(i, item)| {
                         if i >= children_size {
+                            return Err(0)
                         }
                         let matrix = mesh.1[i];
                         let _span_draw = tracy_client::span!("Engine: Draw Item");
@@ -906,6 +912,8 @@ where
                         unsafe {
                             builder.draw(vertex_count, 1, vertex_cursor, 0).unwrap();
                         }
+
+                        Ok(())
                     });
                 }
 

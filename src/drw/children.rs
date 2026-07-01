@@ -1,5 +1,7 @@
 use std::sync::{Arc, Mutex, RwLock, RwLockReadGuard};
 
+use anyhow::Error;
+
 use crate::drw::drawable::Drawable;
 
 type DrawableData = Arc<Mutex<Drawable>>;
@@ -13,13 +15,14 @@ pub struct Children {
 impl Children {
     /// Locks for read drawables vector and executes fnmut with vector
     pub(crate) fn lock_read_and_execute<F>(&self, mut f: F)
-        where F: FnMut(&RwLockReadGuard<'_, Vec<Arc<Mutex<Drawable>>>>)
+    where
+        F: FnMut(&RwLockReadGuard<'_, Vec<Arc<Mutex<Drawable>>>>),
     {
         let lock = self.drawables.read().unwrap();
         f(&lock);
         drop(lock);
     }
-    
+
     /// Push drawable to the [`Children::drawables`]
     pub(crate) fn add(&self, item: Drawable) {
         self.drawables
@@ -37,12 +40,12 @@ impl Children {
             .any(|d| Arc::ptr_eq(d, item))
     }
 
-    /// Returns [`Drawable`]
+    /// Returns [`DrawableData`]
     pub fn get(&self, index: usize) -> Option<DrawableData> {
         self.drawables.read().unwrap().get(index).cloned()
     }
 
-    /// Returns mutable [`Drawable`] reference
+    /// Returns mutable [`DrawableData`] reference
     pub fn get_mut(&self, index: usize) -> Option<DrawableData> {
         let lock = self.drawables.read().unwrap();
 
@@ -57,6 +60,19 @@ impl Children {
         let lock = self.drawables.read().unwrap();
         for item in lock.iter().enumerate() {
             e(item);
+        }
+    }
+
+    pub fn try_for_each<F>(&self, mut e: F)
+    where
+        F: FnMut((usize, &DrawableData)) -> Result<(), usize>,
+    {
+        let lock = self.drawables.read().unwrap();
+        for item in lock.iter().enumerate() {
+            match e(item) {
+                Ok(()) => continue,
+                Err(_) => break,
+            }
         }
     }
 

@@ -1,6 +1,10 @@
 //! Commands from game space
 
-use std::{collections::VecDeque, sync::Arc, thread::{self, Thread}};
+use std::{
+    collections::VecDeque,
+    sync::Arc,
+    thread::{self, Thread},
+};
 
 use image::{ImageBuffer, Rgba};
 use rayon::ThreadPoolBuilder;
@@ -8,7 +12,12 @@ use tracing::{debug, info, warn};
 use vulkano::{descriptor_set::DescriptorSet, image::sampler::Sampler};
 
 use crate::{
-    EngineContext, RedrawFn, StartFn, drw::drawable::{Drawable, DrawableCreateInfo}, geom::shapes::Shapes, mem::engine_memory::EngineMemory, res::cache::{CacheProvider, DescriptorSetCache, PipelineCache}, text::sprite_text::SpriteTextCreateInfo
+    EngineContext, RedrawFn, StartFn,
+    drw::drawable::{Drawable, DrawableCreateInfo},
+    geom::shapes::Shapes,
+    mem::engine_memory::EngineMemory,
+    res::cache::{CacheProvider, DescriptorSetCache, PipelineCache},
+    text::sprite_text::SpriteTextCreateInfo,
 };
 
 pub enum DrawCommand {
@@ -72,7 +81,8 @@ where
             return;
         }
 
-        let thread = ThreadPoolBuilder::new().num_threads(3).build().unwrap();
+        let thread = ThreadPoolBuilder::new().num_threads(3).build().unwrap(); // TODO: move thread pool
+                                                                               // into EngineContext
 
         let commands_count = self.game.game_command_queue.commands.len();
         debug!(commands_count = commands_count, "Flush commands");
@@ -87,15 +97,20 @@ where
                     let c_len = self.game.children.len();
                     let children = self.game.children.clone();
                     thread.spawn(move || {
+                        let _span_submit = tracy_client::span!("Worker: Execute command");
                         let pipeline_name = s.as_ref().to_lowercase();
-                        if let Some(drw) = draw_object(memory, pipelines, descriptors.clone(), sampler, s, drw, c_len) {
+                        if let Some(drw) = draw_object(
+                            memory,
+                            pipelines,
+                            descriptors.clone(),
+                            sampler,
+                            s,
+                            drw,
+                            c_len,
+                        ) {
                             if let Some(descriptor) = drw.1 {
-                                if descriptors
-                                    .get(pipeline_name.clone().as_str())
-                                    .is_none()
-                                {
-                                    descriptors
-                                        .insert((pipeline_name.clone(), descriptor.clone()));
+                                if descriptors.get(pipeline_name.clone().as_str()).is_none() {
+                                    descriptors.insert((pipeline_name.clone(), descriptor.clone()));
                                 }
                             }
 
@@ -131,7 +146,15 @@ where
                     let descriptors = self.descriptors.clone();
                     let sampler = self.sampler.clone();
                     let c_len = self.game.children.len();
-                    if let Some(drw) = draw_object(memory, pipelines, descriptors.clone(), sampler, s, drw, c_len) {
+                    if let Some(drw) = draw_object(
+                        memory,
+                        pipelines,
+                        descriptors.clone(),
+                        sampler,
+                        s,
+                        drw,
+                        c_len,
+                    ) {
                         if let Some(descriptor) = drw.1 {
                             if self
                                 .descriptors
@@ -164,9 +187,8 @@ fn draw_object(
     sampler: Arc<Sampler>,
     shape: Shapes,
     create_info: DrawableCreateInfo,
-    children_len: usize
-) -> Option<(Drawable, Option<Arc<DescriptorSet>>)>
-{
+    children_len: usize,
+) -> Option<(Drawable, Option<Arc<DescriptorSet>>)> {
     let drw = Drawable::from_shape(
         shape.clone(),
         create_info.with_id(children_len as u32 + 1),
