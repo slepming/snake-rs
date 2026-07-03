@@ -47,32 +47,20 @@ use winit::{
 use winit::platform::wayland::WindowAttributesExtWayland;
 
 use crate::{
-    cmd::command::{CommandDispatcher, CommandQueue},
-    dbg::debug_utils::DebugUtils,
-    drw::{
+    cmd::command::{CommandDispatcher, CommandQueue}, dbg::debug_utils::DebugUtils, drw::{
         children::Children,
         drawable::{DrawableComponent, DrawableGPU},
-    },
-    ext::user_functions::{RedrawFn, StartFn},
-    fnt::font::TextFont,
-    game::GameContext,
-    geom::matrix::Transform,
-    mem::engine_memory::EngineMemory,
-    render::{MeshBuffers, RenderContext},
-    res::{
+    }, ext::user_functions::{RedrawFn, StartFn}, fnt::font::TextFont, game::GameContext, geom::matrix::Transform, mem::engine_memory::EngineMemory, render::{MeshBuffers, RenderContext}, res::{
         assets::Storage,
         cache::{CacheProvider, DescriptorSetCache, PipelineCache},
-    },
-    shaders::{
+    }, shaders::{
         circle_shader::{circle_fs, circle_vs},
         cube_shader::{cube_fs, cube_vs},
         image_shader::{image_fs, image_vs},
-    },
-    testing::finder::Finder,
-    utils::{
+    }, testing::finder::Finder, threading::scheduler::{Scheduler, SchedulerContext, create_scheduler}, utils::{
         vulkan::{create_pipeline, get_vulkan_instance, select_render_device},
         window::window_size_dependent_setup,
-    },
+    }
 };
 
 pub mod cmd;
@@ -90,6 +78,7 @@ pub mod shaders;
 pub mod testing;
 pub mod text;
 pub mod utils;
+pub mod threading;
 
 pub type Vector = glam::Vec2;
 
@@ -120,6 +109,7 @@ where
     debug: DebugUtils,
     redraw: Redraw,
     start: Start,
+    scheduler: (Scheduler, SchedulerContext)
 }
 
 impl<Redraw, Start> EngineContext<Redraw, Start>
@@ -133,7 +123,7 @@ where
         let _span = tracy_client::span!("Engine::new");
 
         let instance = get_vulkan_instance(event_loop, vec![]);
-        let mut debug: DebugUtils = DebugUtils::new(instance.clone());
+        let debug: DebugUtils = DebugUtils::new(instance.clone());
 
         // Choose device extensions that we're going to use. In order to present images to a
         // surface, we need a `Swapchain`, which is provided by the `khr_swapchain` extension.
@@ -191,6 +181,7 @@ where
             debug,
             start: start,
             redraw: redraw,
+            scheduler: create_scheduler()
         }
     }
 
