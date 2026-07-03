@@ -81,8 +81,7 @@ where
             return;
         }
 
-        let thread = ThreadPoolBuilder::new().num_threads(3).build().unwrap(); // TODO: move thread pool
-                                                                               // into EngineContext
+        let thread = ThreadPoolBuilder::new().num_threads(3).build().unwrap();
 
         let commands_count = self.game.game_command_queue.commands.len();
         debug!(commands_count = commands_count, "Flush commands");

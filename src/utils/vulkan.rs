@@ -2,11 +2,12 @@ use std::sync::Arc;
 
 use tracing::{debug, info};
 use vulkano::{
+    VulkanLibrary,
     device::{
         Device, DeviceCreateInfo, DeviceExtensions, Queue, QueueCreateInfo, QueueFlags,
         physical::PhysicalDeviceType,
     },
-    instance::Instance,
+    instance::{Instance, InstanceCreateFlags, InstanceCreateInfo},
     pipeline::{
         DynamicState, GraphicsPipeline, PipelineLayout, PipelineShaderStageCreateInfo,
         graphics::{
@@ -21,6 +22,7 @@ use vulkano::{
         layout::PipelineDescriptorSetLayoutCreateInfo,
     },
     render_pass::{RenderPass, Subpass},
+    swapchain::Surface,
 };
 use winit::raw_window_handle::HasDisplayHandle;
 
@@ -213,4 +215,59 @@ pub fn create_pipeline(
         },
     )
     .unwrap()
+}
+
+pub(crate) fn get_vulkan_instance(
+    event_loop: &impl HasDisplayHandle,
+    extensions: Vec<String>,
+) -> Arc<Instance> {
+    debug!("Initializing Vulkan library");
+    let library = VulkanLibrary::new()
+        .expect("Vulkan not found. You may not have Vulkan support or an up-to-date GPU driver.");
+
+    debug!("Gathering required Vulkan extensions for windowing");
+
+    let mut required_extensions = Surface::required_extensions(event_loop).unwrap();
+    required_extensions.ext_debug_utils = true;
+    let supported_extensions = library.supported_extensions();
+
+    for extension in supported_extensions.clone().into_iter().filter(|e| e.1) {
+        debug!("Supported extension: {}", extension.0);
+    }
+
+    required_extensions &= *supported_extensions;
+
+    for enabled_extension in required_extensions.clone().into_iter().filter(|e| e.1) {
+        debug!("Enabled extension: {}", enabled_extension.0);
+    }
+
+    let mut enabled_layers: Vec<String> = extensions;
+
+    #[cfg(debug_assertions)]
+    {
+        let validation_extension = String::from("VK_LAYER_KHRONOS_validation");
+        if !enabled_layers.contains(&validation_extension) {
+            enabled_layers.push(validation_extension);
+        }
+    }
+
+    for layer in enabled_layers.iter() {
+        debug!("Enabled layer: {}", layer);
+    }
+
+    debug!("Creating Vulkan instance");
+    let instance = Instance::new(
+        library.clone(),
+        InstanceCreateInfo {
+            // Enable enumerating devices that use non-conformant Vulkan implementations.
+            // (e.g. MoltenVK)
+            flags: InstanceCreateFlags::ENUMERATE_PORTABILITY,
+            enabled_extensions: required_extensions,
+            enabled_layers: enabled_layers,
+            ..Default::default()
+        },
+    )
+    .unwrap();
+
+    instance
 }

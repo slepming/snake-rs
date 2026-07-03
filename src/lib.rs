@@ -6,8 +6,8 @@ use std::{
 use tracing::debug;
 
 use vulkano::{
-    Validated, VulkanError, VulkanLibrary,
-    buffer::{Buffer, BufferContents, BufferCreateInfo, BufferUsage, Subbuffer},
+    Validated, VulkanError,
+    buffer::{Buffer, BufferContents, BufferCreateInfo, BufferUsage},
     command_buffer::{
         AutoCommandBufferBuilder, CommandBufferUsage, RenderPassBeginInfo, SubpassBeginInfo,
         SubpassContents,
@@ -17,7 +17,7 @@ use vulkano::{
         ImageUsage,
         sampler::{Filter, Sampler, SamplerAddressMode, SamplerCreateInfo},
     },
-    instance::{Instance, InstanceCreateFlags, InstanceCreateInfo, debug::DebugUtilsMessenger},
+    instance::Instance,
     memory::allocator::{AllocationCreateInfo, MemoryAllocator, MemoryTypeFilter},
     pipeline::{
         Pipeline,
@@ -27,7 +27,6 @@ use vulkano::{
             viewport::Viewport,
         },
     },
-    render_pass::{Framebuffer, RenderPass},
     swapchain::{
         CompositeAlpha, Surface, SurfaceInfo, Swapchain, SwapchainCreateInfo, SwapchainPresentInfo,
         acquire_next_image,
@@ -36,7 +35,7 @@ use vulkano::{
 };
 use winit::{
     application::ApplicationHandler,
-    dpi::{PhysicalPosition, PhysicalSize, Size},
+    dpi::{PhysicalSize, Size},
     event::{ElementState, WindowEvent},
     event_loop::{ActiveEventLoop, EventLoop},
     keyboard::{Key, NamedKey},
@@ -49,13 +48,17 @@ use winit::platform::wayland::WindowAttributesExtWayland;
 
 use crate::{
     cmd::command::{CommandDispatcher, CommandQueue},
+    dbg::debug_utils::DebugUtils,
     drw::{
         children::Children,
         drawable::{DrawableComponent, DrawableGPU},
     },
+    ext::user_functions::{RedrawFn, StartFn},
     fnt::font::TextFont,
+    game::GameContext,
     geom::matrix::Transform,
     mem::engine_memory::EngineMemory,
+    render::{MeshBuffers, RenderContext},
     res::{
         assets::Storage,
         cache::{CacheProvider, DescriptorSetCache, PipelineCache},
@@ -67,18 +70,21 @@ use crate::{
     },
     testing::finder::Finder,
     utils::{
-        vulkan::{create_pipeline, select_render_device},
+        vulkan::{create_pipeline, get_vulkan_instance, select_render_device},
         window::window_size_dependent_setup,
     },
 };
 
 pub mod cmd;
+pub mod dbg;
 pub mod drw;
+pub mod ext;
 pub mod fnt;
+pub mod game;
 pub mod geom;
-pub mod gpu;
 pub mod mem;
 pub mod mv;
+pub mod render;
 pub mod res;
 pub mod shaders;
 pub mod testing;
@@ -90,20 +96,6 @@ pub type Vector = glam::Vec2;
 #[global_allocator]
 static GLOBAL: tracy_client::ProfiledAllocator<std::alloc::System> =
     tracy_client::ProfiledAllocator::new(std::alloc::System, 100);
-
-pub trait StartFn:
-    FnMut(&ActiveEventLoop, Arc<Children>, &mut Storage, Arc<Window>, &mut CommandQueue)
-{
-}
-
-impl<T> StartFn for T where
-    T: FnMut(&ActiveEventLoop, Arc<Children>, &mut Storage, Arc<Window>, &mut CommandQueue)
-{
-}
-
-pub trait RedrawFn: FnMut(Arc<Children>, &mut Storage, &WindowEvent, &mut CommandQueue) {}
-
-impl<T> RedrawFn for T where T: FnMut(Arc<Children>, &mut Storage, &WindowEvent, &mut CommandQueue) {}
 
 /// The main entry point into the engine
 /// # Generics
@@ -130,32 +122,6 @@ where
     start: Start,
 }
 
-pub(crate) struct DebugUtils {
-    debug_callback: Option<DebugUtilsMessenger>,
-}
-
-pub(crate) struct GameContext {
-    pub children: Arc<Children>,
-    pub assets: Storage,
-    pub frames: u64,
-    pub game_command_queue: CommandQueue,
-    pub fonts: TextFont,
-    pub mouse_position: Option<PhysicalPosition<f64>>,
-}
-
-struct RenderContext {
-    window: Arc<Window>,
-    swapchain: Arc<Swapchain>,
-    render_pass: Arc<RenderPass>,
-    framebuffers: Vec<Arc<Framebuffer>>,
-    viewport: Viewport,
-    recreate_swapchain: bool,
-    previous_frame_end: Option<Box<dyn GpuFuture>>,
-}
-
-/// Used for drawable calculations
-struct MeshBuffers(Subbuffer<[MyVertex]>, Vec<Transform>, Vec<u32>);
-
 impl<Redraw, Start> EngineContext<Redraw, Start>
 where
     Redraw: RedrawFn,
@@ -166,70 +132,8 @@ where
 
         let _span = tracy_client::span!("Engine::new");
 
-        debug!("Initializing Vulkan library");
-        let library = VulkanLibrary::new().expect(
-            "Vulkan not found. You may not have Vulkan support or an up-to-date GPU driver.",
-        );
-
-        debug!("Gathering required Vulkan extensions for windowing");
-        // The first step of any Vulkan program is to create an instance.
-        //
-        // When we create an instance, we have to pass a list of extensions that we want to enable.
-        //
-        // All the window-drawing functionalities are part of non-core extensions that we need to
-        // enable manually. To do so, we ask `Surface` for the list of extensions required to draw
-        // to a window.
-        let mut required_extensions = Surface::required_extensions(event_loop).unwrap();
-        required_extensions.ext_debug_utils = true;
-        let supported_extensions = library.supported_extensions();
-
-        for extension in supported_extensions.clone().into_iter().filter(|e| e.1) {
-            debug!("Supported extension: {}", extension.0);
-        }
-
-        required_extensions &= *supported_extensions;
-
-        for enabled_extension in required_extensions.clone().into_iter().filter(|e| e.1) {
-            debug!("Enabled extension: {}", enabled_extension.0);
-        }
-
-        let mut enabled_layers: Vec<String> = vec![];
-
-        #[cfg(debug_assertions)]
-        {
-            enabled_layers.push("VK_LAYER_KHRONOS_validation".to_string());
-        }
-
-        for layer in enabled_layers.iter() {
-            debug!("Enabled layer: {}", layer);
-        }
-
-        debug!("Creating Vulkan instance");
-        let instance = Instance::new(
-            library.clone(),
-            InstanceCreateInfo {
-                // Enable enumerating devices that use non-conformant Vulkan implementations.
-                // (e.g. MoltenVK)
-                flags: InstanceCreateFlags::ENUMERATE_PORTABILITY,
-                enabled_extensions: required_extensions,
-                enabled_layers: enabled_layers,
-                ..Default::default()
-            },
-        )
-        .unwrap();
-
-        let mut debug: DebugUtils = DebugUtils {
-            debug_callback: None,
-        };
-
-        #[cfg(debug_assertions)]
-        {
-            // PANIC when message severity or message type is unkown
-
-            use crate::gpu::debug::debug_callback;
-
-            debug.debug_callback = debug_callback(instance.clone());
-        }
+        let instance = get_vulkan_instance(event_loop, vec![]);
+        let mut debug: DebugUtils = DebugUtils::new(instance.clone());
 
         // Choose device extensions that we're going to use. In order to present images to a
         // surface, we need a `Swapchain`, which is provided by the `khr_swapchain` extension.
@@ -861,7 +765,7 @@ where
 
                     self.game.children.try_for_each(|(i, item)| {
                         if i >= children_size {
-                            return Err(0)
+                            return Err(0);
                         }
                         let matrix = mesh.1[i];
                         let _span_draw = tracy_client::span!("Engine: Draw Item");
