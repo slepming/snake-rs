@@ -14,14 +14,14 @@
 // A more detailed overview of what the `shader!` macro generates can be found in the
 // vulkano-shaders crate docs. You can view them at https://docs.rs/vulkano-shaders/
 
-pub mod cube_vs {
+pub mod square_vs {
     vulkano_shaders::shader! {
-        bytes: "shaders/cube.vert.spv"
+        bytes: "shaders/square.vert.spv"
     }
 }
 
-pub mod cube_fs {
+pub mod square_fs {
     vulkano_shaders::shader! {
-        bytes: "shaders/cube.frag.spv"
+        bytes: "shaders/square.frag.spv"
     }
 }

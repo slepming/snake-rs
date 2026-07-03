@@ -1,16 +1,22 @@
 //! Commands from game space
 
-use std::{collections::VecDeque, sync::Arc};
+use std::{
+    collections::VecDeque,
+    sync::Arc,
+    thread::{self, Thread},
+};
 
 use image::{ImageBuffer, Rgba};
+use rayon::ThreadPoolBuilder;
 use tracing::{debug, info, warn};
-use vulkano::descriptor_set::DescriptorSet;
+use vulkano::{descriptor_set::DescriptorSet, image::sampler::Sampler};
 
 use crate::{
     EngineContext, RedrawFn, StartFn,
     drw::drawable::{Drawable, DrawableCreateInfo},
     geom::shapes::Shapes,
-    res::cache::CacheProvider,
+    mem::engine_memory::EngineMemory,
+    res::cache::{CacheProvider, DescriptorSetCache, PipelineCache},
     text::sprite_text::SpriteTextCreateInfo,
 };
 
@@ -75,34 +81,48 @@ where
             return;
         }
 
+        let thread = ThreadPoolBuilder::new().num_threads(3).build().unwrap();
+
         let commands_count = self.game.game_command_queue.commands.len();
         debug!(commands_count = commands_count, "Flush commands");
         let commands: Vec<_> = self.game.game_command_queue.commands.drain(..).collect();
         for command in commands {
             match command {
                 DrawCommand::DrawObject(s, drw) => {
-                    let pipeline_name = s.as_ref().to_lowercase();
-                    if let Some(drw) = draw_object(self, s, drw, false) {
-                        if let Some(descriptor) = drw.1 {
-                            if self
-                                .descriptors
-                                .get(pipeline_name.clone().as_str())
-                                .is_none()
-                            {
-                                self.descriptors
-                                    .insert((pipeline_name.clone(), descriptor.clone()));
+                    let memory = self.memory.clone();
+                    let pipelines = self.pipelines.clone();
+                    let descriptors = self.descriptors.clone();
+                    let sampler = self.sampler.clone();
+                    let c_len = self.game.children.len();
+                    let children = self.game.children.clone();
+                    thread.spawn(move || {
+                        let _span_submit = tracy_client::span!("Worker: Execute command");
+                        let pipeline_name = s.as_ref().to_lowercase();
+                        if let Some(drw) = draw_object(
+                            memory,
+                            pipelines,
+                            descriptors.clone(),
+                            sampler,
+                            s,
+                            drw,
+                            c_len,
+                        ) {
+                            if let Some(descriptor) = drw.1 {
+                                if descriptors.get(pipeline_name.clone().as_str()).is_none() {
+                                    descriptors.insert((pipeline_name.clone(), descriptor.clone()));
+                                }
                             }
-                        }
 
-                        self.game.children.add(drw.0);
-                    }
+                            children.add(drw.0);
+                        }
+                    });
                 }
                 DrawCommand::ClearDrawables => {
                     info!("Clear drawables: {}", self.game.children.len());
                     self.game.children.clear();
                 }
                 DrawCommand::DrawText(text) => {
-                    let drw_create_info = DrawableCreateInfo {
+                    let drw = DrawableCreateInfo {
                         position: text.position,
                         size: text.size,
                         ..Default::default()
@@ -120,7 +140,20 @@ where
                         .expect("Failed to write PNG");
                     let s = Shapes::Image(self.game.assets.load_texture_from_bytes(&png_bytes));
                     let pipeline_name = s.as_ref().to_lowercase();
-                    if let Some(drw) = draw_object(self, s, drw_create_info, false) {
+                    let memory = self.memory.clone();
+                    let pipelines = self.pipelines.clone();
+                    let descriptors = self.descriptors.clone();
+                    let sampler = self.sampler.clone();
+                    let c_len = self.game.children.len();
+                    if let Some(drw) = draw_object(
+                        memory,
+                        pipelines,
+                        descriptors.clone(),
+                        sampler,
+                        s,
+                        drw,
+                        c_len,
+                    ) {
                         if let Some(descriptor) = drw.1 {
                             if self
                                 .descriptors
@@ -146,31 +179,24 @@ where
     }
 }
 
-fn draw_object<Redraw, Start>(
-    context: &EngineContext<Redraw, Start>,
+fn draw_object(
+    memory: Arc<EngineMemory>,
+    pipelines: Arc<PipelineCache>,
+    descriptors: Arc<DescriptorSetCache>,
+    sampler: Arc<Sampler>,
     shape: Shapes,
     create_info: DrawableCreateInfo,
-    force: bool,
-) -> Option<(Drawable, Option<Arc<DescriptorSet>>)>
-where
-    Redraw: RedrawFn,
-    Start: StartFn,
-{
+    children_len: usize,
+) -> Option<(Drawable, Option<Arc<DescriptorSet>>)> {
     let drw = Drawable::from_shape(
         shape.clone(),
-        create_info.with_id(context.game.children.len() as u32 + 1),
-        context.memory.memory_allocator.clone(),
-        context.memory.descriptor_allocator.clone(),
-        context.pipelines.clone(),
-        context.descriptors.clone(),
-        Some(context.sampler.clone()),
+        create_info.with_id(children_len as u32 + 1),
+        memory.memory_allocator.clone(),
+        memory.descriptor_allocator.clone(),
+        pipelines.clone(),
+        descriptors.clone(),
+        Some(sampler.clone()),
     );
-
-    if context.game.children.contains(&drw.0) && !force {
-        warn!("Object exists, dropping");
-        drop(drw);
-        return None;
-    }
 
     Some(drw)
 }

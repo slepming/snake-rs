@@ -1,5 +1,7 @@
 //! Find and get objects
 
+use std::sync::{Arc, Mutex};
+
 use tracing::debug;
 use winit::dpi::PhysicalPosition;
 
@@ -17,7 +19,7 @@ pub trait IntoVector {
 }
 
 pub trait Finder {
-    fn get_by_position(&self, position: PhysicalPosition<f64>) -> Vec<&Drawable>;
+    fn get_by_position(&self, position: PhysicalPosition<f64>) -> Vec<Arc<Mutex<Drawable>>>;
 }
 
 impl Finder for Children {
@@ -28,11 +30,9 @@ impl Finder for Children {
     ///
     /// # Arguments
     /// `position` - Position at which the object is located.
-    fn get_by_position(&self, position: PhysicalPosition<f64>) -> Vec<&Drawable> {
+    fn get_by_position(&self, position: PhysicalPosition<f64>) -> Vec<Arc<Mutex<Drawable>>> {
         let vector_position = position.into_vector();
-        self.iter()
-            .filter(|&d| into_range(d, vector_position))
-            .collect()
+        self.filter_each(|d| into_range(d, vector_position))
     }
 }
 

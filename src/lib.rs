@@ -6,8 +6,8 @@ use std::{
 use tracing::debug;
 
 use vulkano::{
-    Validated, VulkanError, VulkanLibrary,
-    buffer::{Buffer, BufferContents, BufferCreateInfo, BufferUsage, Subbuffer},
+    Validated, VulkanError,
+    buffer::{Buffer, BufferContents, BufferCreateInfo, BufferUsage},
     command_buffer::{
         AutoCommandBufferBuilder, CommandBufferUsage, RenderPassBeginInfo, SubpassBeginInfo,
         SubpassContents,
@@ -17,7 +17,7 @@ use vulkano::{
         ImageUsage,
         sampler::{Filter, Sampler, SamplerAddressMode, SamplerCreateInfo},
     },
-    instance::{Instance, InstanceCreateFlags, InstanceCreateInfo, debug::DebugUtilsMessenger},
+    instance::Instance,
     memory::allocator::{AllocationCreateInfo, MemoryAllocator, MemoryTypeFilter},
     pipeline::{
         Pipeline,
@@ -27,7 +27,6 @@ use vulkano::{
             viewport::Viewport,
         },
     },
-    render_pass::{Framebuffer, RenderPass},
     swapchain::{
         CompositeAlpha, Surface, SurfaceInfo, Swapchain, SwapchainCreateInfo, SwapchainPresentInfo,
         acquire_next_image,
@@ -36,7 +35,7 @@ use vulkano::{
 };
 use winit::{
     application::ApplicationHandler,
-    dpi::{PhysicalPosition, PhysicalSize, Size},
+    dpi::{PhysicalSize, Size},
     event::{ElementState, WindowEvent},
     event_loop::{ActiveEventLoop, EventLoop},
     keyboard::{Key, NamedKey},
@@ -48,62 +47,44 @@ use winit::{
 use winit::platform::wayland::WindowAttributesExtWayland;
 
 use crate::{
-    cmd::command::{CommandDispatcher, CommandQueue},
-    drw::{
+    cmd::command::{CommandDispatcher, CommandQueue}, dbg::debug_utils::DebugUtils, drw::{
         children::Children,
         drawable::{DrawableComponent, DrawableGPU},
-    },
-    fnt::font::TextFont,
-    geom::matrix::Transform,
-    mem::engine_memory::EngineMemory,
-    res::{
+    }, ext::user_functions::{RedrawFn, StartFn}, fnt::font::TextFont, game::GameContext, geom::matrix::Transform, mem::engine_memory::EngineMemory, render::{MeshBuffers, RenderContext}, res::{
         assets::Storage,
         cache::{CacheProvider, DescriptorSetCache, PipelineCache},
-    },
-    shaders::{
+    }, shaders::{
         circle_shader::{circle_fs, circle_vs},
-        cube_shader::{cube_fs, cube_vs},
+        square_shader::{square_fs, square_vs},
         image_shader::{image_fs, image_vs},
-    },
-    testing::finder::Finder,
-    utils::{
-        vulkan::{create_pipeline, select_render_device},
+    }, testing::finder::Finder, threading::scheduler::{Scheduler, SchedulerContext, create_scheduler}, utils::{
+        vulkan::{create_pipeline, get_vulkan_instance, select_render_device},
         window::window_size_dependent_setup,
-    },
+    }
 };
 
 pub mod cmd;
+pub mod dbg;
 pub mod drw;
+pub mod ext;
 pub mod fnt;
+pub mod game;
 pub mod geom;
-pub mod gpu;
 pub mod mem;
 pub mod mv;
+pub mod render;
 pub mod res;
 pub mod shaders;
 pub mod testing;
 pub mod text;
 pub mod utils;
+pub mod threading;
 
 pub type Vector = glam::Vec2;
 
 #[global_allocator]
 static GLOBAL: tracy_client::ProfiledAllocator<std::alloc::System> =
     tracy_client::ProfiledAllocator::new(std::alloc::System, 100);
-
-pub trait StartFn:
-    FnMut(&ActiveEventLoop, &mut Children, &mut Storage, Arc<Window>, &mut CommandQueue)
-{
-}
-
-impl<T> StartFn for T where
-    T: FnMut(&ActiveEventLoop, &mut Children, &mut Storage, Arc<Window>, &mut CommandQueue)
-{
-}
-
-pub trait RedrawFn: FnMut(&mut Children, &mut Storage, &WindowEvent, &mut CommandQueue) {}
-
-impl<T> RedrawFn for T where T: FnMut(&mut Children, &mut Storage, &WindowEvent, &mut CommandQueue) {}
 
 /// The main entry point into the engine
 /// # Generics
@@ -117,7 +98,6 @@ where
     instance: Arc<Instance>,
     /// One of the most important parts of the engine - vulkan context
     device: Arc<Device>,
-    /// GPU possible queues(Currently is first GRAPHICS queue)
     queues: Vec<Arc<Queue>>,
     memory: Arc<EngineMemory>,
     pipelines: Arc<PipelineCache>,
@@ -129,33 +109,8 @@ where
     debug: DebugUtils,
     redraw: Redraw,
     start: Start,
+    scheduler: (Scheduler, SchedulerContext)
 }
-
-pub(crate) struct DebugUtils {
-    debug_callback: Option<DebugUtilsMessenger>,
-}
-
-pub(crate) struct GameContext {
-    pub children: Children,
-    pub assets: Storage,
-    pub frames: u64,
-    pub game_command_queue: CommandQueue,
-    pub fonts: TextFont,
-    pub mouse_position: Option<PhysicalPosition<f64>>,
-}
-
-struct RenderContext {
-    window: Arc<Window>,
-    swapchain: Arc<Swapchain>,
-    render_pass: Arc<RenderPass>,
-    framebuffers: Vec<Arc<Framebuffer>>,
-    viewport: Viewport,
-    recreate_swapchain: bool,
-    previous_frame_end: Option<Box<dyn GpuFuture>>,
-}
-
-/// Used for drawable calculations
-struct MeshBuffers(Subbuffer<[MyVertex]>, Vec<Transform>, Vec<u32>);
 
 impl<Redraw, Start> EngineContext<Redraw, Start>
 where
@@ -167,70 +122,8 @@ where
 
         let _span = tracy_client::span!("Engine::new");
 
-        debug!("Initializing Vulkan library");
-        let library = VulkanLibrary::new().expect(
-            "Vulkan not found. You may not have Vulkan support or an up-to-date GPU driver.",
-        );
-
-        debug!("Gathering required Vulkan extensions for windowing");
-        // The first step of any Vulkan program is to create an instance.
-        //
-        // When we create an instance, we have to pass a list of extensions that we want to enable.
-        //
-        // All the window-drawing functionalities are part of non-core extensions that we need to
-        // enable manually. To do so, we ask `Surface` for the list of extensions required to draw
-        // to a window.
-        let mut required_extensions = Surface::required_extensions(event_loop).unwrap();
-        required_extensions.ext_debug_utils = true;
-        let supported_extensions = library.supported_extensions();
-
-        for extension in supported_extensions.clone().into_iter().filter(|e| e.1) {
-            debug!("Supported extension: {}", extension.0);
-        }
-
-        required_extensions &= *supported_extensions;
-
-        for enabled_extension in required_extensions.clone().into_iter().filter(|e| e.1) {
-            debug!("Enabled extension: {}", enabled_extension.0);
-        }
-
-        let mut enabled_layers: Vec<String> = vec![];
-
-        #[cfg(debug_assertions)]
-        {
-            enabled_layers.push("VK_LAYER_KHRONOS_validation".to_string());
-        }
-
-        for layer in enabled_layers.iter() {
-            debug!("Enabled layer: {}", layer);
-        }
-
-        debug!("Creating Vulkan instance");
-        let instance = Instance::new(
-            library.clone(),
-            InstanceCreateInfo {
-                // Enable enumerating devices that use non-conformant Vulkan implementations.
-                // (e.g. MoltenVK)
-                flags: InstanceCreateFlags::ENUMERATE_PORTABILITY,
-                enabled_extensions: required_extensions,
-                enabled_layers: enabled_layers,
-                ..Default::default()
-            },
-        )
-        .unwrap();
-
-        let mut debug: DebugUtils = DebugUtils {
-            debug_callback: None,
-        };
-
-        #[cfg(debug_assertions)]
-        {
-            // PANIC when message severity or message type is unkown
-
-            use crate::gpu::debug::debug_callback;
-
-            debug.debug_callback = debug_callback(instance.clone());
-        }
+        let instance = get_vulkan_instance(event_loop, vec![]);
+        let debug: DebugUtils = DebugUtils::new(instance.clone());
 
         // Choose device extensions that we're going to use. In order to present images to a
         // surface, we need a `Swapchain`, which is provided by the `khr_swapchain` extension.
@@ -270,7 +163,7 @@ where
 
         Self {
             game: GameContext {
-                children: Children::default(),
+                children: Arc::new(Children::default()),
                 assets,
                 frames: 0,
                 game_command_queue: CommandQueue::default(),
@@ -288,6 +181,7 @@ where
             debug,
             start: start,
             redraw: redraw,
+            scheduler: create_scheduler()
         }
     }
 
@@ -297,11 +191,11 @@ where
     /// tuple with buffer for vertices, matrices, offsets vectors
     pub(crate) fn calculate_drawables(
         memory_allocator: Arc<dyn MemoryAllocator>,
-        children: &mut Children,
+        children: Arc<Children>,
         _rcx: &mut RenderContext,
-    ) -> Option<MeshBuffers> {
+    ) -> (Option<MeshBuffers>, usize) {
         if children.len() < 1 {
-            return None;
+            return (None, 0);
         }
 
         let _span = tracy_client::span!("Engine::calculate_drawables");
@@ -310,6 +204,8 @@ where
         let mut vertices: Vec<MyVertex> = Vec::with_capacity(children.len() * 2);
         let mut matrices: Vec<Transform> = Vec::with_capacity(children.len());
         let mut offsets: Vec<u32> = Vec::with_capacity(children.len());
+
+        let mut drawable_size: usize = 0;
 
         // TODO: in the future I must think about join this iteration loops through abstractions or
         // compositing structures
@@ -332,20 +228,24 @@ where
         //     matrices.push(matrics);
         // });
 
-        children.iter().for_each(|drawable| {
-            let verts = drawable.vertex();
-            let matrix = drawable.transform_clone();
-            // We have few MyVertex elements for each drawable component. For this we create offset
-            // relative each drawable MyVertex elements. We have drawables with
-            // [MyVertex; n] where n is **dynamic** number, to resolve this problem this iteration
-            // write to the offsets vector offset for each drawable element. For first drawble is
-            // 4(bec MyVertex; 4), for second drawable is 12(bec second drawable have MyVertex; 8 ->
-            // 4+8)
-            let offset = vertices.len() as u32;
+        children.lock_read_and_execute(|drawables| {
+            drawable_size = drawables.len();
+            drawables.iter().enumerate().for_each(|(_, drawable)| {
+                let drawable = drawable.lock().unwrap();
+                let verts = drawable.vertex();
+                let matrix = drawable.transform_clone();
+                // We have few MyVertex elements for each drawable component. For this we create offset
+                // relative each drawable MyVertex elements. We have drawables with
+                // [MyVertex; n] where n is **dynamic** number, to resolve this problem this iteration
+                // write to the offsets vector offset for each drawable element. For first drawble is
+                // 4(bec MyVertex; 4), for second drawable is 12(bec second drawable have MyVertex; 8 ->
+                // 4+8)
+                let offset = vertices.len() as u32;
 
-            offsets.push(offset);
-            vertices.extend_from_slice(verts);
-            matrices.push(matrix);
+                offsets.push(offset);
+                vertices.extend_from_slice(verts);
+                matrices.push(matrix);
+            })
         });
 
         let vertex_buffer = Buffer::from_iter(
@@ -363,7 +263,10 @@ where
         )
         .unwrap();
 
-        Some(MeshBuffers(vertex_buffer, matrices, offsets))
+        (
+            Some(MeshBuffers(vertex_buffer, matrices, offsets)),
+            drawable_size,
+        )
     }
 }
 
@@ -583,13 +486,13 @@ where
         // avoid that, we store the submission of the previous frame here.
         let previous_frame_end = Some(sync::now(self.device.clone()).boxed());
 
-        let vs_cube = cube_vs::load(self.device.clone()).unwrap();
-        let fs_cube = cube_fs::load(self.device.clone()).unwrap();
+        let vs_square = square_vs::load(self.device.clone()).unwrap();
+        let fs_square = square_fs::load(self.device.clone()).unwrap();
         let square_pipeline = create_pipeline(
             self.device.clone(),
             render_pass.clone(),
-            vs_cube.entry_point("main").unwrap(),
-            fs_cube.entry_point("main").unwrap(),
+            vs_square.entry_point("main").unwrap(),
+            fs_square.entry_point("main").unwrap(),
             ColorBlendState {
                 attachments: vec![ColorBlendAttachmentState::default()],
                 ..Default::default()
@@ -638,7 +541,7 @@ where
 
         (self.start)(
             &event_loop,
-            &mut game.children,
+            game.children.clone(),
             &mut game.assets,
             window.clone(),
             &mut game.game_command_queue,
@@ -667,7 +570,7 @@ where
         let rcx = self.rcx.as_mut().unwrap();
 
         (self.redraw)(
-            &mut self.game.children,
+            self.game.children.clone(),
             &mut self.game.assets,
             &event,
             &mut self.game.game_command_queue,
@@ -699,14 +602,15 @@ where
                         Key::Named(NamedKey::F1) => {
                             if let Some(cursor) = self.game.mouse_position {
                                 let drawable = self.game.children.get_by_position(cursor);
-                                if drawable.len() >= 1 {
-                                    debug!(
-                                        "drawable with id: {}",
-                                        drawable[0].render.mesh.get_id()
-                                    );
-                                } else {
-                                    debug!("There are no objects in the current position");
-                                }
+                                match drawable.first() {
+                                    Some(d) => {
+                                        debug!(
+                                            "drawable with id: {}",
+                                            d.lock().unwrap().render.mesh.get_id()
+                                        );
+                                    }
+                                    None => debug!("There are no objects in the current position"),
+                                };
                             }
                         }
                         _ => {}
@@ -753,12 +657,6 @@ where
 
                     rcx.recreate_swapchain = false;
                 }
-
-                let mesh_buffers = EngineContext::<Redraw, Start>::calculate_drawables(
-                    self.memory.memory_allocator.clone(),
-                    &mut self.game.children,
-                    rcx,
-                );
 
                 // Before we can draw on the output, we have to *acquire* an image from the
                 // swapchain. If no image is available (which happens if you submit draw commands
@@ -844,16 +742,26 @@ where
                     .set_viewport(0, [rcx.viewport.clone()].into_iter().collect())
                     .unwrap();
 
+                let (mesh_buffers, children_size) =
+                    EngineContext::<Redraw, Start>::calculate_drawables(
+                        self.memory.memory_allocator.clone(),
+                        self.game.children.clone(),
+                        rcx,
+                    );
+
                 if let Some(mesh) = mesh_buffers {
                     let _span_draw =
                         tracy_client::span!("Engine:: Preparing Objects for Rendering");
                     builder.bind_vertex_buffers(0, mesh.0.clone()).unwrap();
-                    let all_items = self.game.children.iter();
 
-                    all_items.enumerate().for_each(|(i, item)| {
+                    self.game.children.try_for_each(|(i, item)| {
+                        if i >= children_size {
+                            return Err(0);
+                        }
+                        let matrix = mesh.1[i];
                         let _span_draw = tracy_client::span!("Engine: Draw Item");
+                        let item = item.lock().unwrap();
                         let colour = item.colour().clone();
-                        let matrix = mesh.1[i].clone();
                         let constants = Constants(
                             matrix,
                             rcx.window.inner_size().into(),
@@ -899,6 +807,8 @@ where
                         unsafe {
                             builder.draw(vertex_count, 1, vertex_cursor, 0).unwrap();
                         }
+
+                        Ok(())
                     });
                 }
 
