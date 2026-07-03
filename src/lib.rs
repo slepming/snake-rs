@@ -55,7 +55,7 @@ use crate::{
         cache::{CacheProvider, DescriptorSetCache, PipelineCache},
     }, shaders::{
         circle_shader::{circle_fs, circle_vs},
-        cube_shader::{cube_fs, cube_vs},
+        square_shader::{square_fs, square_vs},
         image_shader::{image_fs, image_vs},
     }, testing::finder::Finder, threading::scheduler::{Scheduler, SchedulerContext, create_scheduler}, utils::{
         vulkan::{create_pipeline, get_vulkan_instance, select_render_device},
@@ -486,13 +486,13 @@ where
         // avoid that, we store the submission of the previous frame here.
         let previous_frame_end = Some(sync::now(self.device.clone()).boxed());
 
-        let vs_cube = cube_vs::load(self.device.clone()).unwrap();
-        let fs_cube = cube_fs::load(self.device.clone()).unwrap();
+        let vs_square = square_vs::load(self.device.clone()).unwrap();
+        let fs_square = square_fs::load(self.device.clone()).unwrap();
         let square_pipeline = create_pipeline(
             self.device.clone(),
             render_pass.clone(),
-            vs_cube.entry_point("main").unwrap(),
-            fs_cube.entry_point("main").unwrap(),
+            vs_square.entry_point("main").unwrap(),
+            fs_square.entry_point("main").unwrap(),
             ColorBlendState {
                 attachments: vec![ColorBlendAttachmentState::default()],
                 ..Default::default()
