@@ -3,6 +3,7 @@ use std::{
     ops::RangeInclusive,
     sync::{Arc, RwLock},
 };
+use rayon::{ThreadPool, ThreadPoolBuilder};
 use tracing::debug;
 
 use vulkano::{
@@ -109,6 +110,7 @@ where
     debug: DebugUtils,
     redraw: Redraw,
     start: Start,
+    thread_pool: ThreadPool,
     scheduler: (Scheduler, Arc<SchedulerContext>)
 }
 
@@ -181,6 +183,7 @@ where
             debug,
             start: start,
             redraw: redraw,
+            thread_pool: ThreadPoolBuilder::new().num_threads(3).build().unwrap(),
             scheduler: create_scheduler()
         }
     }

@@ -3,12 +3,10 @@
 use std::{
     collections::VecDeque,
     sync::Arc,
-    thread::{self, Thread},
 };
 
 use image::{ImageBuffer, Rgba};
-use rayon::ThreadPoolBuilder;
-use tracing::{debug, info, warn};
+use tracing::{debug, info};
 use vulkano::{descriptor_set::DescriptorSet, image::sampler::Sampler};
 
 use crate::{
@@ -86,8 +84,6 @@ where
             return;
         }
 
-        let thread = ThreadPoolBuilder::new().num_threads(3).build().unwrap();
-
         let commands_count = self.game.game_command_queue.commands.len();
         debug!(commands_count = commands_count, "Flush commands");
         let commands: Vec<_> = self.game.game_command_queue.commands.drain(..).collect();
@@ -100,7 +96,7 @@ where
                     let sampler = self.sampler.clone();
                     let c_len = self.game.children.len();
                     let children = self.game.children.clone();
-                    thread.spawn(move || {
+                    self.thread_pool.spawn(move || {
                         let _span_submit = tracy_client::span!("Worker: Execute command");
                         let pipeline_name = s.as_ref().to_lowercase();
                         if let Some(drw) = draw_object(
