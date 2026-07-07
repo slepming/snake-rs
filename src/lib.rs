@@ -1,9 +1,9 @@
+use rayon::{ThreadPool, ThreadPoolBuilder};
 use std::{
     collections::HashMap,
     ops::RangeInclusive,
     sync::{Arc, RwLock},
 };
-use rayon::{ThreadPool, ThreadPoolBuilder};
 use tracing::debug;
 
 use vulkano::{
@@ -48,20 +48,33 @@ use winit::{
 use winit::platform::wayland::WindowAttributesExtWayland;
 
 use crate::{
-    cmd::command::{CommandDispatcher, CommandQueue}, dbg::debug_utils::DebugUtils, drw::{
+    cmd::command::{CommandDispatcher, CommandQueue},
+    dbg::debug_utils::DebugUtils,
+    drw::{
         children::Children,
         drawable::{DrawableComponent, DrawableGPU},
-    }, ext::user_functions::{RedrawFn, StartFn}, fnt::font::TextFont, game::GameContext, geom::matrix::Transform, mem::engine_memory::EngineMemory, render::{MeshBuffers, RenderContext}, res::{
+    },
+    ext::user_functions::{RedrawFn, StartFn},
+    fnt::font::TextFont,
+    game::GameContext,
+    geom::matrix::Transform,
+    mem::engine_memory::EngineMemory,
+    render::{MeshBuffers, RenderContext},
+    res::{
         assets::Storage,
         cache::{CacheProvider, DescriptorSetCache, PipelineCache},
-    }, shaders::{
+    },
+    shaders::{
         circle_shader::{circle_fs, circle_vs},
-        square_shader::{square_fs, square_vs},
         image_shader::{image_fs, image_vs},
-    }, testing::finder::Finder, threading::scheduler::{Scheduler, SchedulerContext, create_scheduler}, utils::{
+        square_shader::{square_fs, square_vs},
+    },
+    testing::finder::Finder,
+    threading::scheduler::{Scheduler, SchedulerContext, create_scheduler},
+    utils::{
         vulkan::{create_pipeline, get_vulkan_instance, select_render_device},
         window::window_size_dependent_setup,
-    }
+    },
 };
 
 pub mod cmd;
@@ -78,8 +91,8 @@ pub mod res;
 pub mod shaders;
 pub mod testing;
 pub mod text;
-pub mod utils;
 pub mod threading;
+pub mod utils;
 
 pub type Vector = glam::Vec2;
 
@@ -97,7 +110,7 @@ where
     Start: StartFn,
 {
     instance: Arc<Instance>,
-    /// One of the most important parts of the engine - vulkan context
+    /// One of the most important parts of the engine
     device: Arc<Device>,
     queues: Vec<Arc<Queue>>,
     memory: Arc<EngineMemory>,
@@ -111,7 +124,7 @@ where
     redraw: Redraw,
     start: Start,
     thread_pool: ThreadPool,
-    scheduler: (Scheduler, Arc<SchedulerContext>)
+    scheduler: (Scheduler, Arc<SchedulerContext>),
 }
 
 impl<Redraw, Start> EngineContext<Redraw, Start>
@@ -184,7 +197,7 @@ where
             start: start,
             redraw: redraw,
             thread_pool: ThreadPoolBuilder::new().num_threads(3).build().unwrap(),
-            scheduler: create_scheduler()
+            scheduler: create_scheduler(),
         }
     }
 
@@ -237,11 +250,11 @@ where
                 let drawable = drawable.lock().unwrap();
                 let verts = drawable.vertex();
                 let matrix = drawable.transform_clone();
-                // We have few MyVertex elements for each drawable component. For this we create offset
-                // relative each drawable MyVertex elements. We have drawables with
+                // We have few MyVertex elements for each drawable component. For this we create MyVertex relative offset
+                // for each drawable elements. We have drawables with
                 // [MyVertex; n] where n is **dynamic** number, to resolve this problem this iteration
-                // write to the offsets vector offset for each drawable element. For first drawble is
-                // 4(bec MyVertex; 4), for second drawable is 12(bec second drawable have MyVertex; 8 ->
+                // write to the offsets vector offset for each drawable element. For example first drawable is
+                // 4(bec [MyVertex; 4]), for second drawable is 12(bec second drawable have [MyVertex; 8] ->
                 // 4+8)
                 let offset = vertices.len() as u32;
 
@@ -548,7 +561,7 @@ where
             &mut game.assets,
             window.clone(),
             &mut game.game_command_queue,
-            self.scheduler.1.clone()
+            self.scheduler.1.clone(),
         );
 
         self.flush_commands();
@@ -578,7 +591,7 @@ where
             &mut self.game.assets,
             &event,
             &mut self.game.game_command_queue,
-            self.scheduler.1.clone()
+            self.scheduler.1.clone(),
         );
 
         match event {

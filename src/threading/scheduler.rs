@@ -1,12 +1,15 @@
 //! Scheduling jobs for threads
 
-use std::sync::{Arc, mpsc::{self, Receiver, Sender}};
+use std::sync::{
+    Arc,
+    mpsc::{self, Receiver, Sender},
+};
 
 type Task = Box<dyn FnOnce() + Send>;
 
 /// Scheduler managment
 pub struct Scheduler {
-    receiver: Receiver<Task>
+    receiver: Receiver<Task>,
 }
 
 impl Scheduler {
@@ -21,7 +24,7 @@ impl Scheduler {
 #[derive(Clone)]
 /// Helps with [`Sender`] channel managment
 pub struct SchedulerContext {
-    sender: Sender<Task>
+    sender: Sender<Task>,
 }
 
 impl SchedulerContext {
@@ -68,15 +71,22 @@ impl SchedulerContext {
 
 pub fn create_scheduler() -> (Scheduler, Arc<SchedulerContext>) {
     let (sender, receiver) = mpsc::channel();
-    (Scheduler { receiver }, Arc::new(SchedulerContext { sender }))
+    (
+        Scheduler { receiver },
+        Arc::new(SchedulerContext { sender }),
+    )
 }
 
 #[cfg(test)]
 mod tests {
-    use std::{sync::{Arc, atomic::AtomicI8}, thread, time::Duration};
+    use std::{
+        sync::{Arc, atomic::AtomicI8},
+        thread,
+        time::Duration,
+    };
 
     use super::*;
-    
+
     #[test]
     fn test_schedule() {
         let mut tries: u32 = 0;
@@ -90,7 +100,9 @@ mod tests {
         let number_clone = number.clone();
 
         let _ = thread::spawn(move || {
-            context_clone.add(Box::new(move || { let _ = number_clone.fetch_add(5, std::sync::atomic::Ordering::SeqCst); }));
+            context_clone.add(Box::new(move || {
+                let _ = number_clone.fetch_add(5, std::sync::atomic::Ordering::SeqCst);
+            }));
         });
 
         while tries <= 5 {
@@ -106,6 +118,5 @@ mod tests {
         }
 
         assert_eq!(number.load(std::sync::atomic::Ordering::SeqCst), 5);
-
     }
 }

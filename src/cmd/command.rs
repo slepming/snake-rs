@@ -1,9 +1,6 @@
 //! Commands from game space
 
-use std::{
-    collections::VecDeque,
-    sync::Arc,
-};
+use std::{collections::VecDeque, sync::Arc};
 
 use image::{ImageBuffer, Rgba};
 use tracing::{debug, info};
