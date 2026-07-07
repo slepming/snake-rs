@@ -1,6 +1,6 @@
 //! Scheduling jobs for threads
 
-use std::sync::mpsc::{self, Receiver, Sender};
+use std::sync::{Arc, mpsc::{self, Receiver, Sender}};
 
 type Task = Box<dyn FnOnce() + Send>;
 
@@ -66,9 +66,9 @@ impl SchedulerContext {
 ///    assert_eq!(number.load(std::sync::atomic::Ordering::SeqCst), 5);
 /// ```
 
-pub fn create_scheduler() -> (Scheduler, SchedulerContext) {
+pub fn create_scheduler() -> (Scheduler, Arc<SchedulerContext>) {
     let (sender, receiver) = mpsc::channel();
-    (Scheduler { receiver }, SchedulerContext { sender })
+    (Scheduler { receiver }, Arc::new(SchedulerContext { sender }))
 }
 
 #[cfg(test)]

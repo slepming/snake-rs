@@ -109,7 +109,7 @@ where
     debug: DebugUtils,
     redraw: Redraw,
     start: Start,
-    scheduler: (Scheduler, SchedulerContext)
+    scheduler: (Scheduler, Arc<SchedulerContext>)
 }
 
 impl<Redraw, Start> EngineContext<Redraw, Start>
@@ -545,6 +545,7 @@ where
             &mut game.assets,
             window.clone(),
             &mut game.game_command_queue,
+            self.scheduler.1.clone()
         );
 
         self.flush_commands();
@@ -574,6 +575,7 @@ where
             &mut self.game.assets,
             &event,
             &mut self.game.game_command_queue,
+            self.scheduler.1.clone()
         );
 
         match event {

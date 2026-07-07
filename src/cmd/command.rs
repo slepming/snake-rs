@@ -54,6 +54,11 @@ impl CommandQueue {
     pub fn is_empty(&self) -> bool {
         self.commands.is_empty()
     }
+
+    /// Appends other commands to the top of queue
+    pub fn append_other(&mut self, mut other: Self) {
+        self.commands.append(&mut other.commands);
+    }
 }
 
 impl Default for CommandQueue {
