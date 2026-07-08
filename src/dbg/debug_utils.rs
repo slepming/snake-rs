@@ -38,28 +38,28 @@ impl DebugUtils {
                     if message_severity.intersects(DebugUtilsMessageSeverity::ERROR) {
                         error!(
                             "{} {}: {}",
-                            callback_data.message_id_name.unwrap_or("unkown"),
+                            callback_data.message_id_name.unwrap_or("unknown"),
                             ty,
                             callback_data.message
                         );
                     } else if message_severity.intersects(DebugUtilsMessageSeverity::WARNING) {
                         warn!(
                             "{} {}: {}",
-                            callback_data.message_id_name.unwrap_or("unkown"),
+                            callback_data.message_id_name.unwrap_or("unknown"),
                             ty,
                             callback_data.message
                         );
                     } else if message_severity.intersects(DebugUtilsMessageSeverity::INFO) {
-                        info!(
+                        debug!(
                             "{} {}: {}",
-                            callback_data.message_id_name.unwrap_or("unkown"),
+                            callback_data.message_id_name.unwrap_or("unknown"),
                             ty,
                             callback_data.message
                         );
                     } else if message_severity.intersects(DebugUtilsMessageSeverity::VERBOSE) {
-                        debug!(
+                        warn!(
                             "{} {}: {}",
-                            callback_data.message_id_name.unwrap_or("unkown"),
+                            callback_data.message_id_name.unwrap_or("unknown"),
                             ty,
                             callback_data.message
                         );

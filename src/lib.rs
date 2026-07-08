@@ -555,14 +555,15 @@ where
 
         let game = &mut self.game;
 
-        (self.start)(
+        let command_queue = (self.start)(
             &event_loop,
             game.children.clone(),
             &mut game.assets,
             window.clone(),
-            &mut game.game_command_queue,
             self.scheduler.1.clone(),
         );
+
+        game.game_command_queue.append_other(command_queue);
 
         self.flush_commands();
 

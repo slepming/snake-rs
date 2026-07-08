@@ -13,9 +13,8 @@ pub trait StartFn:
     Arc<Children>,
     &mut Storage,
     Arc<Window>,
-    &mut CommandQueue,
     Arc<SchedulerContext>,
-)
+) -> CommandQueue
 {
 }
 
@@ -25,9 +24,8 @@ impl<T> StartFn for T where
         Arc<Children>,
         &mut Storage,
         Arc<Window>,
-        &mut CommandQueue,
         Arc<SchedulerContext>,
-    )
+    ) -> CommandQueue
 {
 }
 
