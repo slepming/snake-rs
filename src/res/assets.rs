@@ -4,6 +4,7 @@ use std::{
     fmt::Debug,
     path::Path,
     sync::{Arc, RwLock},
+    thread,
 };
 
 use anyhow::Error;
@@ -59,28 +60,40 @@ impl Storage {
     }
 
     /// Load texture to texture pool. You can save to the pool in advance.
-    pub fn load_texture(&self, file_name: &Path, internal: bool) {
-        let _span = tracy_client::span!("Engine::load_texture");
+    ///
+    /// # Note
+    /// If you use this function right before [`load_and_get_texture`]
+    ///  you're texture will be load from [`load_and_get_texture`] function synchronously.
+    /// It's happening because OS scheduler gives the ability to start job for another thread too long.
+    pub fn load_texture(self: Arc<Self>, file_name: &'static Path, internal: bool) {
         let file = file_name.file_name().unwrap().to_string_lossy().to_string();
+        let file_name = file_name.to_str().unwrap();
+        thread::spawn(move || {
+            let mut texture_pool = self.texture_pool.write().unwrap();
 
-        let texture: Texture = {
-            if internal {
-                Texture::from_internal_assets(file_name.to_str().unwrap()).unwrap()
-            } else {
-                Texture::from_file(file_name.to_str().unwrap()).unwrap()
+            if texture_pool.contains_key(&file) {
+                debug!("Texture in texture pool exists");
+                return;
             }
-        };
 
-        debug!(
-            loaded_image_size = texture.image.len(),
-            loaded_image_size_mb = texture.image.len() / 1024 / 1024
-        );
+            let _span = tracy_client::span!("Engine::load_texture");
 
-        let texture_handler = self.create_texture_handler(texture.dimension, &texture.image);
-        self.texture_pool
-            .write()
-            .unwrap()
-            .insert(file.clone(), texture_handler);
+            let texture: Texture = {
+                if internal {
+                    Texture::from_internal_assets(file_name).unwrap()
+                } else {
+                    Texture::from_file(file_name).unwrap()
+                }
+            };
+
+            debug!(
+                loaded_image_size = texture.image.len(),
+                loaded_image_size_mb = texture.image.len() / 1024 / 1024,
+            );
+
+            let texture_handler = self.create_texture_handler(texture.dimension, &texture.image);
+            texture_pool.insert(file.clone(), texture_handler);
+        });
     }
 
     /// Returns Arc<[`TextureHandler`]> from file system
@@ -89,6 +102,12 @@ impl Storage {
         let file = file_name.file_name().unwrap().to_string_lossy().to_string();
 
         if let Some(texture) = self.texture_pool.read().unwrap().get(&file) {
+            return texture.clone();
+        }
+
+        let mut texture_pool = self.texture_pool.write().unwrap();
+
+        if let Some(texture) = texture_pool.get(&file) {
             return texture.clone();
         }
 
@@ -106,14 +125,9 @@ impl Storage {
         );
 
         let texture_handler = self.create_texture_handler(texture.dimension, &texture.image);
-        self.texture_pool
-            .write()
-            .unwrap()
-            .insert(file.clone(), texture_handler);
+        texture_pool.insert(file.clone(), texture_handler);
 
-        self.texture_pool
-            .read()
-            .unwrap()
+        texture_pool
             .get(&file)
             .expect(format!("texture pool not contain {}", file).as_str())
             .clone()

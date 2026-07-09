@@ -165,14 +165,14 @@ where
         )
         .unwrap();
 
-        let assets = Storage {
+        let assets = Arc::new(Storage {
             queue: queues
                 .last()
                 .expect("TRANSFER or GRAPHICS queue not found")
                 .clone(),
             memory_allocs: memory.clone(),
             texture_pool: RwLock::new(HashMap::new()),
-        };
+        });
 
         let fonts = TextFont::new(String::from("Fonts/freedom.otf"));
 
@@ -558,7 +558,7 @@ where
         let command_queue = (self.start)(
             &event_loop,
             game.children.clone(),
-            &mut game.assets,
+            game.assets.clone(),
             window.clone(),
             self.scheduler.1.clone(),
         );
@@ -589,7 +589,7 @@ where
 
         (self.redraw)(
             self.game.children.clone(),
-            &mut self.game.assets,
+            self.game.assets.clone(),
             &event,
             &mut self.game.game_command_queue,
             self.scheduler.1.clone(),

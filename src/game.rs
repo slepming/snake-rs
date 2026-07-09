@@ -8,7 +8,7 @@ use crate::{
 
 pub(crate) struct GameContext {
     pub children: Arc<Children>,
-    pub assets: Storage,
+    pub assets: Arc<Storage>,
     pub frames: u64,
     pub game_command_queue: CommandQueue,
     pub fonts: TextFont,

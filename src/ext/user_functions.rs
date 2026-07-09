@@ -11,7 +11,7 @@ pub trait StartFn:
     FnMut(
     &ActiveEventLoop,
     Arc<Children>,
-    &mut Storage,
+    Arc<Storage>,
     Arc<Window>,
     Arc<SchedulerContext>,
 ) -> CommandQueue
@@ -22,7 +22,7 @@ impl<T> StartFn for T where
     T: FnMut(
         &ActiveEventLoop,
         Arc<Children>,
-        &mut Storage,
+        Arc<Storage>,
         Arc<Window>,
         Arc<SchedulerContext>,
     ) -> CommandQueue
@@ -30,11 +30,11 @@ impl<T> StartFn for T where
 }
 
 pub trait RedrawFn:
-    FnMut(Arc<Children>, &mut Storage, &WindowEvent, &mut CommandQueue, Arc<SchedulerContext>)
+    FnMut(Arc<Children>, Arc<Storage>, &WindowEvent, &mut CommandQueue, Arc<SchedulerContext>)
 {
 }
 
 impl<T> RedrawFn for T where
-    T: FnMut(Arc<Children>, &mut Storage, &WindowEvent, &mut CommandQueue, Arc<SchedulerContext>)
+    T: FnMut(Arc<Children>, Arc<Storage>, &WindowEvent, &mut CommandQueue, Arc<SchedulerContext>)
 {
 }
