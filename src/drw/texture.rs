@@ -2,7 +2,7 @@
 use std::fmt::Debug;
 
 use image::GenericImageView;
-use tracing::{debug, info};
+use tracing::info;
 
 use crate::{geom::dimension::Dimension, res::assets::Asset};
 

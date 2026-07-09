@@ -2,7 +2,6 @@
 
 use std::sync::Arc;
 
-use rapier2d::prelude::{RigidBody, RigidBodyHandle};
 use vulkano::{
     descriptor_set::allocator::DescriptorSetAllocator, image::sampler::Sampler,
     memory::allocator::MemoryAllocator,

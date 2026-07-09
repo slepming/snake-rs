@@ -1,7 +1,5 @@
 use std::sync::{Arc, Mutex, RwLock, RwLockReadGuard};
 
-use anyhow::Error;
-
 use crate::drw::drawable::Drawable;
 
 type DrawableData = Arc<Mutex<Drawable>>;

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use tracing::{debug, error, info, warn};
+use tracing::{debug, error, warn};
 use vulkano::instance::{
     Instance,
     debug::{
@@ -10,6 +10,7 @@ use vulkano::instance::{
 };
 
 pub(crate) struct DebugUtils {
+    #[allow(dead_code)]
     pub debug_callback: Option<DebugUtilsMessenger>,
 }
 
