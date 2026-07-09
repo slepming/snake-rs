@@ -58,15 +58,35 @@ impl Storage {
         }
     }
 
-    /// Returns Arc<[`TextureHandler`]> from file system
-    pub fn load_texture(&self, file_name: &Path, internal: bool) -> Arc<TextureHandler> {
+    /// Load texture to texture pool. You can save to the pool in advance.
+    pub fn load_texture(&self, file_name: &Path, internal: bool) {
         let _span = tracy_client::span!("Engine::load_texture");
-        let file = file_name
-            .file_name()
+        let file = file_name.file_name().unwrap().to_string_lossy().to_string();
+
+        let texture: Texture = {
+            if internal {
+                Texture::from_internal_assets(file_name.to_str().unwrap()).unwrap()
+            } else {
+                Texture::from_file(file_name.to_str().unwrap()).unwrap()
+            }
+        };
+
+        debug!(
+            loaded_image_size = texture.image.len(),
+            loaded_image_size_mb = texture.image.len() / 1024 / 1024
+        );
+
+        let texture_handler = self.create_texture_handler(texture.dimension, &texture.image);
+        self.texture_pool
+            .write()
             .unwrap()
-            .to_string_lossy()
-            .to_string()
-            .to_lowercase();
+            .insert(file.clone(), texture_handler);
+    }
+
+    /// Returns Arc<[`TextureHandler`]> from file system
+    pub fn load_and_get_texture(&self, file_name: &Path, internal: bool) -> Arc<TextureHandler> {
+        let _span = tracy_client::span!("Engine::load_texture");
+        let file = file_name.file_name().unwrap().to_string_lossy().to_string();
 
         if let Some(texture) = self.texture_pool.read().unwrap().get(&file) {
             return texture.clone();
