@@ -30,11 +30,11 @@ impl<T> StartFn for T where
 }
 
 pub trait RedrawFn:
-    FnMut(Arc<Children>, Arc<Storage>, &WindowEvent, &mut CommandQueue, Arc<SchedulerContext>)
+    FnMut(Arc<Children>, Arc<Storage>, &WindowEvent, Arc<SchedulerContext>) -> CommandQueue
 {
 }
 
 impl<T> RedrawFn for T where
-    T: FnMut(Arc<Children>, Arc<Storage>, &WindowEvent, &mut CommandQueue, Arc<SchedulerContext>)
+    T: FnMut(Arc<Children>, Arc<Storage>, &WindowEvent, Arc<SchedulerContext>) -> CommandQueue
 {
 }

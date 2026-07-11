@@ -69,12 +69,16 @@ use crate::{
         image_shader::{image_fs, image_vs},
         square_shader::{square_fs, square_vs},
     },
-    testing::finder::Finder,
     threading::scheduler::{Scheduler, SchedulerContext, create_scheduler},
     utils::{
         vulkan::{create_pipeline, get_vulkan_instance, select_render_device},
         window::window_size_dependent_setup,
     },
+};
+
+#[cfg(debug_assertions)]
+use crate::{
+    testing::finder::Finder,
 };
 
 pub mod cmd;
@@ -98,7 +102,7 @@ pub type Vector = glam::Vec2;
 
 #[global_allocator]
 static GLOBAL: tracy_client::ProfiledAllocator<std::alloc::System> =
-    tracy_client::ProfiledAllocator::new(std::alloc::System, 100);
+    tracy_client::ProfiledAllocator::new(std::alloc::System, 5);
 
 /// The main entry point into the engine
 /// # Generics
@@ -510,7 +514,10 @@ where
             vs_square.entry_point("main").unwrap(),
             fs_square.entry_point("main").unwrap(),
             ColorBlendState {
-                attachments: vec![ColorBlendAttachmentState::default()],
+                attachments: vec![ColorBlendAttachmentState {
+                    blend: Some(AttachmentBlend::alpha()),
+                    ..Default::default()
+                }],
                 ..Default::default()
             },
         );
@@ -587,13 +594,14 @@ where
         self.game.frames += 1;
         let rcx = self.rcx.as_mut().unwrap();
 
-        (self.redraw)(
+        let queue = (self.redraw)(
             self.game.children.clone(),
             self.game.assets.clone(),
             &event,
-            &mut self.game.game_command_queue,
             self.scheduler.1.clone(),
         );
+
+        self.game.game_command_queue.append_other(queue);
 
         match event {
             WindowEvent::CursorMoved { position, .. } => {
@@ -796,8 +804,6 @@ where
                             .expect("pipeline not found");
                         let layout = pipeline.layout();
                         if !layout.push_constant_ranges().is_empty() {
-                            //dbg!(size_of::<Constants>());
-                            //dbg!(((constants.1 >> 0) & 0xFF, (constants.1 >> 8) & 0xFF, (constants.1 >> 16) & 0xFF, (constants.1 >> 24) & 0xFF));
                             builder
                                 .push_constants(pipeline.layout().clone(), 0, constants)
                                 .unwrap();
@@ -883,7 +889,6 @@ where
 
                 drop(span_submit);
                 //self.physics_context.step(); TODO: In the future I must uncomment this code block
-                //
                 tracy_client::Client::running().unwrap().frame_mark();
 
                 self.flush_commands();

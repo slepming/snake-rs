@@ -20,9 +20,15 @@ pub struct CircleData {
     pub thickness: f32,
 }
 
+#[derive(vulkano::buffer::BufferContents, Clone, Copy)]
+#[repr(C)]
+pub struct SquareData {
+    pub corner_radius: f32,
+}
+
 #[derive(AsRefStr, IntoStaticStr, Clone)]
 pub enum Shapes {
-    Square,
+    Square(f32),
     Circle,
     Image(Arc<TextureHandler>),
 }
@@ -43,7 +49,7 @@ impl Shapes {
     ) -> (Vec<MyVertex>, Option<Arc<DescriptorSet>>) {
         let pipeline = pipeline_cache.get(&pipeline_id.id).unwrap();
         match self {
-            Shapes::Square => {
+            Shapes::Square(corner_radius) => {
                 let verts = vec![
                     MyVertex {
                         position: [-1.0, -1.0],
@@ -58,7 +64,48 @@ impl Shapes {
                         position: [-1.0, 1.0],
                     },
                 ];
-                (verts, None)
+
+                if *corner_radius > 0.0 {
+                    let buffer = Buffer::from_data(
+                        memory_allocator.clone(),
+                        BufferCreateInfo {
+                            usage: BufferUsage::UNIFORM_BUFFER,
+                            ..Default::default()
+                        },
+                        AllocationCreateInfo {
+                            memory_type_filter: MemoryTypeFilter::PREFER_DEVICE
+                                | MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
+                            ..Default::default()
+                        },
+                        SquareData {
+                            corner_radius: *corner_radius,
+                        },
+                    )
+                    .unwrap();
+
+                    let layout = pipeline.layout().set_layouts().get(0).unwrap().clone();
+                    if layout.bindings().is_empty() {
+                        warn!("Pipeline 'square' has no bindings. Did you forget to compile shaders?");
+                    }
+
+                    if let Some(descriptor_set) = descriptor_set_cache.get(&descriptor_id.id) {
+                        debug!("Descriptor set exists");
+                        return (verts, Some(descriptor_set));
+                    }
+
+                    debug!("Descriptor set created!");
+                    let descriptor_set = DescriptorSet::new(
+                        descriptor_allocator.clone(),
+                        layout,
+                        [WriteDescriptorSet::buffer(0, buffer)],
+                        [],
+                    )
+                    .unwrap();
+
+                    (verts, Some(descriptor_set))
+                } else {
+                    (verts, None)
+                }
             }
             Shapes::Circle => {
                 let verts = vec![

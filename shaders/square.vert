@@ -14,7 +14,10 @@ layout(push_constant) uniform Constants {
     uint rgba;
 } pc;
 
+layout(location = 0) out vec2 uv;
+
 void main() {
     mat4 matrix = pixelMatrixToNDC(pc.transform.transform, pc.u_resolution);
     gl_Position = matrix * vec4(position, 0.0, 1.0);
+    uv = position;
 }

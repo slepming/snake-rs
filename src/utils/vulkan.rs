@@ -219,7 +219,7 @@ pub fn create_pipeline(
 
 pub(crate) fn get_vulkan_instance(
     event_loop: &impl HasDisplayHandle,
-    extensions: Vec<String>,
+    mut extensions: Vec<String>,
 ) -> Arc<Instance> {
     debug!("Initializing Vulkan library");
     let library = VulkanLibrary::new()
@@ -241,7 +241,8 @@ pub(crate) fn get_vulkan_instance(
         debug!("Enabled extension: {}", enabled_extension.0);
     }
 
-    let mut enabled_layers: Vec<String> = extensions;
+    let mut enabled_layers: Vec<String> = Vec::new();
+    enabled_layers.append(&mut extensions);
 
     #[cfg(debug_assertions)]
     {
