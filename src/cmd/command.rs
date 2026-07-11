@@ -95,7 +95,7 @@ where
                     let children = self.game.children.clone();
                     self.thread_pool.spawn(move || {
                         let _span_submit = tracy_client::span!("Worker: Execute command");
-                        let pipeline_name = s.as_ref().to_lowercase();
+                        let _pipeline_name = s.as_ref().to_lowercase();
                         if let Some(drw) = draw_object(
                             memory,
                             pipelines,
@@ -106,8 +106,8 @@ where
                             c_len,
                         ) {
                             if let Some(descriptor) = drw.1 {
-                                if descriptors.get(pipeline_name.clone().as_str()).is_none() {
-                                    descriptors.insert((pipeline_name.clone(), descriptor.clone()));
+                                if descriptors.get(drw.0.render.descriptor_id.id.clone().as_str()).is_none() {
+                                    descriptors.insert((drw.0.render.descriptor_id.id.clone(), descriptor.clone()));
                                 }
                             }
 

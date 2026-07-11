@@ -10,6 +10,7 @@ use vulkano::pipeline::Pipeline;
 
 use crate::MyVertex;
 use crate::drw::drawable::{DescriptorID, PipelineID};
+use crate::drw::texture::Texture;
 use crate::res::assets::TextureHandler;
 use crate::res::cache::{CacheProvider, DescriptorSetCache, PipelineCache};
 
@@ -28,9 +29,44 @@ pub struct SquareData {
 
 #[derive(AsRefStr, IntoStaticStr, Clone)]
 pub enum Shapes {
-    Square(f32),
+    Square(ShapeCreateInfo),
     Circle,
     Image(Arc<TextureHandler>),
+}
+
+#[derive(Clone, Debug)]
+pub struct ShapeCreateInfo {
+    texture: Option<Texture>,
+    radius: f32,
+    thickness: f32,
+
+}
+
+impl ShapeCreateInfo {
+    /// Sets the texture of the object(if supported)
+    pub fn with_texture(mut self, texture: Texture) -> Self {
+        self.texture = Some(texture);
+        self
+    }
+
+    /// Sets the radius of the object(if supported)
+    /// Currently radius must be lower than 1.0
+    pub fn with_radius(mut self, radius: f32) -> Self {
+        self.radius = radius;
+        self
+    }
+
+    /// Sets the thickness of the object(if supported)
+    pub fn with_thickness(mut self, thickness: f32) -> Self {
+        self.thickness = thickness;
+        self
+    }
+}
+
+impl Default for ShapeCreateInfo {
+    fn default() -> Self {
+        Self { texture: Default::default(), radius: 0.0, thickness: Default::default() }
+    }
 }
 
 impl Shapes {
@@ -49,7 +85,7 @@ impl Shapes {
     ) -> (Vec<MyVertex>, Option<Arc<DescriptorSet>>) {
         let pipeline = pipeline_cache.get(&pipeline_id.id).unwrap();
         match self {
-            Shapes::Square(corner_radius) => {
+            Shapes::Square(sci) => {
                 let verts = vec![
                     MyVertex {
                         position: [-1.0, -1.0],
@@ -65,7 +101,7 @@ impl Shapes {
                     },
                 ];
 
-                if *corner_radius > 0.0 {
+                if sci.radius > 0.0 && sci.radius < 1.0 {
                     let buffer = Buffer::from_data(
                         memory_allocator.clone(),
                         BufferCreateInfo {
@@ -78,7 +114,7 @@ impl Shapes {
                             ..Default::default()
                         },
                         SquareData {
-                            corner_radius: *corner_radius,
+                            corner_radius: sci.radius,
                         },
                     )
                     .unwrap();
@@ -88,12 +124,10 @@ impl Shapes {
                         warn!("Pipeline 'square' has no bindings. Did you forget to compile shaders?");
                     }
 
-                    if let Some(descriptor_set) = descriptor_set_cache.get(&descriptor_id.id) {
-                        debug!("Descriptor set exists");
-                        return (verts, Some(descriptor_set));
-                    }
+                    //if let Some(descriptor_set) = descriptor_set_cache.get(&descriptor_id.id) {
+                    //    return (verts, Some(descriptor_set));
+                    //}
 
-                    debug!("Descriptor set created!");
                     let descriptor_set = DescriptorSet::new(
                         descriptor_allocator.clone(),
                         layout,

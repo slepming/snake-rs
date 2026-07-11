@@ -1,3 +1,5 @@
+#![deny(warnings)]
+
 use rayon::{ThreadPool, ThreadPoolBuilder};
 use std::{
     collections::HashMap,

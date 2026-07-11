@@ -9,7 +9,6 @@ use vulkano::{
 
 use crate::{
     MyVertex, Vector,
-    drw::texture::Texture,
     geom::{matrix::Transform, shapes::Shapes},
     mv::transform::{HasTransform, Positioned},
     res::cache::{DescriptorSetCache, PipelineCache},
@@ -19,7 +18,7 @@ use color::Rgba8;
 use vulkano::descriptor_set::DescriptorSet;
 
 /// The main element that is rendered by the Vulkan
-#[derive(PartialEq)]
+#[derive(PartialEq, Debug)]
 pub struct Drawable {
     transform: Transform,
     color: Rgba8,
@@ -27,20 +26,20 @@ pub struct Drawable {
 }
 
 /// Pipeline id structure
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub struct PipelineID {
     /// String ID to search pipelines
     pub id: String,
 }
 
 /// Descriptor set id structure
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub struct DescriptorID {
     /// String ID to search descriptor sets
     pub id: String,
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Debug)]
 pub(crate) struct DrawableRenderContext {
     /// Memory descriptor key(id). Drawable doesn't know anything about the descriptor
     pub(crate) descriptor_id: DescriptorID,
@@ -54,12 +53,6 @@ pub(crate) struct DrawableRenderContext {
 pub struct DrawableCreateInfo {
     /// Positional coordinates
     pub position: Vector,
-    /// Texture for drawable object
-    pub texture: Option<Texture>,
-    /// Set radius to circle object
-    pub radius: f32,
-    /// TODO
-    pub thickness: f32,
     /// Drawable object size
     pub size: Vector,
     pub(crate) id: u32,
@@ -74,33 +67,6 @@ impl DrawableCreateInfo {
     /// [`DrawableCreateInfo`]
     pub fn with_position(mut self, position: Vector) -> Self {
         self.position = position;
-        self
-    }
-
-    /// Sets the texture of the object(if supported)
-    ///
-    /// # Returns
-    /// [`DrawableCreateInfo`]
-    pub fn with_texture(mut self, texture: Texture) -> Self {
-        self.texture = Some(texture);
-        self
-    }
-
-    /// Sets the radius of the object(if supported)
-    ///
-    /// # Returns
-    /// [`DrawableCreateInfo`]
-    pub fn with_radius(mut self, radius: f32) -> Self {
-        self.radius = radius;
-        self
-    }
-
-    /// Sets the thickness of the object(if supported)
-    ///
-    /// # Returns
-    /// [`DrawableCreateInfo`]
-    pub fn with_thickness(mut self, thickness: f32) -> Self {
-        self.thickness = thickness;
         self
     }
 
@@ -135,10 +101,7 @@ impl DrawableCreateInfo {
 impl Default for DrawableCreateInfo {
     fn default() -> Self {
         Self {
-            texture: Default::default(),
             position: Default::default(),
-            radius: Default::default(),
-            thickness: Default::default(),
             size: Default::default(),
             id: Default::default(),
             color: Rgba8 {
@@ -151,6 +114,7 @@ impl Default for DrawableCreateInfo {
     }
 }
 
+#[derive(Debug)]
 pub struct Mesh {
     vertex: Vec<MyVertex>,
     /// ID need for find matrix in buffer
@@ -251,7 +215,7 @@ impl Drawable {
         let key = key_raw.to_string().to_lowercase();
         let pipeline_id = PipelineID { id: key.clone() };
 
-        let descriptor_id = DescriptorID { id: key.clone() };
+        let descriptor_id = DescriptorID { id: drw.id.to_string() };
 
         let (vertex, desc) = shape.get_vertex_and_descriptor(
             pipeline_id.clone(),
