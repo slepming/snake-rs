@@ -628,15 +628,18 @@ where
                         }
                         #[cfg(debug_assertions)]
                         Key::Named(NamedKey::F1) => {
+                            debug!("Drawable calculation positions started");
                             if let Some(cursor) = self.game.mouse_position {
                                 let drawables = self.game.children.get_by_position(cursor);
                                 for drawable in drawables {
+                                    dbg!(&drawable);
                                     debug!(
                                         "drawable with id: {}",
                                         drawable.lock().unwrap().render.mesh.get_id()
                                     );
                                 }
                             }
+                            debug!("Drawable calculation positions finished");
                         }
                         _ => {}
                     }

@@ -91,11 +91,11 @@ where
                     let pipelines = self.pipelines.clone();
                     let descriptors = self.descriptors.clone();
                     let sampler = self.sampler.clone();
-                    let c_len = self.game.children.count();
                     let children = self.game.children.clone();
                     self.thread_pool.spawn(move || {
                         let _span_submit = tracy_client::span!("Worker: Execute command");
                         let _pipeline_name = s.as_ref().to_lowercase();
+                        let c_len = children.count(); // TODO RACE CONDITION SUKA BLYAT
                         if let Some(drw) = draw_object(
                             memory,
                             pipelines,
@@ -192,9 +192,11 @@ fn draw_object(
     create_info: DrawableCreateInfo,
     children_len: usize,
 ) -> Option<(Drawable, Option<Arc<DescriptorSet>>)> {
+    let drw_id = create_info.with_id(children_len as u32 + 1);
+    debug!("{:?}", drw_id);
     let drw = Drawable::from_shape(
         shape.clone(),
-        create_info.with_id(children_len as u32 + 1),
+        drw_id,
         memory.memory_allocator.clone(),
         memory.descriptor_allocator.clone(),
         pipelines.clone(),
