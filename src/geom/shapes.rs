@@ -36,9 +36,15 @@ pub enum Shapes {
 
 #[derive(Clone, Debug)]
 pub struct ShapeCreateInfo {
-    texture: Option<Texture>,
-    radius: f32,
-    thickness: f32,
+    /// Shape texture. Overlaid on shape through shader
+    pub texture: Option<Texture>,
+    /// Shape radiusUnavailable current
+    ///
+    /// # Supports
+    /// Square, Circle
+    pub radius: f32,
+    /// Outline thickness. Current unsupported
+    pub thickness: f32,
 
 }
 
@@ -101,45 +107,41 @@ impl Shapes {
                     },
                 ];
 
-                if sci.radius > 0.0 && sci.radius < 1.0 {
-                    let buffer = Buffer::from_data(
-                        memory_allocator.clone(),
-                        BufferCreateInfo {
-                            usage: BufferUsage::UNIFORM_BUFFER,
-                            ..Default::default()
-                        },
-                        AllocationCreateInfo {
-                            memory_type_filter: MemoryTypeFilter::PREFER_DEVICE
-                                | MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
-                            ..Default::default()
-                        },
-                        SquareData {
-                            corner_radius: sci.radius,
-                        },
-                    )
-                    .unwrap();
+                let buffer = Buffer::from_data(
+                    memory_allocator.clone(),
+                    BufferCreateInfo {
+                        usage: BufferUsage::UNIFORM_BUFFER,
+                        ..Default::default()
+                    },
+                    AllocationCreateInfo {
+                        memory_type_filter: MemoryTypeFilter::PREFER_DEVICE
+                            | MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
+                        ..Default::default()
+                    },
+                    SquareData {
+                        corner_radius: sci.radius,
+                    },
+                )
+                .unwrap();
 
-                    let layout = pipeline.layout().set_layouts().get(0).unwrap().clone();
-                    if layout.bindings().is_empty() {
-                        warn!("Pipeline 'square' has no bindings. Did you forget to compile shaders?");
-                    }
-
-                    //if let Some(descriptor_set) = descriptor_set_cache.get(&descriptor_id.id) {
-                    //    return (verts, Some(descriptor_set));
-                    //}
-
-                    let descriptor_set = DescriptorSet::new(
-                        descriptor_allocator.clone(),
-                        layout,
-                        [WriteDescriptorSet::buffer(0, buffer)],
-                        [],
-                    )
-                    .unwrap();
-
-                    (verts, Some(descriptor_set))
-                } else {
-                    (verts, None)
+                let layout = pipeline.layout().set_layouts().get(0).unwrap().clone();
+                if layout.bindings().is_empty() {
+                    warn!("Pipeline 'square' has no bindings. Did you forget to compile shaders?");
                 }
+
+                //if let Some(descriptor_set) = descriptor_set_cache.get(&descriptor_id.id) {
+                //    return (verts, Some(descriptor_set));
+                //}
+
+                let descriptor_set = DescriptorSet::new(
+                    descriptor_allocator.clone(),
+                    layout,
+                    [WriteDescriptorSet::buffer(0, buffer)],
+                    [],
+                )
+                .unwrap();
+
+                (verts, Some(descriptor_set))
             }
             Shapes::Circle => {
                 let verts = vec![
