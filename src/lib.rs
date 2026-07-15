@@ -79,9 +79,7 @@ use crate::{
 };
 
 #[cfg(debug_assertions)]
-use crate::{
-    testing::finder::Finder,
-};
+use crate::testing::finder::Finder;
 
 pub mod cmd;
 pub mod dbg;
@@ -216,16 +214,16 @@ where
         children: Arc<Children>,
         _rcx: &mut RenderContext,
     ) -> (Option<MeshBuffers>, usize) {
-        if children.len() < 1 {
+        if children.count() < 1 {
             return (None, 0);
         }
 
         let _span = tracy_client::span!("Engine::calculate_drawables");
 
         // Predicting the possible vector size
-        let mut vertices: Vec<MyVertex> = Vec::with_capacity(children.len() * 2);
-        let mut matrices: Vec<Transform> = Vec::with_capacity(children.len());
-        let mut offsets: Vec<u32> = Vec::with_capacity(children.len());
+        let mut vertices: Vec<MyVertex> = Vec::with_capacity(children.count() * 2);
+        let mut matrices: Vec<Transform> = Vec::with_capacity(children.count());
+        let mut offsets: Vec<u32> = Vec::with_capacity(children.count());
 
         let mut drawable_size: usize = 0;
 
@@ -623,23 +621,21 @@ where
                             debug!("!!! DEBUG INFORMATION START !!!");
                             debug!(
                                 pipelines_count = self.pipelines.len(),
-                                descriptor_sets_count = self.descriptors.len()
+                                descriptor_sets_count = self.descriptors.len(),
+                                objects_count = self.game.children.count()
                             );
                             debug!("!!! DEBUG INFORMATION END !!!");
                         }
                         #[cfg(debug_assertions)]
                         Key::Named(NamedKey::F1) => {
                             if let Some(cursor) = self.game.mouse_position {
-                                let drawable = self.game.children.get_by_position(cursor);
-                                match drawable.first() {
-                                    Some(d) => {
-                                        debug!(
-                                            "drawable with id: {}",
-                                            d.lock().unwrap().render.mesh.get_id()
-                                        );
-                                    }
-                                    None => debug!("There are no objects in the current position"),
-                                };
+                                let drawables = self.game.children.get_by_position(cursor);
+                                for drawable in drawables {
+                                    debug!(
+                                        "drawable with id: {}",
+                                        drawable.lock().unwrap().render.mesh.get_id()
+                                    );
+                                }
                             }
                         }
                         _ => {}

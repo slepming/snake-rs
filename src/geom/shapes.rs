@@ -45,7 +45,6 @@ pub struct ShapeCreateInfo {
     pub radius: f32,
     /// Outline thickness. Current unsupported
     pub thickness: f32,
-
 }
 
 impl ShapeCreateInfo {
@@ -71,7 +70,11 @@ impl ShapeCreateInfo {
 
 impl Default for ShapeCreateInfo {
     fn default() -> Self {
-        Self { texture: Default::default(), radius: 0.0, thickness: Default::default() }
+        Self {
+            texture: Default::default(),
+            radius: 0.0,
+            thickness: Default::default(),
+        }
     }
 }
 

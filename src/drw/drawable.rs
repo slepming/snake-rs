@@ -215,7 +215,9 @@ impl Drawable {
         let key = key_raw.to_string().to_lowercase();
         let pipeline_id = PipelineID { id: key.clone() };
 
-        let descriptor_id = DescriptorID { id: drw.id.to_string() };
+        let descriptor_id = DescriptorID {
+            id: drw.id.to_string(),
+        };
 
         let (vertex, desc) = shape.get_vertex_and_descriptor(
             pipeline_id.clone(),

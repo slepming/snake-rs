@@ -91,7 +91,7 @@ where
                     let pipelines = self.pipelines.clone();
                     let descriptors = self.descriptors.clone();
                     let sampler = self.sampler.clone();
-                    let c_len = self.game.children.len();
+                    let c_len = self.game.children.count();
                     let children = self.game.children.clone();
                     self.thread_pool.spawn(move || {
                         let _span_submit = tracy_client::span!("Worker: Execute command");
@@ -106,8 +106,14 @@ where
                             c_len,
                         ) {
                             if let Some(descriptor) = drw.1 {
-                                if descriptors.get(drw.0.render.descriptor_id.id.clone().as_str()).is_none() {
-                                    descriptors.insert((drw.0.render.descriptor_id.id.clone(), descriptor.clone()));
+                                if descriptors
+                                    .get(drw.0.render.descriptor_id.id.clone().as_str())
+                                    .is_none()
+                                {
+                                    descriptors.insert((
+                                        drw.0.render.descriptor_id.id.clone(),
+                                        descriptor.clone(),
+                                    ));
                                 }
                             }
 
@@ -116,7 +122,7 @@ where
                     });
                 }
                 DrawCommand::ClearDrawables => {
-                    info!("Clear drawables: {}", self.game.children.len());
+                    info!("Clear drawables: {}", self.game.children.count());
                     self.game.children.clear();
                 }
                 DrawCommand::DrawText(text) => {
@@ -142,7 +148,7 @@ where
                     let pipelines = self.pipelines.clone();
                     let descriptors = self.descriptors.clone();
                     let sampler = self.sampler.clone();
-                    let c_len = self.game.children.len();
+                    let c_len = self.game.children.count();
                     if let Some(drw) = draw_object(
                         memory,
                         pipelines,

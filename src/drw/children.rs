@@ -102,7 +102,7 @@ impl Children {
     }
 
     /// Returns Children length
-    pub fn len(&self) -> usize {
+    pub fn count(&self) -> usize {
         self.drawables.read().unwrap().len()
     }
 
