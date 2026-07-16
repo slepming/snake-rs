@@ -1,4 +1,4 @@
-use std::sync::{Arc, Mutex, RwLock, RwLockReadGuard};
+use std::sync::{Arc, Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use crate::drw::drawable::Drawable;
 
@@ -18,6 +18,15 @@ impl Children {
     {
         let lock = self.drawables.read().unwrap();
         f(&lock);
+        drop(lock);
+    }
+
+    pub(crate) fn lock_write_and_execute<F>(&self, f: F)
+    where
+        F: FnOnce(&mut RwLockWriteGuard<'_, Vec<Arc<Mutex<Drawable>>>>),
+    {
+        let mut lock = self.drawables.write().unwrap();
+        f(&mut lock);
         drop(lock);
     }
 

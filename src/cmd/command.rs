@@ -1,6 +1,9 @@
 //! Commands from game space
 
-use std::{collections::VecDeque, sync::Arc};
+use std::{
+    collections::VecDeque,
+    sync::{Arc, Mutex},
+};
 
 use image::{ImageBuffer, Rgba};
 use tracing::{debug, info};
@@ -94,31 +97,35 @@ where
                     let children = self.game.children.clone();
                     self.thread_pool.spawn(move || {
                         let _span_submit = tracy_client::span!("Worker: Execute command");
-                        let _pipeline_name = s.as_ref().to_lowercase();
-                        let c_len = children.count(); // TODO RACE CONDITION SUKA BLYAT
-                        if let Some(drw) = draw_object(
-                            memory,
-                            pipelines,
-                            descriptors.clone(),
-                            sampler,
-                            s,
-                            drw,
-                            c_len,
-                        ) {
-                            if let Some(descriptor) = drw.1 {
-                                if descriptors
-                                    .get(drw.0.render.descriptor_id.id.clone().as_str())
-                                    .is_none()
-                                {
-                                    descriptors.insert((
-                                        drw.0.render.descriptor_id.id.clone(),
-                                        descriptor.clone(),
-                                    ));
+                        // Locked because if unlock children every thread will create drawable with
+                        // index of 1
+                        children.lock_write_and_execute(move |c| {
+                            let _pipeline_name = s.as_ref().to_lowercase();
+                            let c_len = c.len();
+                            if let Some(drw) = draw_object(
+                                memory,
+                                pipelines,
+                                descriptors.clone(),
+                                sampler,
+                                s,
+                                drw,
+                                c_len,
+                            ) {
+                                if let Some(descriptor) = drw.1 {
+                                    if descriptors
+                                        .get(drw.0.render.descriptor_id.id.clone().as_str())
+                                        .is_none()
+                                    {
+                                        descriptors.insert((
+                                            drw.0.render.descriptor_id.id.clone(),
+                                            descriptor.clone(),
+                                        ));
+                                    }
                                 }
-                            }
 
-                            children.add(drw.0);
-                        }
+                                c.push(Arc::new(Mutex::new(drw.0)));
+                            }
+                        });
                     });
                 }
                 DrawCommand::ClearDrawables => {
