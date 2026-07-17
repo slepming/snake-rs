@@ -14,6 +14,21 @@ use crate::drw::texture::Texture;
 use crate::res::assets::TextureHandler;
 use crate::res::cache::{CacheProvider, DescriptorSetCache, PipelineCache};
 
+const SQUARE_VERTEX: [MyVertex; 4] = [
+                    MyVertex {
+                        position: [-1.0, -1.0],
+                    },
+                    MyVertex {
+                        position: [1.0, -1.0],
+                    },
+                    MyVertex {
+                        position: [1.0, 1.0],
+                    },
+                    MyVertex {
+                        position: [-1.0, 1.0],
+                    },
+];
+
 #[derive(vulkano::buffer::BufferContents, Clone, Copy)]
 #[repr(C)]
 pub struct CircleData {
@@ -91,25 +106,10 @@ impl Shapes {
         descriptor_set_cache: Arc<DescriptorSetCache>,
         pipeline_cache: Arc<PipelineCache>,
         sampler: Option<Arc<Sampler>>,
-    ) -> (Vec<MyVertex>, Option<Arc<DescriptorSet>>) {
+    ) -> (&'static [MyVertex], Option<Arc<DescriptorSet>>) {
         let pipeline = pipeline_cache.get(&pipeline_id.id).unwrap();
         match self {
             Shapes::Square(sci) => {
-                let verts = vec![
-                    MyVertex {
-                        position: [-1.0, -1.0],
-                    },
-                    MyVertex {
-                        position: [1.0, -1.0],
-                    },
-                    MyVertex {
-                        position: [1.0, 1.0],
-                    },
-                    MyVertex {
-                        position: [-1.0, 1.0],
-                    },
-                ];
-
                 let buffer = Buffer::from_data(
                     memory_allocator.clone(),
                     BufferCreateInfo {
@@ -144,24 +144,9 @@ impl Shapes {
                 )
                 .unwrap();
 
-                (verts, Some(descriptor_set))
+                (&SQUARE_VERTEX, Some(descriptor_set))
             }
             Shapes::Circle => {
-                let verts = vec![
-                    MyVertex {
-                        position: [-1.0, -1.0],
-                    },
-                    MyVertex {
-                        position: [1.0, -1.0],
-                    },
-                    MyVertex {
-                        position: [1.0, 1.0],
-                    },
-                    MyVertex {
-                        position: [-1.0, 1.0],
-                    },
-                ];
-
                 let buffer = Buffer::from_data(
                     memory_allocator.clone(),
                     BufferCreateInfo {
@@ -187,7 +172,7 @@ impl Shapes {
 
                 if let Some(descriptor_set) = descriptor_set_cache.get(&descriptor_id.id) {
                     debug!("Descriptor set exists");
-                    return (verts, Some(descriptor_set));
+                    return (&SQUARE_VERTEX, Some(descriptor_set));
                 }
 
                 debug!("Descriptor set created!");
@@ -199,24 +184,9 @@ impl Shapes {
                 )
                 .unwrap();
 
-                (verts, Some(descriptor_set))
+                (&SQUARE_VERTEX, Some(descriptor_set))
             }
             Shapes::Image(texture) => {
-                let verts = vec![
-                    MyVertex {
-                        position: [-1.0, -1.0],
-                    },
-                    MyVertex {
-                        position: [1.0, -1.0],
-                    },
-                    MyVertex {
-                        position: [1.0, 1.0],
-                    },
-                    MyVertex {
-                        position: [-1.0, 1.0],
-                    },
-                ];
-
                 let layout = pipeline.layout().set_layouts().get(0).unwrap().clone();
                 if layout.bindings().is_empty() {
                     warn!("Pipeline 'image' has no bindings. Did you forget to compile shaders?");
@@ -225,7 +195,7 @@ impl Shapes {
 
                 if let Some(descriptor_set) = descriptor_set_cache.get(&descriptor_id.id) {
                     debug!("Descriptor set exists");
-                    return (verts, Some(descriptor_set));
+                    return (&SQUARE_VERTEX, Some(descriptor_set));
                 }
 
                 let descriptor_set = DescriptorSet::new(
@@ -242,7 +212,7 @@ impl Shapes {
 
                 debug!("Descriptor set created!");
 
-                (verts, Some(descriptor_set))
+                (&SQUARE_VERTEX, Some(descriptor_set))
             }
         }
     }

@@ -116,7 +116,7 @@ impl Default for DrawableCreateInfo {
 
 #[derive(Debug)]
 pub struct Mesh {
-    vertex: Vec<MyVertex>,
+    vertex: &'static [MyVertex],
     /// ID need for find matrix in buffer
     id: u32,
 }
@@ -128,11 +128,7 @@ impl PartialEq for Mesh {
 }
 
 pub trait DrawableGPU {
-    #[allow(dead_code)]
-    fn set_vertex(&mut self, vertex: Vec<MyVertex>);
-    #[allow(dead_code)]
-    fn vertex_clone(&self) -> Vec<MyVertex>;
-    fn vertex(&self) -> &Vec<MyVertex>;
+    fn vertex(&self) -> &'static [MyVertex];
     /// # Returns
     /// Colour for shader
     fn colour(&self) -> &Rgba8;
@@ -161,7 +157,7 @@ pub trait DrawableComponent: DrawableGPU {
 }
 
 impl Mesh {
-    pub fn new(ver: Vec<MyVertex>, id: u32) -> Self {
+    pub fn new(ver: &'static [MyVertex], id: u32) -> Self {
         Mesh { vertex: ver, id }
     }
 
@@ -175,7 +171,7 @@ impl Drawable {
         drawable_info: DrawableCreateInfo,
         pipeline_id: PipelineID,
         descriptor_id: DescriptorID,
-        vertex: Vec<MyVertex>,
+        vertex: &'static [MyVertex],
     ) -> Self {
         let pos = drawable_info.position;
         let transform = Transform([
@@ -233,15 +229,7 @@ impl Drawable {
 }
 
 impl DrawableGPU for Drawable {
-    fn set_vertex(&mut self, vertex: Vec<MyVertex>) {
-        self.render.mesh.vertex = vertex;
-    }
-
-    fn vertex_clone(&self) -> Vec<MyVertex> {
-        self.render.mesh.vertex.clone()
-    }
-
-    fn vertex(&self) -> &Vec<MyVertex> {
+    fn vertex(&self) -> &'static [MyVertex] {
         &self.render.mesh.vertex
     }
 
