@@ -3,6 +3,7 @@ use color::Rgba8;
 use crate::Vector;
 
 /// Text options
+#[derive(Clone)]
 pub struct SpriteTextCreateInfo {
     /// Text which will be draw on the screen
     pub text: String,

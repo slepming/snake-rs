@@ -428,8 +428,8 @@ where
                     // opaque or transparent.
                     composite_alpha: supported_composite_alpha,
                     present_mode: supported_present_modes
-                        .first()
-                        .unwrap_or(&vulkano::swapchain::PresentMode::Fifo)
+                        .last()
+                        .unwrap_or(&vulkano::swapchain::PresentMode::Mailbox)
                         .clone(),
 
                     ..Default::default()

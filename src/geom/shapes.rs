@@ -129,7 +129,7 @@ impl Shapes {
 
                 let layout = pipeline.layout().set_layouts().get(0).unwrap().clone();
                 if layout.bindings().is_empty() {
-                    warn!("Pipeline 'square' has no bindings. Did you forget to compile shaders?");
+                    panic!("Pipeline 'square' has no bindings. Did you forget to compile shaders?");
                 }
 
                 //if let Some(descriptor_set) = descriptor_set_cache.get(&descriptor_id.id) {
