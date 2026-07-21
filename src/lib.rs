@@ -101,6 +101,7 @@ pub mod utils;
 pub type Vector = glam::Vec2;
 
 #[global_allocator]
+#[cfg(debug_assertions)]
 static GLOBAL: tracy_client::ProfiledAllocator<std::alloc::System> =
     tracy_client::ProfiledAllocator::new(std::alloc::System, 5);
 
@@ -113,21 +114,21 @@ where
     Redraw: RedrawFn,
     Start: StartFn,
 {
+    redraw: Redraw,
+    start: Start,
     instance: Arc<Instance>,
     /// One of the most important parts of the engine
     device: Arc<Device>,
     queues: Vec<Arc<Queue>>,
-    memory: Arc<EngineMemory>,
-    pipelines: Arc<PipelineCache>,
-    descriptors: Arc<DescriptorSetCache>,
     sampler: Arc<Sampler>,
     rcx: Option<RenderContext>,
+    memory: Arc<EngineMemory>,
     game: GameContext,
     #[allow(dead_code)]
     debug: DebugUtils,
-    redraw: Redraw,
-    start: Start,
     thread_pool: ThreadPool,
+    pipelines: Arc<PipelineCache>,
+    descriptors: Arc<DescriptorSetCache>,
     scheduler: (Scheduler, Arc<SchedulerContext>),
 }
 
@@ -200,7 +201,7 @@ where
             debug,
             start: start,
             redraw: redraw,
-            thread_pool: ThreadPoolBuilder::new().num_threads(3).build().unwrap(),
+            thread_pool: ThreadPoolBuilder::new().num_threads(6).build().unwrap(),
             scheduler: create_scheduler(),
         }
     }
@@ -226,27 +227,6 @@ where
         let mut offsets: Vec<u32> = Vec::with_capacity(children.len());
 
         let mut drawable_size: usize = 0;
-
-        // TODO: in the future I must think about join this iteration loops through abstractions or
-        // compositing structures
-        // children.physics_drawables.iter_mut().for_each(|drawable| {
-        //     let object = physics_context.rigid_body_set[drawable.rb_handle()].clone();
-        //     let mut transform = drawable.drawable().get_transform_clone();
-
-        //     transform.get_matrix_mut()[0][3] = ndc_x;
-        //     transform.get_matrix_mut()[1][3] = -ndc_y;
-
-        //     drawable.set_transform(transform);
-
-        //     let drawable = drawable.drawable();
-        //     let verts = drawable.get_vertex();
-        //     let matrics = drawable.get_transform_clone();
-        //     let offset = vertices.len() as u32;
-
-        //     offsets.push(offset);
-        //     vertices.extend_from_slice(verts);
-        //     matrices.push(matrics);
-        // });
 
         children.lock_read_and_execute(|drawables| {
             drawable_size = drawables.len();
