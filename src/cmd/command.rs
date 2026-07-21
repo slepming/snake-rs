@@ -190,7 +190,7 @@ where
     }
 }
 
-fn draw_object(
+pub(crate) fn draw_object(
     memory: Arc<EngineMemory>,
     pipelines: Arc<PipelineCache>,
     descriptors: Arc<DescriptorSetCache>,

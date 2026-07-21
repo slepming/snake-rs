@@ -97,7 +97,11 @@ impl Storage {
     }
 
     /// Returns Arc<[`TextureHandler`]> from file system
-    pub fn load_texture_handler(&self, file_name: &'static Path, internal: bool) -> Arc<TextureHandler> {
+    pub fn load_texture_handler(
+        &self,
+        file_name: &'static Path,
+        internal: bool,
+    ) -> Arc<TextureHandler> {
         let _span = tracy_client::span!("Engine::load_texture");
         let file = file_name.file_name().unwrap().to_string_lossy().to_string();
 

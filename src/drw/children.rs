@@ -1,20 +1,20 @@
 use std::sync::{Arc, Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
-use crate::drw::drawable::Drawable;
+use crate::game::GameObject;
 
-type DrawableData = Arc<Mutex<Drawable>>;
+type DrawableData = Arc<Mutex<Box<dyn GameObject>>>;
 
 /// Structure which contains list of all objects
 pub struct Children {
     /// List of all drawable objects
-    drawables: RwLock<Vec<Arc<Mutex<Drawable>>>>,
+    drawables: RwLock<Vec<DrawableData>>,
 }
 
 impl Children {
     /// Locks for read drawables vector and executes fnmut with vector
     pub(crate) fn lock_read_and_execute<F>(&self, mut f: F)
     where
-        F: FnMut(&RwLockReadGuard<'_, Vec<Arc<Mutex<Drawable>>>>),
+        F: FnMut(&RwLockReadGuard<'_, Vec<DrawableData>>),
     {
         let lock = self.drawables.read().unwrap();
         f(&lock);
@@ -23,7 +23,7 @@ impl Children {
 
     pub(crate) fn lock_write_and_execute<F>(&self, f: F)
     where
-        F: FnOnce(&mut RwLockWriteGuard<'_, Vec<Arc<Mutex<Drawable>>>>),
+        F: FnOnce(&mut RwLockWriteGuard<'_, Vec<DrawableData>>),
     {
         let mut lock = self.drawables.write().unwrap();
         f(&mut lock);
@@ -31,11 +31,8 @@ impl Children {
     }
 
     /// Push drawable to the [`Children::drawables`]
-    pub(crate) fn add(&self, item: Drawable) {
-        self.drawables
-            .write()
-            .unwrap()
-            .push(Arc::new(Mutex::new(item)));
+    pub(crate) fn add(&self, item: DrawableData) {
+        self.drawables.write().unwrap().push(item);
     }
 
     /// Check if arc exists
@@ -89,7 +86,7 @@ impl Children {
     /// Vec<[`DrawableData`]>
     pub fn filter_each<P>(&self, mut predicate: P) -> Vec<DrawableData>
     where
-        P: FnMut(&Drawable) -> bool,
+        P: FnMut(&Box<dyn GameObject>) -> bool,
     {
         let lock = self.drawables.read().unwrap();
 

@@ -15,18 +15,18 @@ use crate::res::assets::TextureHandler;
 use crate::res::cache::{CacheProvider, DescriptorSetCache, PipelineCache};
 
 const SQUARE_VERTEX: [MyVertex; 4] = [
-                    MyVertex {
-                        position: [-1.0, -1.0],
-                    },
-                    MyVertex {
-                        position: [1.0, -1.0],
-                    },
-                    MyVertex {
-                        position: [1.0, 1.0],
-                    },
-                    MyVertex {
-                        position: [-1.0, 1.0],
-                    },
+    MyVertex {
+        position: [-1.0, -1.0],
+    },
+    MyVertex {
+        position: [1.0, -1.0],
+    },
+    MyVertex {
+        position: [1.0, 1.0],
+    },
+    MyVertex {
+        position: [-1.0, 1.0],
+    },
 ];
 
 #[derive(vulkano::buffer::BufferContents, Clone, Copy)]
@@ -131,10 +131,6 @@ impl Shapes {
                 if layout.bindings().is_empty() {
                     panic!("Pipeline 'square' has no bindings. Did you forget to compile shaders?");
                 }
-
-                //if let Some(descriptor_set) = descriptor_set_cache.get(&descriptor_id.id) {
-                //    return (verts, Some(descriptor_set));
-                //}
 
                 let descriptor_set = DescriptorSet::new(
                     descriptor_allocator.clone(),

@@ -1,6 +1,6 @@
 //! Managing Drawable states
 
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use vulkano::{
     descriptor_set::allocator::DescriptorSetAllocator, image::sampler::Sampler,
@@ -9,7 +9,9 @@ use vulkano::{
 
 use crate::{
     MyVertex, Vector,
+    drw::children::Children,
     geom::{matrix::Transform, shapes::Shapes},
+    mem::engine_memory::EngineMemory,
     mv::transform::{HasTransform, Positioned},
     res::cache::{DescriptorSetCache, PipelineCache},
 };
@@ -281,5 +283,28 @@ impl Positioned for Drawable {
 
         current_matrix[0][0] = vec.x;
         current_matrix[1][1] = vec.y;
+    }
+}
+
+// TODO будет использоваться как параметр к GameObject::start функции для создания других объектов.
+pub trait ObjectFactory {
+    type Object;
+
+    fn create(&self) -> Self::Object;
+}
+
+pub struct DrawableObjectFactory {
+    memory: Arc<EngineMemory>,
+    pipelines: Arc<PipelineCache>,
+    descriptors: Arc<DescriptorSetCache>,
+    sampler: Arc<Sampler>,
+    children: Arc<Children>,
+}
+
+impl ObjectFactory for DrawableObjectFactory {
+    type Object = Arc<Mutex<Drawable>>;
+
+    fn create(&self) -> Self::Object {
+        todo!()
     }
 }
