@@ -4,7 +4,10 @@ use winit::dpi::PhysicalPosition;
 
 use crate::{
     cmd::command::CommandQueue,
-    drw::{children::Children, drawable::Drawable},
+    drw::{
+        children::Children,
+        drawable::{Drawable, DrawableObjectFactory, ObjectFactory},
+    },
     fnt::font::TextFont,
     res::assets::Storage,
 };
@@ -24,5 +27,5 @@ pub trait GameObject {
     /// Executes before frame
     fn update(&mut self);
 
-    fn start(&mut self);
+    fn start(&mut self, object_factory: DrawableObjectFactory);
 }

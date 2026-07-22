@@ -9,11 +9,12 @@ use vulkano::{
 
 use crate::{
     MyVertex, Vector,
+    cmd::command::draw_object,
     drw::children::Children,
     geom::{matrix::Transform, shapes::Shapes},
     mem::engine_memory::EngineMemory,
     mv::transform::{HasTransform, Positioned},
-    res::cache::{DescriptorSetCache, PipelineCache},
+    res::cache::{CacheProvider, DescriptorSetCache, PipelineCache},
 };
 
 use color::Rgba8;
@@ -286,13 +287,6 @@ impl Positioned for Drawable {
     }
 }
 
-// TODO будет использоваться как параметр к GameObject::start функции для создания других объектов.
-pub trait ObjectFactory {
-    type Object;
-
-    fn create(&self) -> Self::Object;
-}
-
 pub struct DrawableObjectFactory {
     memory: Arc<EngineMemory>,
     pipelines: Arc<PipelineCache>,
@@ -301,10 +295,31 @@ pub struct DrawableObjectFactory {
     children: Arc<Children>,
 }
 
-impl ObjectFactory for DrawableObjectFactory {
-    type Object = Arc<Mutex<Drawable>>;
+type Object = Arc<Mutex<Drawable>>;
 
-    fn create(&self) -> Self::Object {
-        todo!()
+impl DrawableObjectFactory {
+    pub fn create(&self, shape: Shapes, create_info: DrawableCreateInfo) -> Option<Object> {
+        if let Some(drw) = draw_object(
+            self.memory.clone(),
+            self.pipelines.clone(),
+            self.descriptors.clone(),
+            self.sampler.clone(),
+            shape,
+            create_info,
+            self.children.count(),
+        ) {
+            if let Some(drw_descr) = drw.1 {
+                if self
+                    .descriptors
+                    .get(drw.0.render.descriptor_id.id.clone().as_str())
+                    .is_none()
+                {
+                    self.descriptors
+                        .insert((drw.0.render.descriptor_id.id.clone(), drw_descr.clone()));
+                }
+            }
+            return Some(Arc::new(Mutex::new(drw.0)))
+        }
+        None
     }
 }
