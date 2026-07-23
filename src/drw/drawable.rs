@@ -1,6 +1,6 @@
 //! Managing Drawable states
 
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, RwLock};
 
 use vulkano::{
     descriptor_set::allocator::DescriptorSetAllocator, image::sampler::Sampler,
@@ -8,13 +8,7 @@ use vulkano::{
 };
 
 use crate::{
-    MyVertex, Vector,
-    cmd::command::draw_object,
-    drw::children::Children,
-    geom::{matrix::Transform, shapes::Shapes},
-    mem::engine_memory::EngineMemory,
-    mv::transform::{HasTransform, Positioned},
-    res::cache::{CacheProvider, DescriptorSetCache, PipelineCache},
+    DrawableRwLock, MyVertex, Vector, cmd::command::create_drawable, drw::children::Children, geom::{matrix::Transform, shapes::Shapes}, mem::engine_memory::EngineMemory, mv::transform::{HasTransform, Positioned}, res::cache::{CacheProvider, DescriptorSetCache, PipelineCache}
 };
 
 use color::Rgba8;
@@ -295,11 +289,11 @@ pub struct DrawableObjectFactory {
     children: Arc<Children>,
 }
 
-type Object = Arc<Mutex<Drawable>>;
+type Object = DrawableRwLock;
 
 impl DrawableObjectFactory {
     pub fn create(&self, shape: Shapes, create_info: DrawableCreateInfo) -> Option<Object> {
-        if let Some(drw) = draw_object(
+        if let Some(drw) = create_drawable(
             self.memory.clone(),
             self.pipelines.clone(),
             self.descriptors.clone(),
@@ -318,7 +312,7 @@ impl DrawableObjectFactory {
                         .insert((drw.0.render.descriptor_id.id.clone(), drw_descr.clone()));
                 }
             }
-            return Some(Arc::new(Mutex::new(drw.0)))
+            return Some(Arc::new(RwLock::new(drw.0)))
         }
         None
     }

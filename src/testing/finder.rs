@@ -1,17 +1,15 @@
 //! Find and get objects
 
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use tracing::debug;
 use winit::dpi::PhysicalPosition;
 
 use crate::{
-    Vector,
-    drw::{
+    DrawableRwLock, Vector, drw::{
         children::Children,
-        drawable::{Drawable, DrawableComponent},
-    },
-    mv::transform::Positioned,
+        drawable::DrawableComponent,
+    }, game::GameObject, mv::transform::Positioned
 };
 
 pub trait IntoVector {
@@ -19,7 +17,7 @@ pub trait IntoVector {
 }
 
 pub trait Finder {
-    fn get_by_position(&self, position: PhysicalPosition<f64>) -> Vec<Arc<Mutex<Drawable>>>;
+    fn get_by_position(&self, position: PhysicalPosition<f64>) -> Vec<Arc<std::sync::Mutex<Box<dyn GameObject>>>>;
 }
 
 impl Finder for Children {
@@ -30,14 +28,15 @@ impl Finder for Children {
     ///
     /// # Arguments
     /// `position` - Position at which the object is located.
-    fn get_by_position(&self, position: PhysicalPosition<f64>) -> Vec<Arc<Mutex<Drawable>>> {
+    fn get_by_position(&self, position: PhysicalPosition<f64>) -> Vec<Arc<std::sync::Mutex<Box<dyn GameObject>>>> {
         let vector_position = position.into_vector();
-        self.filter_each(|d| into_range(d, vector_position))
+        self.filter_each(|d| into_range(&d.drawables(), vector_position))
     }
 }
 
 /// Calculate drawable is into position range
-fn into_range(drawable: &Drawable, position: Vector) -> bool {
+fn into_range(drw: &DrawableRwLock, position: Vector) -> bool {
+    let drawable = drw.read().unwrap();
     let size = drawable.size();
     let pos = drawable.position();
 
@@ -53,6 +52,8 @@ fn into_range(drawable: &Drawable, position: Vector) -> bool {
         "AABB Check | Cursor: [x: {:.1}, y: {:.1}] | Bounds: X[{:.1}..{:.1}] Y[{:.1}..{:.1}] | Result: {}",
         position.x, position.y, min_bound.x, max_bound.x, min_bound.y, max_bound.y, inside
     );
+
+    drop(drawable);
 
     inside
 }

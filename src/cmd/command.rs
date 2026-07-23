@@ -2,7 +2,7 @@
 
 use std::{
     collections::VecDeque,
-    sync::{Arc, Mutex},
+    sync::Arc,
 };
 
 use image::{ImageBuffer, Rgba};
@@ -10,16 +10,11 @@ use tracing::{debug, info};
 use vulkano::{descriptor_set::DescriptorSet, image::sampler::Sampler};
 
 use crate::{
-    EngineContext, RedrawFn, StartFn,
-    drw::drawable::{Drawable, DrawableCreateInfo},
-    geom::shapes::Shapes,
-    mem::engine_memory::EngineMemory,
-    res::cache::{CacheProvider, DescriptorSetCache, PipelineCache},
-    text::sprite_text::SpriteTextCreateInfo,
+    EngineContext, RedrawFn, StartFn, drw::drawable::{Drawable, DrawableCreateInfo}, game::GameObject, geom::shapes::Shapes, mem::engine_memory::EngineMemory, res::cache::{CacheProvider, DescriptorSetCache, PipelineCache}, text::sprite_text::SpriteTextCreateInfo
 };
 
 pub enum DrawCommand {
-    DrawObject(Shapes, DrawableCreateInfo),
+    DrawObject(Box<dyn GameObject>),
     DrawText(SpriteTextCreateInfo),
     ClearDrawables,
 }
@@ -89,44 +84,8 @@ where
         let commands: Vec<_> = self.game.game_command_queue.commands.drain(..).collect();
         for command in commands {
             match command {
-                DrawCommand::DrawObject(s, drw) => {
-                    let memory = self.memory.clone();
-                    let pipelines = self.pipelines.clone();
-                    let descriptors = self.descriptors.clone();
-                    let sampler = self.sampler.clone();
-                    let children = self.game.children.clone();
-                    self.thread_pool.spawn(move || {
-                        let _span_submit = tracy_client::span!("Worker: Execute command");
-                        // Locked because if unlock children every thread will create drawable with
-                        // index of 1
-                        children.lock_write_and_execute(move |c| {
-                            let _pipeline_name = s.as_ref().to_lowercase();
-                            let c_len = c.len();
-                            if let Some(drw) = draw_object(
-                                memory,
-                                pipelines,
-                                descriptors.clone(),
-                                sampler,
-                                s,
-                                drw,
-                                c_len,
-                            ) {
-                                if let Some(descriptor) = drw.1 {
-                                    if descriptors
-                                        .get(drw.0.render.descriptor_id.id.clone().as_str())
-                                        .is_none()
-                                    {
-                                        descriptors.insert((
-                                            drw.0.render.descriptor_id.id.clone(),
-                                            descriptor.clone(),
-                                        ));
-                                    }
-                                }
-
-                                c.push(Arc::new(Mutex::new(drw.0)));
-                            }
-                        });
-                    });
+                DrawCommand::DrawObject(drw) => {
+                    self.game.children.add(drw);
                 }
                 DrawCommand::ClearDrawables => {
                     info!("Clear drawables: {}", self.game.children.count());
@@ -156,7 +115,7 @@ where
                     let descriptors = self.descriptors.clone();
                     let sampler = self.sampler.clone();
                     let c_len = self.game.children.count();
-                    if let Some(drw) = draw_object(
+                    if let Some(drw) = create_drawable(
                         memory,
                         pipelines,
                         descriptors.clone(),
@@ -190,7 +149,7 @@ where
     }
 }
 
-pub(crate) fn draw_object(
+pub(crate) fn create_drawable(
     memory: Arc<EngineMemory>,
     pipelines: Arc<PipelineCache>,
     descriptors: Arc<DescriptorSetCache>,

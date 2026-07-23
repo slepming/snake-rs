@@ -4,7 +4,7 @@ use rayon::{ThreadPool, ThreadPoolBuilder};
 use std::{
     collections::HashMap,
     ops::RangeInclusive,
-    sync::{Arc, RwLock},
+    sync::{Arc, Mutex, RwLock},
 };
 use tracing::debug;
 
@@ -54,11 +54,11 @@ use crate::{
     dbg::debug_utils::DebugUtils,
     drw::{
         children::Children,
-        drawable::{DrawableComponent, DrawableGPU},
+        drawable::{Drawable, DrawableComponent, DrawableGPU},
     },
     ext::user_functions::{RedrawFn, StartFn},
     fnt::font::TextFont,
-    game::GameContext,
+    game::{GameContext, GameObject},
     geom::matrix::Transform,
     mem::engine_memory::EngineMemory,
     render::{MeshBuffers, RenderContext},
@@ -99,6 +99,8 @@ pub mod threading;
 pub mod utils;
 
 pub type Vector = glam::Vec2;
+pub type GameObjectDrawable = Arc<RwLock<Box<dyn GameObject>>>;
+pub type DrawableRwLock = Arc<RwLock<Drawable>>;
 
 #[global_allocator]
 #[cfg(debug_assertions)]

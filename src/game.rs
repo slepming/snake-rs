@@ -1,15 +1,12 @@
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use winit::dpi::PhysicalPosition;
 
 use crate::{
-    cmd::command::CommandQueue,
-    drw::{
+    DrawableRwLock, cmd::command::CommandQueue, drw::{
         children::Children,
-        drawable::{Drawable, DrawableObjectFactory, ObjectFactory},
-    },
-    fnt::font::TextFont,
-    res::assets::Storage,
+        drawable::DrawableObjectFactory,
+    }, fnt::font::TextFont, res::assets::Storage
 };
 
 pub(crate) struct GameContext {
@@ -23,7 +20,7 @@ pub(crate) struct GameContext {
 
 // TODO является трейтом для создания возможности реализации кастомных игровых объектов
 pub trait GameObject {
-    fn drawables(&mut self) -> Option<Arc<Mutex<Drawable>>>;
+    fn drawables(&self) -> DrawableRwLock;
     /// Executes before frame
     fn update(&mut self);
 
