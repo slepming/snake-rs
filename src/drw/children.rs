@@ -2,7 +2,7 @@ use std::sync::{Arc, Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use crate::game::GameObject;
 
-type DrawableData = Arc<Mutex<Box<dyn GameObject>>>;
+pub type DrawableData = Arc<Mutex<dyn GameObject>>;
 
 /// Structure which contains list of all objects
 pub struct Children {
@@ -30,7 +30,7 @@ impl Children {
         drop(lock);
     }
 
-    /// Push drawable to the [`Children::drawables`]
+    /// Push drawable to the [`DrawableData`]
     pub(crate) fn add(&self, item: DrawableData) {
         self.drawables.write().unwrap().push(item);
     }
@@ -81,19 +81,16 @@ impl Children {
     }
 
     /// Filters drawables by predicate
-    ///
-    /// # Returns
-    /// Vec<[`DrawableData`]>
     pub fn filter_each<P>(&self, mut predicate: P) -> Vec<DrawableData>
     where
-        P: FnMut(&Box<dyn GameObject>) -> bool,
+        P: FnMut(&dyn GameObject) -> bool,
     {
         let lock = self.drawables.read().unwrap();
 
         lock.iter()
             .filter(|item| {
                 let guard = item.lock().unwrap();
-                predicate(&guard)
+                predicate(&*guard)
             })
             .cloned()
             .collect()

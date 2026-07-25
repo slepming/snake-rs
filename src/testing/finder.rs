@@ -1,15 +1,13 @@
 //! Find and get objects
 
-use std::sync::Arc;
-
 use tracing::debug;
 use winit::dpi::PhysicalPosition;
 
 use crate::{
     DrawableRwLock, Vector, drw::{
-        children::Children,
+        children::{Children, DrawableData},
         drawable::DrawableComponent,
-    }, game::GameObject, mv::transform::Positioned
+    }, mv::transform::Positioned
 };
 
 pub trait IntoVector {
@@ -17,7 +15,7 @@ pub trait IntoVector {
 }
 
 pub trait Finder {
-    fn get_by_position(&self, position: PhysicalPosition<f64>) -> Vec<Arc<std::sync::Mutex<Box<dyn GameObject>>>>;
+    fn get_by_position(&self, position: PhysicalPosition<f64>) -> Vec<DrawableData>;
 }
 
 impl Finder for Children {
@@ -28,7 +26,7 @@ impl Finder for Children {
     ///
     /// # Arguments
     /// `position` - Position at which the object is located.
-    fn get_by_position(&self, position: PhysicalPosition<f64>) -> Vec<Arc<std::sync::Mutex<Box<dyn GameObject>>>> {
+    fn get_by_position(&self, position: PhysicalPosition<f64>) -> Vec<DrawableData> {
         let vector_position = position.into_vector();
         self.filter_each(|d| into_range(&d.drawables(), vector_position))
     }

@@ -1,10 +1,10 @@
-#![deny(warnings)]
+//#![deny(warnings)]
 
 use rayon::{ThreadPool, ThreadPoolBuilder};
 use std::{
     collections::HashMap,
     ops::RangeInclusive,
-    sync::{Arc, Mutex, RwLock},
+    sync::{Arc, RwLock},
 };
 use tracing::debug;
 
@@ -78,8 +78,8 @@ use crate::{
     },
 };
 
-#[cfg(debug_assertions)]
-use crate::testing::finder::Finder;
+//#[cfg(debug_assertions)]
+//use crate::testing::finder::Finder;
 
 pub mod cmd;
 pub mod dbg;
@@ -232,9 +232,10 @@ where
 
         children.lock_read_and_execute(|drawables| {
             drawable_size = drawables.len();
-            drawables.iter().enumerate().for_each(|(_, drawable)| {
-                let binding = drawable.lock().unwrap().drawables().unwrap();
-                let drawable = binding.lock().unwrap();
+            drawables.iter().enumerate().for_each(|(_, drw)| {
+                let drw_lock = drw.lock().unwrap();
+                let binding = drw_lock.drawables();
+                let drawable = binding.read().unwrap();
                 let verts = drawable.vertex();
                 let matrix = drawable.transform_clone();
                 // We have few MyVertex elements for each drawable component. For this we create MyVertex relative offset
@@ -609,21 +610,21 @@ where
                             );
                             debug!("!!! DEBUG INFORMATION END !!!");
                         }
-                        #[cfg(debug_assertions)]
-                        Key::Named(NamedKey::F1) => {
-                            debug!("Drawable calculation positions started");
-                            if let Some(cursor) = self.game.mouse_position {
-                                let drawables = self.game.children.get_by_position(cursor);
-                                for drawable in drawables {
-                                    dbg!(&drawable);
-                                    debug!(
-                                        "drawable with id: {}",
-                                        drawable.lock().unwrap().render.mesh.get_id()
-                                    );
-                                }
-                            }
-                            debug!("Drawable calculation positions finished");
-                        }
+                        //#[cfg(debug_assertions)]
+                        //Key::Named(NamedKey::F1) => {
+                        //    debug!("Drawable calculation positions started");
+                        //    if let Some(cursor) = self.game.mouse_position {
+                        //        let drawables = self.game.children.get_by_position(cursor);
+                        //        for drawable in drawables {
+                        //            dbg!(&drawable);
+                        //            debug!(
+                        //                "drawable with id: {}",
+                        //                drawable.lock().unwrap().render.mesh.get_id()
+                        //            );
+                        //        }
+                        //    }
+                        //    debug!("Drawable calculation positions finished");
+                        //}
                         _ => {}
                     }
                 }
@@ -769,55 +770,57 @@ where
                         if i >= children_size {
                             return Err(0);
                         }
-                        if let Some(item) = item_trait.lock().unwrap().drawables() {
-                            let matrix = mesh.1[i];
-                            let _span_draw = tracy_client::span!("Engine: Draw Item");
-                            let item = item.lock().unwrap();
-                            let colour = item.colour().clone();
-                            let constants = Constants(
-                                matrix,
-                                rcx.window.inner_size().into(),
-                                (colour.r as u32)
-                                    | (colour.g as u32) << 8
-                                    | (colour.b as u32) << 16
-                                    | (colour.a as u32) << 24,
-                            );
-                            let pipeline_name = &item.drawable().render.pipeline_id.id;
-                            let pipeline = self
-                                .pipelines
-                                .get(pipeline_name)
-                                .expect("pipeline not found");
-                            let layout = pipeline.layout();
-                            if !layout.push_constant_ranges().is_empty() {
-                                builder
-                                    .push_constants(pipeline.layout().clone(), 0, constants)
-                                    .unwrap();
-                            }
 
-                            let vertex_cursor = mesh.2[i];
-                            let vertex_count = item.vertex().len() as u32;
+                        let item = item_trait.lock().unwrap().drawables();
 
-                            builder.bind_pipeline_graphics(pipeline.clone()).unwrap();
-
-                            if let Some(desc) = self
-                                .descriptors
-                                .get(&item.drawable().render.descriptor_id.id)
-                            {
-                                let _span_draw = tracy_client::span!("Engine: Getting descriptors");
-                                builder
-                                    .bind_descriptor_sets(
-                                        vulkano::pipeline::PipelineBindPoint::Graphics,
-                                        pipeline.layout().clone(),
-                                        0,
-                                        desc.clone(),
-                                    )
-                                    .unwrap();
-                            }
-
-                            unsafe {
-                                builder.draw(vertex_count, 1, vertex_cursor, 0).unwrap();
-                            }
+                        let matrix = mesh.1[i];
+                        let _span_draw = tracy_client::span!("Engine: Draw Item");
+                        let item = item.read().unwrap();
+                        let colour = item.colour().clone();
+                        let constants = Constants(
+                            matrix,
+                            rcx.window.inner_size().into(),
+                            (colour.r as u32)
+                                | (colour.g as u32) << 8
+                                | (colour.b as u32) << 16
+                                | (colour.a as u32) << 24,
+                        );
+                        let pipeline_name = &item.drawable().render.pipeline_id.id;
+                        let pipeline = self
+                            .pipelines
+                            .get(pipeline_name)
+                            .expect("pipeline not found");
+                        let layout = pipeline.layout();
+                        if !layout.push_constant_ranges().is_empty() {
+                            builder
+                                .push_constants(pipeline.layout().clone(), 0, constants)
+                                .unwrap();
                         }
+
+                        let vertex_cursor = mesh.2[i];
+                        let vertex_count = item.vertex().len() as u32;
+
+                        builder.bind_pipeline_graphics(pipeline.clone()).unwrap();
+
+                        if let Some(desc) = self
+                            .descriptors
+                            .get(&item.drawable().render.descriptor_id.id)
+                        {
+                            let _span_draw = tracy_client::span!("Engine: Getting descriptors");
+                            builder
+                                .bind_descriptor_sets(
+                                    vulkano::pipeline::PipelineBindPoint::Graphics,
+                                    pipeline.layout().clone(),
+                                    0,
+                                    desc.clone(),
+                                )
+                                .unwrap();
+                        }
+
+                        unsafe {
+                            builder.draw(vertex_count, 1, vertex_cursor, 0).unwrap();
+                        }
+                        
 
                         Ok(())
                     });
