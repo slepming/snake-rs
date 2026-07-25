@@ -122,12 +122,14 @@ where
     /// One of the most important parts of the engine
     device: Arc<Device>,
     queues: Vec<Arc<Queue>>,
+    #[allow(dead_code)]
     sampler: Arc<Sampler>,
     rcx: Option<RenderContext>,
     memory: Arc<EngineMemory>,
     game: GameContext,
     #[allow(dead_code)]
     debug: DebugUtils,
+    #[allow(dead_code)]
     thread_pool: ThreadPool,
     pipelines: Arc<PipelineCache>,
     descriptors: Arc<DescriptorSetCache>,
