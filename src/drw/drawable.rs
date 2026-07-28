@@ -8,7 +8,13 @@ use vulkano::{
 };
 
 use crate::{
-    DrawableRwLock, MyVertex, Vector, cmd::command::create_drawable, drw::children::Children, geom::{matrix::Transform, shapes::Shapes}, mem::engine_memory::EngineMemory, mv::transform::{HasTransform, Positioned}, res::cache::{CacheProvider, DescriptorSetCache, PipelineCache}
+    DrawableRwLock, MyVertex, Vector,
+    cmd::command::create_drawable,
+    drw::children::Children,
+    geom::{matrix::Transform, shapes::Shapes},
+    mem::engine_memory::EngineMemory,
+    mv::transform::{HasTransform, Positioned},
+    res::cache::{CacheProvider, DescriptorSetCache, PipelineCache},
 };
 
 use color::Rgba8;
@@ -282,11 +288,11 @@ impl Positioned for Drawable {
 }
 
 pub struct DrawableObjectFactory {
-    memory: Arc<EngineMemory>,
-    pipelines: Arc<PipelineCache>,
-    descriptors: Arc<DescriptorSetCache>,
-    sampler: Arc<Sampler>,
-    children: Arc<Children>,
+    pub(crate) memory: Arc<EngineMemory>,
+    pub(crate) pipelines: Arc<PipelineCache>,
+    pub(crate) descriptors: Arc<DescriptorSetCache>,
+    pub(crate) sampler: Arc<Sampler>,
+    pub(crate) children: Arc<Children>,
 }
 
 type Object = DrawableRwLock;
@@ -312,7 +318,7 @@ impl DrawableObjectFactory {
                         .insert((drw.0.render.descriptor_id.id.clone(), drw_descr.clone()));
                 }
             }
-            return Some(Arc::new(RwLock::new(drw.0)))
+            return Some(Arc::new(RwLock::new(drw.0)));
         }
         None
     }

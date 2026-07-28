@@ -3,6 +3,7 @@
 use rayon::{ThreadPool, ThreadPoolBuilder};
 use std::{
     collections::HashMap,
+    io::pipe,
     ops::RangeInclusive,
     sync::{Arc, RwLock},
 };
@@ -54,7 +55,7 @@ use crate::{
     dbg::debug_utils::DebugUtils,
     drw::{
         children::Children,
-        drawable::{Drawable, DrawableComponent, DrawableGPU},
+        drawable::{Drawable, DrawableComponent, DrawableGPU, DrawableObjectFactory},
     },
     ext::user_functions::{RedrawFn, StartFn},
     fnt::font::TextFont,
@@ -185,17 +186,30 @@ where
 
         let fonts = TextFont::new(String::from("Fonts/freedom.otf"));
 
+        let descriptorset_cache = Arc::new(DescriptorSetCache::default());
+        let pipeline_cache = Arc::new(PipelineCache::default());
+        let children = Arc::new(Children::default());
+
+        let drawable_object_factory = Arc::new(DrawableObjectFactory {
+            memory: memory.clone(),
+            pipelines: pipeline_cache.clone(),
+            descriptors: descriptorset_cache.clone(),
+            children: children.clone(),
+            sampler: sampler.clone(),
+        });
+
         Self {
             game: GameContext {
-                children: Arc::new(Children::default()),
+                drawable_object_factory,
+                children: children.clone(),
                 assets,
                 frames: 0,
                 game_command_queue: CommandQueue::default(),
                 fonts,
                 mouse_position: None,
             },
-            descriptors: Arc::new(DescriptorSetCache::default()),
-            pipelines: Arc::new(PipelineCache::default()),
+            descriptors: descriptorset_cache.clone(),
+            pipelines: pipeline_cache.clone(),
             memory,
             instance,
             device,
@@ -822,7 +836,6 @@ where
                         unsafe {
                             builder.draw(vertex_count, 1, vertex_cursor, 0).unwrap();
                         }
-                        
 
                         Ok(())
                     });

@@ -4,10 +4,12 @@ use tracing::debug;
 use winit::dpi::PhysicalPosition;
 
 use crate::{
-    DrawableRwLock, Vector, drw::{
+    DrawableRwLock, Vector,
+    drw::{
         children::{Children, DrawableData},
         drawable::DrawableComponent,
-    }, mv::transform::Positioned
+    },
+    mv::transform::Positioned,
 };
 
 pub trait IntoVector {

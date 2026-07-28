@@ -1,16 +1,21 @@
 //! Commands from game space
 
-use std::{
-    collections::VecDeque,
-    sync::Arc,
-};
+use std::{collections::VecDeque, sync::Arc};
 
 //use image::{ImageBuffer, Rgba};
 use tracing::{debug, info};
 use vulkano::{descriptor_set::DescriptorSet, image::sampler::Sampler};
 
 use crate::{
-    EngineContext, RedrawFn, StartFn, drw::{children::DrawableData, drawable::{Drawable, DrawableCreateInfo}}, geom::shapes::Shapes, mem::engine_memory::EngineMemory, res::cache::{CacheProvider, DescriptorSetCache, PipelineCache}, text::sprite_text::SpriteTextCreateInfo
+    EngineContext, RedrawFn, StartFn,
+    drw::{
+        children::DrawableData,
+        drawable::{Drawable, DrawableCreateInfo},
+    },
+    geom::shapes::Shapes,
+    mem::engine_memory::EngineMemory,
+    res::cache::{CacheProvider, DescriptorSetCache, PipelineCache},
+    text::sprite_text::SpriteTextCreateInfo,
 };
 
 pub enum DrawCommand {
@@ -90,60 +95,59 @@ where
                 DrawCommand::ClearDrawables => {
                     info!("Clear drawables: {}", self.game.children.count());
                     self.game.children.clear();
-                }
-                //DrawCommand::DrawText(text) => {
-                //    let drw = DrawableCreateInfo {
-                //        position: text.position,
-                //        size: text.size,
-                //        ..Default::default()
-                //    };
-                //    let glyphs_image = self.game.fonts.get_glyphs(text);
+                } //DrawCommand::DrawText(text) => {
+                  //    let drw = DrawableCreateInfo {
+                  //        position: text.position,
+                  //        size: text.size,
+                  //        ..Default::default()
+                  //    };
+                  //    let glyphs_image = self.game.fonts.get_glyphs(text);
 
-                //    let buffer: ImageBuffer<Rgba<u8>, Vec<u8>> = glyphs_image.into_owned();
+                  //    let buffer: ImageBuffer<Rgba<u8>, Vec<u8>> = glyphs_image.into_owned();
 
-                //    let mut png_bytes = Vec::new();
-                //    buffer
-                //        .write_to(
-                //            &mut std::io::Cursor::new(&mut png_bytes),
-                //            image::ImageFormat::Png,
-                //        )
-                //        .expect("Failed to write PNG");
-                //    let s = Shapes::Image(self.game.assets.load_texture_from_bytes(&png_bytes));
-                //    let pipeline_name = s.as_ref().to_lowercase();
-                //    let memory = self.memory.clone();
-                //    let pipelines = self.pipelines.clone();
-                //    let descriptors = self.descriptors.clone();
-                //    let sampler = self.sampler.clone();
-                //    let c_len = self.game.children.count();
-                //    if let Some(drw) = create_drawable(
-                //        memory,
-                //        pipelines,
-                //        descriptors.clone(),
-                //        sampler,
-                //        s,
-                //        drw,
-                //        c_len,
-                //    ) {
-                //        if let Some(descriptor) = drw.1 {
-                //            if self
-                //                .descriptors
-                //                .get(pipeline_name.clone().as_str())
-                //                .is_none()
-                //            {
-                //                self.descriptors
-                //                    .insert((pipeline_name.clone(), descriptor.clone()));
-                //            }
-                //        }
+                  //    let mut png_bytes = Vec::new();
+                  //    buffer
+                  //        .write_to(
+                  //            &mut std::io::Cursor::new(&mut png_bytes),
+                  //            image::ImageFormat::Png,
+                  //        )
+                  //        .expect("Failed to write PNG");
+                  //    let s = Shapes::Image(self.game.assets.load_texture_from_bytes(&png_bytes));
+                  //    let pipeline_name = s.as_ref().to_lowercase();
+                  //    let memory = self.memory.clone();
+                  //    let pipelines = self.pipelines.clone();
+                  //    let descriptors = self.descriptors.clone();
+                  //    let sampler = self.sampler.clone();
+                  //    let c_len = self.game.children.count();
+                  //    if let Some(drw) = create_drawable(
+                  //        memory,
+                  //        pipelines,
+                  //        descriptors.clone(),
+                  //        sampler,
+                  //        s,
+                  //        drw,
+                  //        c_len,
+                  //    ) {
+                  //        if let Some(descriptor) = drw.1 {
+                  //            if self
+                  //                .descriptors
+                  //                .get(pipeline_name.clone().as_str())
+                  //                .is_none()
+                  //            {
+                  //                self.descriptors
+                  //                    .insert((pipeline_name.clone(), descriptor.clone()));
+                  //            }
+                  //        }
 
-                //        let drw_id = drw.0.render.mesh.get_id().clone();
-                //        self.game.children.add(drw.0);
-                //        info!(
-                //            pipeline_name = &pipeline_name,
-                //            drw_id = drw_id,
-                //            "Object created"
-                //        );
-                //    }
-                //}
+                  //        let drw_id = drw.0.render.mesh.get_id().clone();
+                  //        self.game.children.add(drw.0);
+                  //        info!(
+                  //            pipeline_name = &pipeline_name,
+                  //            drw_id = drw_id,
+                  //            "Object created"
+                  //        );
+                  //    }
+                  //}
             }
         }
     }

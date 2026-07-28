@@ -21,6 +21,7 @@ impl Children {
         drop(lock);
     }
 
+    #[allow(dead_code)]
     pub(crate) fn lock_write_and_execute<F>(&self, f: F)
     where
         F: FnOnce(&mut RwLockWriteGuard<'_, Vec<DrawableData>>),
