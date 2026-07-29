@@ -27,5 +27,5 @@ pub trait GameObject {
     /// Executes before frame
     fn update(&mut self);
 
-    fn start(&mut self, object_factory: DrawableObjectFactory);
+    fn start(&mut self, object_factory: Arc<DrawableObjectFactory>);
 }

@@ -1,9 +1,8 @@
-//#![deny(warnings)]
+#![deny(warnings)]
 
 use rayon::{ThreadPool, ThreadPoolBuilder};
 use std::{
     collections::HashMap,
-    io::pipe,
     ops::RangeInclusive,
     sync::{Arc, RwLock},
 };
@@ -573,6 +572,12 @@ where
         game.game_command_queue.append_other(command_queue);
 
         self.flush_commands();
+
+        self.game.children.for_each(|o| {
+            o.1.lock()
+                .unwrap()
+                .start(self.game.drawable_object_factory.clone())
+        });
 
         self.rcx = Some(RenderContext {
             window,

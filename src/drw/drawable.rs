@@ -298,8 +298,8 @@ pub struct DrawableObjectFactory {
 type Object = DrawableRwLock;
 
 impl DrawableObjectFactory {
-    pub fn create(&self, shape: Shapes, create_info: DrawableCreateInfo) -> Option<Object> {
-        if let Some(drw) = create_drawable(
+    pub fn create(&self, shape: Shapes, create_info: DrawableCreateInfo) -> Object {
+        let drw = create_drawable(
             self.memory.clone(),
             self.pipelines.clone(),
             self.descriptors.clone(),
@@ -307,19 +307,18 @@ impl DrawableObjectFactory {
             shape,
             create_info,
             self.children.count(),
-        ) {
-            if let Some(drw_descr) = drw.1 {
-                if self
-                    .descriptors
-                    .get(drw.0.render.descriptor_id.id.clone().as_str())
-                    .is_none()
-                {
-                    self.descriptors
-                        .insert((drw.0.render.descriptor_id.id.clone(), drw_descr.clone()));
-                }
+        );
+
+        if let Some(drw_descr) = drw.1 {
+            if self
+                .descriptors
+                .get(drw.0.render.descriptor_id.id.clone().as_str())
+                .is_none()
+            {
+                self.descriptors
+                    .insert((drw.0.render.descriptor_id.id.clone(), drw_descr.clone()));
             }
-            return Some(Arc::new(RwLock::new(drw.0)));
         }
-        None
+        return Arc::new(RwLock::new(drw.0));
     }
 }

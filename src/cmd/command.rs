@@ -14,8 +14,7 @@ use crate::{
     },
     geom::shapes::Shapes,
     mem::engine_memory::EngineMemory,
-    res::cache::{CacheProvider, DescriptorSetCache, PipelineCache},
-    text::sprite_text::SpriteTextCreateInfo,
+    res::cache::{DescriptorSetCache, PipelineCache},
 };
 
 pub enum DrawCommand {
@@ -161,7 +160,7 @@ pub(crate) fn create_drawable(
     shape: Shapes,
     create_info: DrawableCreateInfo,
     children_len: usize,
-) -> Option<(Drawable, Option<Arc<DescriptorSet>>)> {
+) -> (Drawable, Option<Arc<DescriptorSet>>) {
     let drw_id = create_info.with_id(children_len as u32 + 1);
     debug!("{:?}", drw_id);
     let drw = Drawable::from_shape(
@@ -174,5 +173,5 @@ pub(crate) fn create_drawable(
         Some(sampler.clone()),
     );
 
-    Some(drw)
+    drw
 }
