@@ -282,8 +282,8 @@ impl Positioned for Drawable {
         let current_transform = self.transform_mut();
         let current_matrix = current_transform.matrix_mut();
 
-        current_matrix[0][0] = vec.x;
-        current_matrix[1][1] = vec.y;
+        current_matrix[3][0] = vec.x;
+        current_matrix[3][1] = vec.y;
     }
 }
 

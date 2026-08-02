@@ -792,7 +792,10 @@ where
                             return Err(0);
                         }
 
-                        let item = item_trait.lock().unwrap().drawables();
+                        let mut drawable_trait_locked = item_trait.lock().unwrap();
+                        drawable_trait_locked.update();
+                        let item = drawable_trait_locked.drawables(); // Variable names is
+                        // perfect, lol
 
                         let matrix = mesh.1[i];
                         let _span_draw = tracy_client::span!("Engine: Draw Item");
