@@ -50,32 +50,20 @@ use winit::{
 use winit::platform::wayland::WindowAttributesExtWayland;
 
 use crate::{
-    cmd::command::{CommandDispatcher, CommandQueue},
-    dbg::debug_utils::DebugUtils,
-    drw::{
+    cmd::command::{CommandDispatcher, CommandQueue}, dbg::debug_utils::DebugUtils, drw::{
         children::Children,
-        drawable::{Drawable, DrawableComponent, DrawableGPU, DrawableObjectFactory},
-    },
-    ext::user_functions::{RedrawFn, StartFn},
-    fnt::font::TextFont,
-    game::{GameContext, GameObject},
-    geom::matrix::Transform,
-    mem::engine_memory::EngineMemory,
-    render::{MeshBuffers, RenderContext},
-    res::{
+        drawable::{Drawable, DrawableGPU, DrawableObjectFactory},
+    }, ecs::tables::DrawableTables, ext::user_functions::{RedrawFn, StartFn}, fnt::font::TextFont, game::{GameContext, GameObject}, geom::matrix::Transform, mem::engine_memory::EngineMemory, render::{MeshBuffers, RenderContext}, res::{
         assets::Storage,
         cache::{CacheProvider, DescriptorSetCache, PipelineCache},
-    },
-    shaders::{
+    }, shaders::{
         circle_shader::{circle_fs, circle_vs},
         image_shader::{image_fs, image_vs},
         square_shader::{square_fs, square_vs},
-    },
-    threading::scheduler::{Scheduler, SchedulerContext, create_scheduler},
-    utils::{
+    }, threading::scheduler::{Scheduler, SchedulerContext, create_scheduler}, utils::{
         vulkan::{create_pipeline, get_vulkan_instance, select_render_device},
         window::window_size_dependent_setup,
-    },
+    }
 };
 
 //#[cfg(debug_assertions)]
@@ -84,6 +72,7 @@ use crate::{
 pub mod cmd;
 pub mod dbg;
 pub mod drw;
+pub mod ecs;
 pub mod ext;
 pub mod fnt;
 pub mod game;
@@ -197,6 +186,8 @@ where
             sampler: sampler.clone(),
         });
 
+        let world = Arc::new(RwLock::new(DrawableTables::new()));
+
         Self {
             game: GameContext {
                 drawable_object_factory,
@@ -206,6 +197,7 @@ where
                 game_command_queue: CommandQueue::default(),
                 fonts,
                 mouse_position: None,
+                world
             },
             descriptors: descriptorset_cache.clone(),
             pipelines: pipeline_cache.clone(),
@@ -229,43 +221,33 @@ where
     /// tuple with buffer for vertices, matrices, offsets vectors
     pub(crate) fn calculate_drawables(
         memory_allocator: Arc<dyn MemoryAllocator>,
-        children: Arc<Children>,
+        game: &mut GameContext,
         _rcx: &mut RenderContext,
     ) -> (Option<MeshBuffers>, usize) {
-        if children.count() < 1 {
-            return (None, 0);
-        }
-
         let _span = tracy_client::span!("Engine::calculate_drawables");
 
+        let mut world_lock = game.world.write().unwrap();
+
+        let entities_count = world_lock.world.len() as usize;
+
         // Predicting the possible vector size
-        let mut vertices: Vec<MyVertex> = Vec::with_capacity(children.count() * 2);
-        let mut matrices: Vec<Transform> = Vec::with_capacity(children.count());
-        let mut offsets: Vec<u32> = Vec::with_capacity(children.count());
+        let mut vertices: Vec<MyVertex> = Vec::with_capacity(entities_count * 2);
+        let mut matrices: Vec<Transform> = Vec::with_capacity(entities_count);
+        let mut offsets: Vec<u32> = Vec::with_capacity(entities_count);
 
-        let mut drawable_size: usize = 0;
+        let drawable_size: usize = entities_count;
 
-        children.lock_read_and_execute(|drawables| {
-            drawable_size = drawables.len();
-            drawables.iter().enumerate().for_each(|(_, drw)| {
-                let drw_lock = drw.lock().unwrap();
-                let binding = drw_lock.drawables();
-                let drawable = binding.read().unwrap();
-                let verts = drawable.vertex();
-                let matrix = drawable.transform_clone();
-                // We have few MyVertex elements for each drawable component. For this we create MyVertex relative offset
-                // for each drawable elements. We have drawables with
-                // [MyVertex; n] where n is **dynamic** number, to resolve this problem this iteration
-                // write to the offsets vector offset for each drawable element. For example first drawable is
-                // 4(bec [MyVertex; 4]), for second drawable is 12(bec second drawable have [MyVertex; 8] ->
-                // 4+8)
-                let offset = vertices.len() as u32;
+        for (transform, drawable) in world_lock.world.query_mut::<(&Transform, &DrawableRwLock)>() {
+            let drw = drawable.write().unwrap();
 
-                offsets.push(offset);
-                vertices.extend_from_slice(verts);
-                matrices.push(matrix);
-            })
-        });
+            let verts = drw.vertex();
+            let matrix = transform;
+            let offset = vertices.len() as u32;
+
+            offsets.push(offset);
+            vertices.extend_from_slice(verts);
+            matrices.push(matrix.clone());
+        }
 
         let vertex_buffer = Buffer::from_iter(
             memory_allocator,
@@ -778,7 +760,7 @@ where
                 let (mesh_buffers, children_size) =
                     EngineContext::<Redraw, Start>::calculate_drawables(
                         self.memory.memory_allocator.clone(),
-                        self.game.children.clone(),
+                        &mut self.game,
                         rcx,
                     );
 
@@ -809,7 +791,7 @@ where
                                 | (colour.b as u32) << 16
                                 | (colour.a as u32) << 24,
                         );
-                        let pipeline_name = &item.drawable().render.pipeline_id.id;
+                        let pipeline_name = &item.render.pipeline_id.id;
                         let pipeline = self
                             .pipelines
                             .get(pipeline_name)
@@ -828,7 +810,7 @@ where
 
                         if let Some(desc) = self
                             .descriptors
-                            .get(&item.drawable().render.descriptor_id.id)
+                            .get(&item.render.descriptor_id.id)
                         {
                             let _span_draw = tracy_client::span!("Engine: Getting descriptors");
                             builder

@@ -13,7 +13,6 @@ use crate::{
     drw::children::Children,
     geom::{matrix::Transform, shapes::Shapes},
     mem::engine_memory::EngineMemory,
-    mv::transform::{HasTransform, Positioned},
     res::cache::{CacheProvider, DescriptorSetCache, PipelineCache},
 };
 
@@ -23,7 +22,6 @@ use vulkano::descriptor_set::DescriptorSet;
 /// The main element that is rendered by the Vulkan
 #[derive(PartialEq, Debug)]
 pub struct Drawable {
-    transform: Transform,
     color: Rgba8,
     pub(crate) render: DrawableRenderContext,
 }
@@ -176,17 +174,8 @@ impl Drawable {
         descriptor_id: DescriptorID,
         vertex: &'static [MyVertex],
     ) -> Self {
-        let pos = drawable_info.position;
-        let transform = Transform([
-            [drawable_info.size[0], 0.0, 0.0, 0.0],
-            [0.0, drawable_info.size[1], 0.0, 0.0],
-            [0.0, 0.0, 1.0, 0.0],
-            [pos[0], pos[1], 0.0, 1.0],
-        ]);
-
         let drawable = Drawable {
             color: drawable_info.color,
-            transform,
             render: DrawableRenderContext {
                 descriptor_id,
                 pipeline_id,
@@ -238,52 +227,6 @@ impl DrawableGPU for Drawable {
 
     fn colour(&self) -> &Rgba8 {
         &self.color
-    }
-}
-
-impl DrawableComponent for Drawable {
-    fn transform(&self) -> &Transform {
-        &self.transform
-    }
-
-    fn transform_mut(&mut self) -> &mut Transform {
-        &mut self.transform
-    }
-
-    fn transform_clone(&self) -> Transform {
-        self.transform.clone()
-    }
-
-    fn set_transform(&mut self, transform: Transform) {
-        self.transform = transform;
-    }
-
-    fn drawable(&self) -> &Drawable {
-        &self
-    }
-
-    fn drawable_mut(&mut self) -> &mut Drawable {
-        self
-    }
-
-    fn size(&self) -> Vector {
-        Vector::new(self.transform.0[0][0], self.transform.0[1][1]) // 0 0 -> width; 1 1 -> height
-    }
-}
-
-impl Positioned for Drawable {
-    fn position(&self) -> Vector {
-        let transform = self.transform.matrix();
-
-        Vector::new(transform[3][0], transform[3][1])
-    }
-
-    fn set_position(&mut self, vec: Vector) {
-        let current_transform = self.transform_mut();
-        let current_matrix = current_transform.matrix_mut();
-
-        current_matrix[3][0] = vec.x;
-        current_matrix[3][1] = vec.y;
     }
 }
 
