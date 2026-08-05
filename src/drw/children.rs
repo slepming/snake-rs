@@ -11,6 +11,7 @@ pub struct Children {
 }
 
 impl Children {
+    #[allow(dead_code)]
     /// Locks for read drawables vector and executes fnmut with vector
     pub(crate) fn lock_read_and_execute<F>(&self, mut f: F)
     where

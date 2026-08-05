@@ -2,11 +2,11 @@ use hecs::{Bundle, ComponentError, Entity, World};
 
 use crate::{DrawableRwLock, geom::matrix::Transform};
 
-pub struct DrawableTables {
+pub struct EntityComponent {
     pub(crate) world: World,
 }
 
-impl DrawableTables {
+impl EntityComponent {
     pub(crate) fn new() -> Self {
         Self {
             world: World::new(),

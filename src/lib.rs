@@ -53,7 +53,7 @@ use crate::{
     cmd::command::{CommandDispatcher, CommandQueue}, dbg::debug_utils::DebugUtils, drw::{
         children::Children,
         drawable::{Drawable, DrawableGPU, DrawableObjectFactory},
-    }, ecs::tables::DrawableTables, ext::user_functions::{RedrawFn, StartFn}, fnt::font::TextFont, game::{GameContext, GameObject}, geom::matrix::Transform, mem::engine_memory::EngineMemory, render::{MeshBuffers, RenderContext}, res::{
+    }, ecs::tables::EntityComponent, ext::user_functions::{RedrawFn, StartFn}, fnt::font::TextFont, game::{GameContext, GameObject}, geom::matrix::Transform, mem::engine_memory::EngineMemory, render::{MeshBuffers, RenderContext}, res::{
         assets::Storage,
         cache::{CacheProvider, DescriptorSetCache, PipelineCache},
     }, shaders::{
@@ -186,7 +186,7 @@ where
             sampler: sampler.clone(),
         });
 
-        let world = Arc::new(RwLock::new(DrawableTables::new()));
+        let world = Arc::new(RwLock::new(EntityComponent::new()));
 
         Self {
             game: GameContext {
@@ -775,7 +775,7 @@ where
                         }
 
                         let mut drawable_trait_locked = item_trait.lock().unwrap();
-                        drawable_trait_locked.update();
+                        drawable_trait_locked.update(self.game.world.clone());
                         let item = drawable_trait_locked.drawables(); // Variable names is
                         // perfect, lol
 
