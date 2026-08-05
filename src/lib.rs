@@ -224,11 +224,13 @@ where
         game: &mut GameContext,
         _rcx: &mut RenderContext,
     ) -> (Option<MeshBuffers>, usize) {
+        let mut world_lock = game.world.write().unwrap();
+        let entities_count = world_lock.world.len() as usize;
+        if entities_count < 1 {
+            return (None, entities_count);
+        }
         let _span = tracy_client::span!("Engine::calculate_drawables");
 
-        let mut world_lock = game.world.write().unwrap();
-
-        let entities_count = world_lock.world.len() as usize;
 
         // Predicting the possible vector size
         let mut vertices: Vec<MyVertex> = Vec::with_capacity(entities_count * 2);
