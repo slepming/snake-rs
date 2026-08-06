@@ -1,6 +1,6 @@
 //! Managing Drawable states
 
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 
 use vulkano::{
     descriptor_set::allocator::DescriptorSetAllocator, image::sampler::Sampler,
@@ -8,12 +8,9 @@ use vulkano::{
 };
 
 use crate::{
-    DrawableRwLock, MyVertex, Vector,
-    cmd::command::create_drawable,
-    drw::children::Children,
+    MyVertex, Vector,
     geom::{matrix::Transform, shapes::Shapes},
-    mem::engine_memory::EngineMemory,
-    res::cache::{CacheProvider, DescriptorSetCache, PipelineCache},
+    res::cache::{DescriptorSetCache, PipelineCache},
 };
 
 use color::Rgba8;
@@ -227,41 +224,5 @@ impl DrawableGPU for Drawable {
 
     fn colour(&self) -> &Rgba8 {
         &self.color
-    }
-}
-
-pub struct DrawableObjectFactory {
-    pub(crate) memory: Arc<EngineMemory>,
-    pub(crate) pipelines: Arc<PipelineCache>,
-    pub(crate) descriptors: Arc<DescriptorSetCache>,
-    pub(crate) sampler: Arc<Sampler>,
-    pub(crate) children: Arc<Children>,
-}
-
-type Object = DrawableRwLock;
-
-impl DrawableObjectFactory {
-    pub fn create(&self, shape: Shapes, create_info: DrawableCreateInfo) -> Object {
-        let drw = create_drawable(
-            self.memory.clone(),
-            self.pipelines.clone(),
-            self.descriptors.clone(),
-            self.sampler.clone(),
-            shape,
-            create_info,
-            self.children.count(),
-        );
-
-        if let Some(drw_descr) = drw.1 {
-            if self
-                .descriptors
-                .get(drw.0.render.descriptor_id.id.clone().as_str())
-                .is_none()
-            {
-                self.descriptors
-                    .insert((drw.0.render.descriptor_id.id.clone(), drw_descr.clone()));
-            }
-        }
-        return Arc::new(RwLock::new(drw.0));
     }
 }

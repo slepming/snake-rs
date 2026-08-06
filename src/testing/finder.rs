@@ -4,9 +4,7 @@ use winit::dpi::PhysicalPosition;
 
 use crate::{
     DrawableRwLock, Vector,
-    drw::{
-        children::{Children, DrawableData},
-    },
+    drw::children::{Children, DrawableData},
 };
 
 pub trait IntoVector {
