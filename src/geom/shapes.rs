@@ -14,7 +14,7 @@ use crate::drw::texture::Texture;
 use crate::res::assets::TextureHandler;
 use crate::res::cache::{CacheProvider, DescriptorSetCache, PipelineCache};
 
-const SQUARE_VERTEX: [MyVertex; 4] = [
+pub const SQUARE_VERTEX: [MyVertex; 4] = [
     MyVertex {
         position: [-1.0, -1.0],
     },

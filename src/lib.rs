@@ -56,10 +56,10 @@ use crate::{
         children::Children,
         drawable::{Drawable, DrawableGPU},
     },
-    ecs::tables::EntityComponent,
+    ecs::tables::{ClassInfo, DynObject, EntityComponent},
     fnt::font::TextFont,
     game::{GameContext, GameObject},
-    geom::matrix::Transform,
+    geom::{matrix::Transform, shapes::SQUARE_VERTEX},
     mem::engine_memory::EngineMemory,
     render::{MeshBuffers, RenderContext},
     res::{
@@ -718,7 +718,7 @@ impl ApplicationHandler for EngineContext {
                     .set_viewport(0, [rcx.viewport.clone()].into_iter().collect())
                     .unwrap();
 
-                let (mesh_buffers, children_size) = EngineContext::calculate_drawables(
+                let (mesh_buffers, _children_size) = EngineContext::calculate_drawables(
                     self.memory.memory_allocator.clone(),
                     &mut self.game,
                     rcx,
@@ -731,16 +731,13 @@ impl ApplicationHandler for EngineContext {
 
                     let mut world_lock = self.game.world.write().unwrap();
 
-                    for (id, entity) in world_lock.world.query_mut::<(hecs::Entity, &Object)>() {
-                        let mut object_lock = entity.clone().write().unwrap();
-                        object_lock.update(self.game.world.clone());
-                        let item = object_lock.drawables; // Variable names is
-                        // perfect, lol
+                    for (id, (class, entity)) in world_lock.world.query_mut::<(hecs::Entity, (&ClassInfo, &mut DynObject))>() {
+                        let id = id.id() as usize;
+                        entity.update(self.game.world.clone());
 
-                        let matrix = mesh.1[i];
+                        let matrix = mesh.1[id];
                         let _span_draw = tracy_client::span!("Engine: Draw Item");
-                        let item = item.read().unwrap();
-                        let colour = item.colour().clone();
+                        let colour = entity.color();
                         let constants = Constants(
                             matrix,
                             rcx.window.inner_size().into(),
@@ -749,7 +746,7 @@ impl ApplicationHandler for EngineContext {
                                 | (colour.b as u32) << 16
                                 | (colour.a as u32) << 24,
                         );
-                        let pipeline_name = &item.render.pipeline_id.id;
+                        let pipeline_name = entity.shader();
                         let pipeline = self
                             .pipelines
                             .get(pipeline_name)
@@ -761,12 +758,12 @@ impl ApplicationHandler for EngineContext {
                                 .unwrap();
                         }
 
-                        let vertex_cursor = mesh.2[i];
-                        let vertex_count = item.vertex().len() as u32;
+                        let vertex_cursor = mesh.2[id];
+                        let vertex_count = SQUARE_VERTEX.len() as u32;
 
                         builder.bind_pipeline_graphics(pipeline.clone()).unwrap();
 
-                        if let Some(desc) = self.descriptors.get(&item.render.descriptor_id.id) {
+                        if let Some(desc) = self.descriptors.get(class.class_name) {
                             let _span_draw = tracy_client::span!("Engine: Getting descriptors");
                             builder
                                 .bind_descriptor_sets(
