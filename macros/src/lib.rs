@@ -11,12 +11,17 @@ pub fn game_object(_attr: TokenStream, item: TokenStream) -> TokenStream {
     if let Fields::Named(ref mut fields) = item.fields {
         fields.named.push(parse_quote!(pub color: Rgba8));
         fields.named.push(parse_quote!(pub shader: &'static str));
-    }
-    else {
-        return Error::new_spanned(&item, "Current attribute supports structs with named fields").to_compile_error().into();
+    } else {
+        return Error::new_spanned(
+            &item,
+            "Current attribute supports structs with named fields",
+        )
+        .to_compile_error()
+        .into();
     }
 
-    item.attrs.retain(|attr| !attr.path().is_ident("game_object"));
+    item.attrs
+        .retain(|attr| !attr.path().is_ident("game_object"));
 
     let class = &item.ident;
 

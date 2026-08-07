@@ -731,7 +731,10 @@ impl ApplicationHandler for EngineContext {
 
                     let mut world_lock = self.game.world.write().unwrap();
 
-                    for (id, (class, entity)) in world_lock.world.query_mut::<(hecs::Entity, (&ClassInfo, &mut DynObject))>() {
+                    for (id, (class, entity)) in world_lock
+                        .world
+                        .query_mut::<(hecs::Entity, (&ClassInfo, &mut DynObject))>()
+                    {
                         let id = id.id() as usize;
                         entity.update(self.game.world.clone());
 
