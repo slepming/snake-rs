@@ -22,6 +22,12 @@ rust-embed = "8.11.0"
 tracy-client = { version = "0.18.4", default-features = false, features = ["enable", "ondemand", "broadcast", "crash-handler"] }
 hecs = "0.11"
 
+[workspace]
+members = [
+	".",
+	"macros",
+]
+
 
 [dependencies.winit]
 version = "0.30.12"

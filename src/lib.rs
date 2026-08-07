@@ -1,5 +1,6 @@
 #![deny(warnings)]
 
+use color::Rgba8;
 use rayon::{ThreadPool, ThreadPoolBuilder};
 use std::{
     collections::HashMap,
@@ -731,9 +732,9 @@ impl ApplicationHandler for EngineContext {
                     let mut world_lock = self.game.world.write().unwrap();
 
                     for (id, entity) in world_lock.world.query_mut::<(hecs::Entity, &Object)>() {
-                        let mut drawable_trait_locked = entity.clone().lock().unwrap();
-                        drawable_trait_locked.update(self.game.world.clone());
-                        let item = drawable_trait_locked.drawables; // Variable names is
+                        let mut object_lock = entity.clone().write().unwrap();
+                        object_lock.update(self.game.world.clone());
+                        let item = object_lock.drawables; // Variable names is
                         // perfect, lol
 
                         let matrix = mesh.1[i];
@@ -858,3 +859,8 @@ pub struct MyVertex {
 #[derive(BufferContents, Clone, Copy, Debug)]
 #[repr(C)]
 struct Constants(Transform, [f32; 2], u32);
+
+pub trait Render {
+    fn class() -> String;
+    fn color(&self) -> Rgba8;
+}
