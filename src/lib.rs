@@ -861,6 +861,6 @@ pub struct MyVertex {
 struct Constants(Transform, [f32; 2], u32);
 
 pub trait Render {
-    fn class() -> String;
     fn color(&self) -> Rgba8;
+    fn shader(&self) -> &'static str;
 }

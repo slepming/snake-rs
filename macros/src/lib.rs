@@ -10,6 +10,7 @@ pub fn game_object(_attr: TokenStream, item: TokenStream) -> TokenStream {
 
     if let Fields::Named(ref mut fields) = item.fields {
         fields.named.push(parse_quote!(pub color: Rgba8));
+        fields.named.push(parse_quote!(pub shader: &'static str));
     }
     else {
         return Error::new_spanned(&item, "Current attribute supports structs with named fields").to_compile_error().into();
@@ -32,12 +33,12 @@ pub fn game_object(_attr: TokenStream, item: TokenStream) -> TokenStream {
         #item
 
         impl #crate_ident::Render for #class {
-            fn class() -> String {
-                stringify!(#class).to_string()
-            }
-
             fn color(&self) -> Rgba8 {
                self.color.clone()
+            }
+
+            fn shader(&self) -> &'static str {
+                self.shader
             }
         }
     };
