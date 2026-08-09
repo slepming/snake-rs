@@ -5,7 +5,7 @@ use crate::{
     geom::{matrix::Transform, shapes::Shapes},
     res::cache::{DescriptorSetCache, PipelineCache},
 };
-use hecs::{Bundle, ComponentError, Entity, World};
+pub use hecs::{Bundle, ComponentError, Entity, World};
 use std::{
     any::{TypeId, type_name},
     sync::Arc,
@@ -76,6 +76,26 @@ impl EntityComponent {
         T: Bundle + 'static,
     {
         self.world.remove(entity)
+    }
+
+    pub(crate) fn attach_render_descriptor<G>(&mut self, entity: Entity, drw: G, shape: Shapes)
+    where
+        G: GameObject + Render + Send + Sync + 'static,
+    {
+        let class = ClassInfo::of::<G>();
+
+        shape.create_descriptor(
+            DescriptorID::from(&class),
+            self.memory_allocator.clone(),
+            self.descriptor_allocator.clone(),
+            self.descriptor_cache.clone(),
+            self.pipeline_cache.clone(),
+            Some(self.sampler.clone()),
+        );
+
+        let boxed_drw: DynObject = Box::new(drw);
+
+        let _ = self.world.insert(entity, (shape, boxed_drw));
     }
 }
 

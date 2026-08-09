@@ -1,5 +1,6 @@
 use std::sync::{Arc, RwLock};
 
+use hecs::Entity;
 use winit::dpi::PhysicalPosition;
 
 use crate::{
@@ -18,6 +19,8 @@ pub(crate) struct GameContext {
     pub fonts: TextFont,
     pub mouse_position: Option<PhysicalPosition<f64>>,
     pub world: Ecs,
+    /// Main entity that have size equals window size
+    pub entity: Option<Entity>,
 }
 
 /// Contains general functions for the operations of the object

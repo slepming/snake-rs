@@ -1,6 +1,7 @@
 #![deny(warnings)]
 
 pub use color::Rgba8;
+use hecs::Entity;
 use rayon::{ThreadPool, ThreadPoolBuilder};
 use std::{
     collections::HashMap,
@@ -195,6 +196,7 @@ impl EngineContext {
                 fonts,
                 mouse_position: None,
                 world,
+                entity: None,
             },
             descriptors: descriptorset_cache.clone(),
             pipelines: pipeline_cache.clone(),
@@ -210,21 +212,38 @@ impl EngineContext {
         }
     }
 
-    pub fn add_object<T>(&mut self, object: T, shape: Shapes)
+    pub fn add_object<T>(&mut self, object: T, shape: Shapes) -> Entity
     where
         T: GameObject + Render + Send + Sync + 'static,
     {
+        let s = 300.0_f32;
+        let transform = Transform([
+            [s, 0.0, 0.0, 0.0],
+            [0.0, s, 0.0, 0.0],
+            [0.0, 0.0, 1.0, 0.0],
+            [0.0, 0.0, 0.0, 1.0],
+        ]);
+
+        let class = ClassInfo::of::<T>();
+        let entity = self
+            .game
+            .world
+            .write()
+            .unwrap()
+            .world
+            .spawn((transform, class));
+
+        self.game.entity = Some(entity);
+
         let world = self.game.world.clone();
+
         self.scheduler.1.add(Box::new(move || {
-            let s = 300.0_f32;
-            let transform = Transform([
-                [s, 0.0, 0.0, 0.0],
-                [0.0, s, 0.0, 0.0],
-                [0.0, 0.0, 1.0, 0.0],
-                [0.0, 0.0, 0.0, 1.0],
-            ]);
-            world.write().unwrap().add(object, transform, shape);
+            let mut world_guard = world.write().unwrap();
+
+            world_guard.attach_render_descriptor::<T>(entity, object, shape);
         }));
+
+        entity
     }
 
     /// Calculates Vertex buffer, matrices vector and offsets vector for draw in Vulkano
@@ -590,6 +609,15 @@ impl ApplicationHandler for EngineContext {
             WindowEvent::Resized(_) => {
                 let _span = tracy_client::span!("Engine::resize");
                 rcx.recreate_swapchain = true;
+                if let Some(entity) = self.game.entity {
+                    let world = &self.game.world.write().unwrap().world;
+                    let mut transform = world
+                        .get::<&mut Transform>(entity)
+                        .expect("Main object is removed");
+
+                    transform.0[0][0] = rcx.window.inner_size().width as f32;
+                    transform.0[1][1] = rcx.window.inner_size().width as f32;
+                }
             }
             WindowEvent::KeyboardInput { event, .. } => {
                 if event.state == ElementState::Pressed {
