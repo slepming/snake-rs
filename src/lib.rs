@@ -52,14 +52,14 @@ use winit::platform::wayland::WindowAttributesExtWayland;
 
 use crate::{
     dbg::debug_utils::DebugUtils,
-    drw::{
-        children::Children,
-        drawable::{Drawable, DrawableGPU},
-    },
+    drw::{children::Children, drawable::Drawable},
     ecs::tables::{ClassInfo, DynObject, EntityComponent},
     fnt::font::TextFont,
     game::{GameContext, GameObject},
-    geom::{matrix::Transform, shapes::SQUARE_VERTEX},
+    geom::{
+        matrix::Transform,
+        shapes::{SQUARE_VERTEX, Shapes},
+    },
     mem::engine_memory::EngineMemory,
     render::{MeshBuffers, RenderContext},
     res::{
@@ -128,7 +128,7 @@ pub struct EngineContext {
     thread_pool: ThreadPool,
     pipelines: Arc<PipelineCache>,
     descriptors: Arc<DescriptorSetCache>,
-    _scheduler: (Scheduler, Arc<SchedulerContext>),
+    pub scheduler: (Scheduler, Arc<SchedulerContext>),
 }
 
 impl EngineContext {
@@ -180,7 +180,13 @@ impl EngineContext {
         let pipeline_cache = Arc::new(PipelineCache::default());
         let children = Arc::new(Children::default());
 
-        let world = Arc::new(RwLock::new(EntityComponent::new()));
+        let world = Arc::new(RwLock::new(EntityComponent::new(
+            memory.memory_allocator.clone(),
+            memory.descriptor_allocator.clone(),
+            descriptorset_cache.clone(),
+            pipeline_cache.clone(),
+            sampler.clone(),
+        )));
 
         Self {
             game: GameContext {
@@ -201,15 +207,25 @@ impl EngineContext {
             rcx: None,
             debug,
             thread_pool: ThreadPoolBuilder::new().num_threads(6).build().unwrap(),
-            _scheduler: create_scheduler(),
+            scheduler: create_scheduler(),
         }
     }
 
-    pub fn add_object<T>(&mut self, object: T)
+    pub fn add_object<T>(&mut self, object: T, shape: Shapes)
     where
-        T: GameObject + Render + Send + Sync + Copy + 'static,
+        T: GameObject + Render + Send + Sync + 'static,
     {
-        self.game.world.write().unwrap().add(object);
+        let world = self.game.world.clone();
+        self.scheduler.1.add(Box::new(move || {
+            let s = 300.0_f32;
+            let transform = Transform([
+                [s, 0.0, 0.0, 0.0],
+                [0.0, s, 0.0, 0.0],
+                [0.0, 0.0, 1.0, 0.0],
+                [0.0, 0.0, 0.0, 1.0],
+            ]);
+            world.write().unwrap().add(object, transform, shape);
+        }));
     }
 
     /// Calculates Vertex buffer, matrices vector and offsets vector for draw in Vulkano
@@ -229,16 +245,14 @@ impl EngineContext {
         let _span = tracy_client::span!("Engine::calculate_drawables");
 
         // Predicting the possible vector size
-        let mut vertices: Vec<MyVertex> = Vec::with_capacity(entities_count * 2);
+        let mut vertices: Vec<SnakeVertex> = Vec::with_capacity(entities_count * 2);
         let mut matrices: Vec<Transform> = Vec::with_capacity(entities_count);
         let mut offsets: Vec<u32> = Vec::with_capacity(entities_count);
 
         let drawable_size: usize = entities_count;
 
-        for (transform, drawable) in world_lock.world.query_mut::<(&Transform, &Object)>() {
-            let drw = drawable.write().unwrap();
-
-            let verts = drw.vertex();
+        for transform in world_lock.world.query_mut::<&Transform>() {
+            let verts = &SQUARE_VERTEX;
             let matrix = transform;
             let offset = vertices.len() as u32;
 
@@ -246,6 +260,11 @@ impl EngineContext {
             vertices.extend_from_slice(verts);
             matrices.push(matrix.clone());
         }
+
+        //debug!(
+        //    vertices_size = vertices.len(),
+        //    world_len = world_lock.world.len()
+        //);
 
         let vertex_buffer = Buffer::from_iter(
             memory_allocator,
@@ -535,6 +554,8 @@ impl ApplicationHandler for EngineContext {
             .insert(("square".to_string(), square_pipeline));
         self.pipelines.insert(("image".to_string(), image_pipeline));
 
+        self.scheduler.0.update();
+
         self.game
             .children
             .for_each(|o| o.1.lock().unwrap().start(self.game.world.clone()));
@@ -558,6 +579,7 @@ impl ApplicationHandler for EngineContext {
     ) {
         self.game.frames += 1;
         let rcx = self.rcx.as_mut().unwrap();
+        self.scheduler.0.update();
 
         match event {
             WindowEvent::CursorMoved { position, .. } => {
@@ -578,7 +600,7 @@ impl ApplicationHandler for EngineContext {
                             debug!(
                                 pipelines_count = self.pipelines.len(),
                                 descriptor_sets_count = self.descriptors.len(),
-                                objects_count = self.game.children.count()
+                                objects_count = self.game.world.read().unwrap().world.len()
                             );
                             debug!("!!! DEBUG INFORMATION END !!!");
                         }
@@ -739,9 +761,9 @@ impl ApplicationHandler for EngineContext {
 
                     let mut world_lock = self.game.world.write().unwrap();
 
-                    for (id, (class, entity)) in world_lock
+                    for (id, (class, shape, entity)) in world_lock
                         .world
-                        .query_mut::<(hecs::Entity, (&ClassInfo, &mut DynObject))>()
+                        .query_mut::<(hecs::Entity, (&ClassInfo, &Shapes, &mut DynObject))>()
                     {
                         let id = id.id() as usize;
                         entity.update(self.game.world.clone());
@@ -757,11 +779,13 @@ impl ApplicationHandler for EngineContext {
                                 | (colour.b as u32) << 16
                                 | (colour.a as u32) << 24,
                         );
-                        let pipeline_name = entity.shader();
-                        let pipeline = self
-                            .pipelines
-                            .get(pipeline_name)
-                            .expect("pipeline not found");
+
+                        let pipeline = {
+                            let shape_name = shape.as_ref().to_lowercase();
+
+                            self.pipelines.get(&shape_name).expect("pipeline not found")
+                        };
+
                         let layout = pipeline.layout();
                         if !layout.push_constant_ranges().is_empty() {
                             builder
@@ -859,7 +883,7 @@ impl ApplicationHandler for EngineContext {
 // representation has *no guarantees*.
 #[derive(BufferContents, Vertex, Clone, Copy, PartialEq, Debug)]
 #[repr(C)]
-pub struct MyVertex {
+pub struct SnakeVertex {
     #[format(R32G32_SFLOAT)]
     position: [f32; 2],
 }
@@ -870,5 +894,4 @@ struct Constants(Transform, [f32; 2], u32);
 
 pub trait Render {
     fn color(&self) -> Rgba8;
-    fn shader(&self) -> &'static str;
 }

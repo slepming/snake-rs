@@ -26,7 +26,7 @@ use vulkano::{
 };
 use winit::raw_window_handle::HasDisplayHandle;
 
-use crate::MyVertex;
+use crate::SnakeVertex;
 
 pub fn select_render_device(
     instance: Arc<Instance>,
@@ -181,7 +181,7 @@ pub fn create_pipeline(
     blend_state: ColorBlendState,
 ) -> Arc<GraphicsPipeline> {
     let _span = tracy_client::span!("Engine: Creating pipeline");
-    let vertex_input_state = MyVertex::per_vertex().definition(&vs).unwrap();
+    let vertex_input_state = SnakeVertex::per_vertex().definition(&vs).unwrap();
     let stages = [
         PipelineShaderStageCreateInfo::new(vs),
         PipelineShaderStageCreateInfo::new(fs),

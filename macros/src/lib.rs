@@ -10,7 +10,6 @@ pub fn game_object(_attr: TokenStream, item: TokenStream) -> TokenStream {
 
     if let Fields::Named(ref mut fields) = item.fields {
         fields.named.push(parse_quote!(pub color: Rgba8));
-        fields.named.push(parse_quote!(pub shader: &'static str));
     } else {
         return Error::new_spanned(
             &item,
@@ -41,10 +40,6 @@ pub fn game_object(_attr: TokenStream, item: TokenStream) -> TokenStream {
         impl #crate_ident::Render for #class {
             fn color(&self) -> Rgba8 {
                self.color.clone()
-            }
-
-            fn shader(&self) -> &'static str {
-                self.shader
             }
         }
     };

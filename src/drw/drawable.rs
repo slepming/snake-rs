@@ -1,20 +1,12 @@
 //! Managing Drawable states
 
-use std::sync::Arc;
-
-use vulkano::{
-    descriptor_set::allocator::DescriptorSetAllocator, image::sampler::Sampler,
-    memory::allocator::MemoryAllocator,
-};
-
 use crate::{
-    MyVertex, Vector,
+    SnakeVertex, Vector,
+    ecs::tables::ClassInfo,
     geom::{matrix::Transform, shapes::Shapes},
-    res::cache::{DescriptorSetCache, PipelineCache},
 };
 
 use color::Rgba8;
-use vulkano::descriptor_set::DescriptorSet;
 
 /// The main element that is rendered by the Vulkan
 #[derive(PartialEq, Debug)]
@@ -30,11 +22,27 @@ pub struct PipelineID {
     pub id: String,
 }
 
+impl From<Shapes> for PipelineID {
+    fn from(value: Shapes) -> Self {
+        Self {
+            id: value.as_ref().to_lowercase().to_string(),
+        }
+    }
+}
+
 /// Descriptor set id structure
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct DescriptorID {
     /// String ID to search descriptor sets
     pub id: String,
+}
+
+impl From<&ClassInfo> for DescriptorID {
+    fn from(value: &ClassInfo) -> Self {
+        Self {
+            id: value.class_name.to_string(),
+        }
+    }
 }
 
 #[derive(PartialEq, Debug)]
@@ -115,7 +123,7 @@ impl Default for DrawableCreateInfo {
 
 #[derive(Debug)]
 pub struct Mesh {
-    vertex: &'static [MyVertex],
+    vertex: &'static [SnakeVertex],
     /// ID need for find matrix in buffer
     id: u32,
 }
@@ -127,7 +135,7 @@ impl PartialEq for Mesh {
 }
 
 pub trait DrawableGPU {
-    fn vertex(&self) -> &'static [MyVertex];
+    fn vertex(&self) -> &'static [SnakeVertex];
     /// # Returns
     /// Colour for shader
     fn colour(&self) -> &Rgba8;
@@ -156,74 +164,11 @@ pub trait DrawableComponent: DrawableGPU {
 }
 
 impl Mesh {
-    pub fn new(ver: &'static [MyVertex], id: u32) -> Self {
+    pub fn new(ver: &'static [SnakeVertex], id: u32) -> Self {
         Mesh { vertex: ver, id }
     }
 
     pub fn get_id(&self) -> &u32 {
         &self.id
-    }
-}
-
-impl Drawable {
-    pub fn new(
-        drawable_info: DrawableCreateInfo,
-        pipeline_id: PipelineID,
-        descriptor_id: DescriptorID,
-        vertex: &'static [MyVertex],
-    ) -> Self {
-        let drawable = Drawable {
-            color: drawable_info.color,
-            render: DrawableRenderContext {
-                descriptor_id,
-                pipeline_id,
-                mesh: Mesh::new(vertex, drawable_info.id),
-            },
-        };
-
-        drawable
-    }
-
-    /// Creates allocations, pipeline descriptors for drawable and calls [`Drawable::new_with_color`]
-    ///
-    /// # Returns
-    /// ([`Drawable`], [`vulkano::descriptor_set::DescriptorSet`])
-    pub fn from_shape(
-        shape: Shapes,
-        drw: DrawableCreateInfo,
-        mem_alloc: Arc<dyn MemoryAllocator>,
-        desc_alloc: Arc<dyn DescriptorSetAllocator>,
-        pipeline_cache: Arc<PipelineCache>,
-        desc_cache: Arc<DescriptorSetCache>,
-        sampler: Option<Arc<Sampler>>,
-    ) -> (Self, Option<Arc<DescriptorSet>>) {
-        let key_raw: &'static str = shape.clone().into();
-        let key = key_raw.to_string().to_lowercase();
-        let pipeline_id = PipelineID { id: key.clone() };
-
-        let descriptor_id = DescriptorID {
-            id: drw.id.to_string(),
-        };
-
-        let (vertex, desc) = shape.get_vertex_and_descriptor(
-            pipeline_id.clone(),
-            descriptor_id.clone(),
-            mem_alloc,
-            desc_alloc,
-            desc_cache,
-            pipeline_cache,
-            sampler,
-        );
-        (Drawable::new(drw, pipeline_id, descriptor_id, vertex), desc)
-    }
-}
-
-impl DrawableGPU for Drawable {
-    fn vertex(&self) -> &'static [MyVertex] {
-        &self.render.mesh.vertex
-    }
-
-    fn colour(&self) -> &Rgba8 {
-        &self.color
     }
 }

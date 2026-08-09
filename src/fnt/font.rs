@@ -21,7 +21,7 @@ impl TextFont {
         let mut fonts: Vec<FontVec> = Vec::with_capacity(1);
         fonts.push(font);
 
-        info!("New font: {} imported", family);
+        info!("Font: {} imported", family);
 
         Self { fonts }
     }

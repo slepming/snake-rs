@@ -6,6 +6,7 @@ use std::{
 use vulkano::{descriptor_set::DescriptorSet, pipeline::GraphicsPipeline};
 
 pub trait CacheProvider<A: Sized> {
+    fn contains(&self, key: &str) -> bool;
     fn get(&self, key: &str) -> Option<A>;
     fn insert(&self, value: (String, A)) -> Option<A>;
     fn len(&self) -> usize;
@@ -24,6 +25,10 @@ impl DescriptorSetCache {
 }
 
 impl CacheProvider<Arc<DescriptorSet>> for DescriptorSetCache {
+    fn contains(&self, key: &str) -> bool {
+        self.descriptors.read().unwrap().contains_key(key)
+    }
+
     fn get(&self, key: &str) -> Option<Arc<DescriptorSet>> {
         self.descriptors.read().unwrap().get(key).cloned()
     }
@@ -82,5 +87,9 @@ impl CacheProvider<Arc<GraphicsPipeline>> for PipelineCache {
 
     fn len(&self) -> usize {
         self.pipelines.read().unwrap().len()
+    }
+
+    fn contains(&self, key: &str) -> bool {
+        self.pipelines.read().unwrap().contains_key(key)
     }
 }
