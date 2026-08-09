@@ -25,7 +25,8 @@ pub fn game_object(_attr: TokenStream, item: TokenStream) -> TokenStream {
 
     let class = &item.ident;
 
-    let found_crate = crate_name("snake-rs").expect("snake-rs must be present in Cargo.toml");
+    let found_crate =
+        crate_name("snake-engine").expect("snake-engine must be present in Cargo.toml");
     let crate_ident = match found_crate {
         FoundCrate::Itself => quote!(crate),
         FoundCrate::Name(name) => {

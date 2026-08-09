@@ -21,7 +21,7 @@ image = "0.25"
 rust-embed = "8.11.0"
 tracy-client = { version = "0.18.4", default-features = false, features = ["enable", "ondemand", "broadcast", "crash-handler"] }
 hecs = "0.11"
-snake-rs-macros = { path = "macros" }
+snake-macros = { path = "macros" }
 
 
 [dependencies.winit]

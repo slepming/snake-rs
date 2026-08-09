@@ -11,6 +11,7 @@ use vulkano::{
 pub(crate) struct EngineMemory {
     pub command_buffer_allocator: Arc<StandardCommandBufferAllocator>,
     pub memory_allocator: Arc<StandardMemoryAllocator>,
+    #[allow(dead_code)]
     pub descriptor_allocator: Arc<StandardDescriptorSetAllocator>,
 }
 

@@ -1,6 +1,6 @@
 #![deny(warnings)]
 
-use color::Rgba8;
+pub use color::Rgba8;
 use rayon::{ThreadPool, ThreadPoolBuilder};
 use std::{
     collections::HashMap,
@@ -78,13 +78,14 @@ use crate::{
     },
 };
 
+pub use snake_macros::game_object;
+
 //#[cfg(debug_assertions)]
 //use crate::testing::finder::Finder;
 
 pub mod dbg;
 pub mod drw;
 pub mod ecs;
-pub mod ext;
 pub mod fnt;
 pub mod game;
 pub mod geom;
@@ -127,7 +128,7 @@ pub struct EngineContext {
     thread_pool: ThreadPool,
     pipelines: Arc<PipelineCache>,
     descriptors: Arc<DescriptorSetCache>,
-    scheduler: (Scheduler, Arc<SchedulerContext>),
+    _scheduler: (Scheduler, Arc<SchedulerContext>),
 }
 
 impl EngineContext {
@@ -200,8 +201,15 @@ impl EngineContext {
             rcx: None,
             debug,
             thread_pool: ThreadPoolBuilder::new().num_threads(6).build().unwrap(),
-            scheduler: create_scheduler(),
+            _scheduler: create_scheduler(),
         }
+    }
+
+    pub fn add_object<T>(&mut self, object: T)
+    where
+        T: GameObject + Render + Send + Sync + Copy + 'static,
+    {
+        self.game.world.write().unwrap().add(object);
     }
 
     /// Calculates Vertex buffer, matrices vector and offsets vector for draw in Vulkano

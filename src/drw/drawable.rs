@@ -77,6 +77,7 @@ impl DrawableCreateInfo {
         self
     }
 
+    #[allow(dead_code)]
     /// Sets id of the object
     ///
     /// # Returns

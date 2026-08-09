@@ -32,6 +32,7 @@ impl Children {
         drop(lock);
     }
 
+    #[allow(dead_code)]
     /// Push drawable to the [`DrawableData`]
     pub(crate) fn add(&self, item: DrawableData) {
         self.drawables.write().unwrap().push(item);
@@ -111,6 +112,7 @@ impl Children {
         self.drawables.read().unwrap().len()
     }
 
+    #[allow(dead_code)]
     /// Clears everything drawable in vector
     pub(crate) fn clear(&self) {
         self.drawables.write().unwrap().clear();

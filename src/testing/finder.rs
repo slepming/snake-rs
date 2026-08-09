@@ -2,10 +2,7 @@
 
 use winit::dpi::PhysicalPosition;
 
-use crate::{
-    DrawableRwLock, Vector,
-    drw::children::{Children, DrawableData},
-};
+use crate::{Vector, drw::children::DrawableData};
 
 pub trait IntoVector {
     fn into_vector(self) -> Vector;
@@ -15,22 +12,9 @@ pub trait Finder {
     fn get_by_position(&self, position: PhysicalPosition<f64>) -> Vec<DrawableData>;
 }
 
-impl Finder for Children {
-    /// Calculates all drawable position and compares with the specified range
-    ///
-    /// # Returns
-    /// [`Drawable`] Vector
-    ///
-    /// # Arguments
-    /// `position` - Position at which the object is located.
-    fn get_by_position(&self, position: PhysicalPosition<f64>) -> Vec<DrawableData> {
-        let vector_position = position.into_vector();
-        self.filter_each(|d| into_range(&d.drawables(), vector_position))
-    }
-}
-
+#[allow(dead_code)]
 /// Calculate drawable is into position range
-fn into_range(_drw: &DrawableRwLock, _position: Vector) -> bool {
+fn into_range() -> bool {
     //let drawable = drw.read().unwrap();
     //let size = drawable.size();
     //let pos = drawable.position();
