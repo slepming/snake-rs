@@ -52,7 +52,7 @@ use winit::platform::wayland::WindowAttributesExtWayland;
 
 use crate::{
     dbg::debug_utils::DebugUtils,
-    drw::{children::Children, drawable::Drawable},
+    drw::children::Children,
     ecs::tables::{ClassInfo, DynObject, EntityComponent},
     fnt::font::TextFont,
     game::{GameContext, GameObject},
@@ -101,7 +101,6 @@ pub mod utils;
 
 pub type Vector = glam::Vec2;
 pub type GameObjectDrawable = Arc<RwLock<Box<dyn GameObject>>>;
-pub type Object = Arc<RwLock<Drawable>>;
 
 #[global_allocator]
 #[cfg(debug_assertions)]

@@ -1,19 +1,8 @@
 //! Managing Drawable states
 
-use crate::{
-    SnakeVertex, Vector,
-    ecs::tables::ClassInfo,
-    geom::{matrix::Transform, shapes::Shapes},
-};
+use crate::{Vector, ecs::tables::ClassInfo, geom::shapes::Shapes};
 
 use color::Rgba8;
-
-/// The main element that is rendered by the Vulkan
-#[derive(PartialEq, Debug)]
-pub struct Drawable {
-    color: Rgba8,
-    pub(crate) render: DrawableRenderContext,
-}
 
 /// Pipeline id structure
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -43,15 +32,6 @@ impl From<&ClassInfo> for DescriptorID {
             id: value.class_name.to_string(),
         }
     }
-}
-
-#[derive(PartialEq, Debug)]
-pub(crate) struct DrawableRenderContext {
-    /// Memory descriptor key(id). Drawable doesn't know anything about the descriptor
-    pub(crate) descriptor_id: DescriptorID,
-    /// Pipeline key(id). Drawable doesn't know anything about the pipeline
-    pub(crate) pipeline_id: PipelineID,
-    pub mesh: Mesh,
 }
 
 /// Information about the object to be drawn
@@ -118,57 +98,5 @@ impl Default for DrawableCreateInfo {
                 a: 255,
             },
         }
-    }
-}
-
-#[derive(Debug)]
-pub struct Mesh {
-    vertex: &'static [SnakeVertex],
-    /// ID need for find matrix in buffer
-    id: u32,
-}
-
-impl PartialEq for Mesh {
-    fn eq(&self, other: &Self) -> bool {
-        self.vertex == other.vertex
-    }
-}
-
-pub trait DrawableGPU {
-    fn vertex(&self) -> &'static [SnakeVertex];
-    /// # Returns
-    /// Colour for shader
-    fn colour(&self) -> &Rgba8;
-}
-
-pub trait DrawableComponent: DrawableGPU {
-    /// # Returns
-    /// [`Transform`] pointer
-    fn transform(&self) -> &Transform;
-    /// # Returns
-    /// [`Transform`] mutable pointer
-    fn transform_mut(&mut self) -> &mut Transform;
-    /// # Returns
-    /// [`Transform`] clone
-    fn transform_clone(&self) -> Transform;
-    /// Sets transform matrix
-    fn set_transform(&mut self, transform: Transform);
-    /// # Returns
-    /// Reference to drawable
-    fn drawable(&self) -> &Drawable;
-    /// # Returns
-    /// Mutable drawable
-    fn drawable_mut(&mut self) -> &mut Drawable;
-    /// Returns drawable size
-    fn size(&self) -> Vector;
-}
-
-impl Mesh {
-    pub fn new(ver: &'static [SnakeVertex], id: u32) -> Self {
-        Mesh { vertex: ver, id }
-    }
-
-    pub fn get_id(&self) -> &u32 {
-        &self.id
     }
 }
