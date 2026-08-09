@@ -11,6 +11,7 @@ use crate::{
 pub type Ecs = Arc<RwLock<EntityComponent>>;
 
 pub(crate) struct GameContext {
+    #[allow(dead_code)]
     pub children: Arc<Children>,
     #[allow(dead_code)]
     pub assets: Arc<Storage>,

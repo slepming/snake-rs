@@ -5,6 +5,7 @@ use crate::{
     geom::{matrix::Transform, shapes::Shapes},
     res::cache::{DescriptorSetCache, PipelineCache},
 };
+use hecs::ComponentRef;
 pub use hecs::{Bundle, ComponentError, Entity, World};
 use std::{
     any::{TypeId, type_name},
@@ -45,6 +46,10 @@ impl EntityComponent {
             pipeline_cache,
             sampler,
         }
+    }
+
+    pub fn get<'a, T: ComponentRef<'a>>(&'a mut self, entity: Entity) -> Result<T::Ref, ComponentError> {
+        self.world.get::<T>(entity)
     }
 
     pub fn add<G>(&mut self, drw: G, transformation: Transform, shape: Shapes) -> Entity

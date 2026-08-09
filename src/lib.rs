@@ -574,9 +574,14 @@ impl ApplicationHandler for EngineContext {
 
         self.scheduler.0.update();
 
-        self.game
-            .children
-            .for_each(|o| o.1.lock().unwrap().start(self.game.world.clone()));
+        let mut world_lock = self.game.world.write().unwrap();
+
+        for obj in world_lock
+            .world
+            .query_mut::<&mut DynObject>()
+        { // TODO: DEADLOCK
+            obj.start(self.game.world.clone());
+        }
 
         self.rcx = Some(RenderContext {
             window,
@@ -793,7 +798,7 @@ impl ApplicationHandler for EngineContext {
                         .query_mut::<(hecs::Entity, (&ClassInfo, &Shapes, &mut DynObject))>()
                     {
                         let id = id.id() as usize;
-                        entity.update(self.game.world.clone());
+                        entity.update(self.game.world.clone()); // TODO: DEADLOCK
 
                         let matrix = mesh.1[id];
                         let _span_draw = tracy_client::span!("Engine: Draw Item");
