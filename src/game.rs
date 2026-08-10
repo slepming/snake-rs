@@ -1,31 +1,33 @@
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 
+use hecs::Entity;
 use winit::dpi::PhysicalPosition;
 
 use crate::{
-    DrawableRwLock,
-    cmd::command::CommandQueue,
-    drw::{children::Children, drawable::DrawableObjectFactory},
-    fnt::font::TextFont,
+    drw::children::Children, ecs::tables::EntityComponent, fnt::font::TextFont,
     res::assets::Storage,
 };
 
+pub type Ecs = Arc<RwLock<EntityComponent>>;
+
 pub(crate) struct GameContext {
+    #[allow(dead_code)]
     pub children: Arc<Children>,
+    #[allow(dead_code)]
     pub assets: Arc<Storage>,
     pub frames: u64,
-    pub game_command_queue: CommandQueue,
     #[allow(dead_code)]
     pub fonts: TextFont,
     pub mouse_position: Option<PhysicalPosition<f64>>,
-    pub drawable_object_factory: Arc<DrawableObjectFactory>,
+    pub world: Ecs,
+    /// Main entity that have size equals window size
+    pub entity: Option<Entity>,
 }
 
-// TODO является трейтом для создания возможности реализации кастомных игровых объектов
+/// Contains general functions for the operations of the object
 pub trait GameObject {
-    fn drawables(&self) -> DrawableRwLock;
-    /// Executes before frame
-    fn update(&mut self);
+    /// Executes every frame
+    fn update(&mut self, world: Ecs);
 
-    fn start(&mut self, object_factory: Arc<DrawableObjectFactory>);
+    fn start(&mut self, world: Ecs);
 }

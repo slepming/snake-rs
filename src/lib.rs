@@ -1,5 +1,7 @@
 #![deny(warnings)]
 
+pub use color::Rgba8;
+use hecs::Entity;
 use rayon::{ThreadPool, ThreadPoolBuilder};
 use std::{
     collections::HashMap,
@@ -50,16 +52,15 @@ use winit::{
 use winit::platform::wayland::WindowAttributesExtWayland;
 
 use crate::{
-    cmd::command::{CommandDispatcher, CommandQueue},
     dbg::debug_utils::DebugUtils,
-    drw::{
-        children::Children,
-        drawable::{Drawable, DrawableComponent, DrawableGPU, DrawableObjectFactory},
-    },
-    ext::user_functions::{RedrawFn, StartFn},
+    drw::children::Children,
+    ecs::tables::{ClassInfo, DynObject, EntityComponent},
     fnt::font::TextFont,
     game::{GameContext, GameObject},
-    geom::matrix::Transform,
+    geom::{
+        matrix::Transform,
+        shapes::{SQUARE_VERTEX, Shapes},
+    },
     mem::engine_memory::EngineMemory,
     render::{MeshBuffers, RenderContext},
     res::{
@@ -78,13 +79,14 @@ use crate::{
     },
 };
 
+pub use snake_macros::game_object;
+
 //#[cfg(debug_assertions)]
 //use crate::testing::finder::Finder;
 
-pub mod cmd;
 pub mod dbg;
 pub mod drw;
-pub mod ext;
+pub mod ecs;
 pub mod fnt;
 pub mod game;
 pub mod geom;
@@ -100,7 +102,6 @@ pub mod utils;
 
 pub type Vector = glam::Vec2;
 pub type GameObjectDrawable = Arc<RwLock<Box<dyn GameObject>>>;
-pub type DrawableRwLock = Arc<RwLock<Drawable>>;
 
 #[global_allocator]
 #[cfg(debug_assertions)]
@@ -111,13 +112,7 @@ static GLOBAL: tracy_client::ProfiledAllocator<std::alloc::System> =
 /// # Generics
 /// `Redraw` -> Event generic which calls every frame
 /// `Start` -> Event generic which calls after window, pipelines, swapchain initialization
-pub struct EngineContext<Redraw, Start>
-where
-    Redraw: RedrawFn,
-    Start: StartFn,
-{
-    redraw: Redraw,
-    start: Start,
+pub struct EngineContext {
     instance: Arc<Instance>,
     /// One of the most important parts of the engine
     device: Arc<Device>,
@@ -133,15 +128,11 @@ where
     thread_pool: ThreadPool,
     pipelines: Arc<PipelineCache>,
     descriptors: Arc<DescriptorSetCache>,
-    scheduler: (Scheduler, Arc<SchedulerContext>),
+    pub scheduler: (Scheduler, Arc<SchedulerContext>),
 }
 
-impl<Redraw, Start> EngineContext<Redraw, Start>
-where
-    Redraw: RedrawFn,
-    Start: StartFn,
-{
-    pub fn new(event_loop: &EventLoop<()>, start: Start, redraw: Redraw) -> Self {
+impl EngineContext {
+    pub fn new(event_loop: &EventLoop<()>) -> Self {
         tracing_subscriber::fmt::init();
 
         let _span = tracy_client::span!("Engine::new");
@@ -189,23 +180,23 @@ where
         let pipeline_cache = Arc::new(PipelineCache::default());
         let children = Arc::new(Children::default());
 
-        let drawable_object_factory = Arc::new(DrawableObjectFactory {
-            memory: memory.clone(),
-            pipelines: pipeline_cache.clone(),
-            descriptors: descriptorset_cache.clone(),
-            children: children.clone(),
-            sampler: sampler.clone(),
-        });
+        let world = Arc::new(RwLock::new(EntityComponent::new(
+            memory.memory_allocator.clone(),
+            memory.descriptor_allocator.clone(),
+            descriptorset_cache.clone(),
+            pipeline_cache.clone(),
+            sampler.clone(),
+        )));
 
         Self {
             game: GameContext {
-                drawable_object_factory,
                 children: children.clone(),
                 assets,
                 frames: 0,
-                game_command_queue: CommandQueue::default(),
                 fonts,
                 mouse_position: None,
+                world,
+                entity: None,
             },
             descriptors: descriptorset_cache.clone(),
             pipelines: pipeline_cache.clone(),
@@ -216,11 +207,43 @@ where
             sampler,
             rcx: None,
             debug,
-            start: start,
-            redraw: redraw,
             thread_pool: ThreadPoolBuilder::new().num_threads(6).build().unwrap(),
             scheduler: create_scheduler(),
         }
+    }
+
+    pub fn add_object<T>(&mut self, object: T, shape: Shapes) -> Entity
+    where
+        T: GameObject + Render + Send + Sync + 'static,
+    {
+        let s = 300.0_f32;
+        let transform = Transform([
+            [s, 0.0, 0.0, 0.0],
+            [0.0, s, 0.0, 0.0],
+            [0.0, 0.0, 1.0, 0.0],
+            [0.0, 0.0, 0.0, 1.0],
+        ]);
+
+        let class = ClassInfo::of::<T>();
+        let entity = self
+            .game
+            .world
+            .write()
+            .unwrap()
+            .world
+            .spawn((transform, class));
+
+        self.game.entity = Some(entity);
+
+        let world = self.game.world.clone();
+
+        self.scheduler.1.add(Box::new(move || {
+            let mut world_guard = world.write().unwrap();
+
+            world_guard.attach_render_descriptor::<T>(entity, object, shape);
+        }));
+
+        entity
     }
 
     /// Calculates Vertex buffer, matrices vector and offsets vector for draw in Vulkano
@@ -229,43 +252,37 @@ where
     /// tuple with buffer for vertices, matrices, offsets vectors
     pub(crate) fn calculate_drawables(
         memory_allocator: Arc<dyn MemoryAllocator>,
-        children: Arc<Children>,
+        game: &mut GameContext,
         _rcx: &mut RenderContext,
     ) -> (Option<MeshBuffers>, usize) {
-        if children.count() < 1 {
-            return (None, 0);
+        let mut world_lock = game.world.write().unwrap();
+        let entities_count = world_lock.world.len() as usize;
+        if entities_count < 1 {
+            return (None, entities_count);
         }
-
         let _span = tracy_client::span!("Engine::calculate_drawables");
 
         // Predicting the possible vector size
-        let mut vertices: Vec<MyVertex> = Vec::with_capacity(children.count() * 2);
-        let mut matrices: Vec<Transform> = Vec::with_capacity(children.count());
-        let mut offsets: Vec<u32> = Vec::with_capacity(children.count());
+        let mut vertices: Vec<SnakeVertex> = Vec::with_capacity(entities_count * 2);
+        let mut matrices: Vec<Transform> = Vec::with_capacity(entities_count);
+        let mut offsets: Vec<u32> = Vec::with_capacity(entities_count);
 
-        let mut drawable_size: usize = 0;
+        let drawable_size: usize = entities_count;
 
-        children.lock_read_and_execute(|drawables| {
-            drawable_size = drawables.len();
-            drawables.iter().enumerate().for_each(|(_, drw)| {
-                let drw_lock = drw.lock().unwrap();
-                let binding = drw_lock.drawables();
-                let drawable = binding.read().unwrap();
-                let verts = drawable.vertex();
-                let matrix = drawable.transform_clone();
-                // We have few MyVertex elements for each drawable component. For this we create MyVertex relative offset
-                // for each drawable elements. We have drawables with
-                // [MyVertex; n] where n is **dynamic** number, to resolve this problem this iteration
-                // write to the offsets vector offset for each drawable element. For example first drawable is
-                // 4(bec [MyVertex; 4]), for second drawable is 12(bec second drawable have [MyVertex; 8] ->
-                // 4+8)
-                let offset = vertices.len() as u32;
+        for transform in world_lock.world.query_mut::<&Transform>() {
+            let verts = &SQUARE_VERTEX;
+            let matrix = transform;
+            let offset = vertices.len() as u32;
 
-                offsets.push(offset);
-                vertices.extend_from_slice(verts);
-                matrices.push(matrix);
-            })
-        });
+            offsets.push(offset);
+            vertices.extend_from_slice(verts);
+            matrices.push(matrix.clone());
+        }
+
+        //debug!(
+        //    vertices_size = vertices.len(),
+        //    world_len = world_lock.world.len()
+        //);
 
         let vertex_buffer = Buffer::from_iter(
             memory_allocator,
@@ -289,11 +306,7 @@ where
     }
 }
 
-impl<Redraw, Start> ApplicationHandler for EngineContext<Redraw, Start>
-where
-    Redraw: RedrawFn,
-    Start: StartFn,
-{
+impl ApplicationHandler for EngineContext {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         let _span = tracy_client::span!("Engine::resumed");
         let window: Arc<Window>;
@@ -559,25 +572,16 @@ where
             .insert(("square".to_string(), square_pipeline));
         self.pipelines.insert(("image".to_string(), image_pipeline));
 
-        let game = &mut self.game;
+        self.scheduler.0.update();
 
-        let command_queue = (self.start)(
-            &event_loop,
-            game.children.clone(),
-            game.assets.clone(),
-            window.clone(),
-            self.scheduler.1.clone(),
-        );
+        let mut world_lock = self.game.world.write().unwrap();
 
-        game.game_command_queue.append_other(command_queue);
-
-        self.flush_commands();
-
-        self.game.children.for_each(|o| {
-            o.1.lock()
-                .unwrap()
-                .start(self.game.drawable_object_factory.clone())
-        });
+        for obj in world_lock
+            .world
+            .query_mut::<&mut DynObject>()
+        { // TODO: DEADLOCK
+            obj.start(self.game.world.clone());
+        }
 
         self.rcx = Some(RenderContext {
             window,
@@ -598,15 +602,7 @@ where
     ) {
         self.game.frames += 1;
         let rcx = self.rcx.as_mut().unwrap();
-
-        let queue = (self.redraw)(
-            self.game.children.clone(),
-            self.game.assets.clone(),
-            &event,
-            self.scheduler.1.clone(),
-        );
-
-        self.game.game_command_queue.append_other(queue);
+        self.scheduler.0.update();
 
         match event {
             WindowEvent::CursorMoved { position, .. } => {
@@ -618,6 +614,15 @@ where
             WindowEvent::Resized(_) => {
                 let _span = tracy_client::span!("Engine::resize");
                 rcx.recreate_swapchain = true;
+                if let Some(entity) = self.game.entity {
+                    let world = &self.game.world.write().unwrap().world;
+                    let mut transform = world
+                        .get::<&mut Transform>(entity)
+                        .expect("Main object is removed");
+
+                    transform.0[0][0] = rcx.window.inner_size().width as f32;
+                    transform.0[1][1] = rcx.window.inner_size().width as f32;
+                }
             }
             WindowEvent::KeyboardInput { event, .. } => {
                 if event.state == ElementState::Pressed {
@@ -627,7 +632,7 @@ where
                             debug!(
                                 pipelines_count = self.pipelines.len(),
                                 descriptor_sets_count = self.descriptors.len(),
-                                objects_count = self.game.children.count()
+                                objects_count = self.game.world.read().unwrap().world.len()
                             );
                             debug!("!!! DEBUG INFORMATION END !!!");
                         }
@@ -775,32 +780,29 @@ where
                     .set_viewport(0, [rcx.viewport.clone()].into_iter().collect())
                     .unwrap();
 
-                let (mesh_buffers, children_size) =
-                    EngineContext::<Redraw, Start>::calculate_drawables(
-                        self.memory.memory_allocator.clone(),
-                        self.game.children.clone(),
-                        rcx,
-                    );
+                let (mesh_buffers, _children_size) = EngineContext::calculate_drawables(
+                    self.memory.memory_allocator.clone(),
+                    &mut self.game,
+                    rcx,
+                );
 
                 if let Some(mesh) = mesh_buffers {
                     let _span_draw =
                         tracy_client::span!("Engine:: Preparing Objects for Rendering");
                     builder.bind_vertex_buffers(0, mesh.0.clone()).unwrap();
 
-                    self.game.children.try_for_each(|(i, item_trait)| {
-                        if i >= children_size {
-                            return Err(0);
-                        }
+                    let mut world_lock = self.game.world.write().unwrap();
 
-                        let mut drawable_trait_locked = item_trait.lock().unwrap();
-                        drawable_trait_locked.update();
-                        let item = drawable_trait_locked.drawables(); // Variable names is
-                        // perfect, lol
+                    for (id, (class, shape, entity)) in world_lock
+                        .world
+                        .query_mut::<(hecs::Entity, (&ClassInfo, &Shapes, &mut DynObject))>()
+                    {
+                        let id = id.id() as usize;
+                        entity.update(self.game.world.clone()); // TODO: DEADLOCK
 
-                        let matrix = mesh.1[i];
+                        let matrix = mesh.1[id];
                         let _span_draw = tracy_client::span!("Engine: Draw Item");
-                        let item = item.read().unwrap();
-                        let colour = item.colour().clone();
+                        let colour = entity.color();
                         let constants = Constants(
                             matrix,
                             rcx.window.inner_size().into(),
@@ -809,11 +811,13 @@ where
                                 | (colour.b as u32) << 16
                                 | (colour.a as u32) << 24,
                         );
-                        let pipeline_name = &item.drawable().render.pipeline_id.id;
-                        let pipeline = self
-                            .pipelines
-                            .get(pipeline_name)
-                            .expect("pipeline not found");
+
+                        let pipeline = {
+                            let shape_name = shape.as_ref().to_lowercase();
+
+                            self.pipelines.get(&shape_name).expect("pipeline not found")
+                        };
+
                         let layout = pipeline.layout();
                         if !layout.push_constant_ranges().is_empty() {
                             builder
@@ -821,15 +825,12 @@ where
                                 .unwrap();
                         }
 
-                        let vertex_cursor = mesh.2[i];
-                        let vertex_count = item.vertex().len() as u32;
+                        let vertex_cursor = mesh.2[id];
+                        let vertex_count = SQUARE_VERTEX.len() as u32;
 
                         builder.bind_pipeline_graphics(pipeline.clone()).unwrap();
 
-                        if let Some(desc) = self
-                            .descriptors
-                            .get(&item.drawable().render.descriptor_id.id)
-                        {
+                        if let Some(desc) = self.descriptors.get(class.class_name) {
                             let _span_draw = tracy_client::span!("Engine: Getting descriptors");
                             builder
                                 .bind_descriptor_sets(
@@ -844,9 +845,7 @@ where
                         unsafe {
                             builder.draw(vertex_count, 1, vertex_cursor, 0).unwrap();
                         }
-
-                        Ok(())
-                    });
+                    }
                 }
 
                 builder
@@ -900,10 +899,7 @@ where
                 }
 
                 drop(span_submit);
-                //self.physics_context.step(); TODO: In the future I must uncomment this code block
                 tracy_client::Client::running().unwrap().frame_mark();
-
-                self.flush_commands();
             }
             _ => {}
         }
@@ -919,7 +915,7 @@ where
 // representation has *no guarantees*.
 #[derive(BufferContents, Vertex, Clone, Copy, PartialEq, Debug)]
 #[repr(C)]
-pub struct MyVertex {
+pub struct SnakeVertex {
     #[format(R32G32_SFLOAT)]
     position: [f32; 2],
 }
@@ -927,3 +923,7 @@ pub struct MyVertex {
 #[derive(BufferContents, Clone, Copy, Debug)]
 #[repr(C)]
 struct Constants(Transform, [f32; 2], u32);
+
+pub trait Render {
+    fn color(&self) -> Rgba8;
+}

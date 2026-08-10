@@ -8,23 +8,23 @@ use vulkano::image::sampler::Sampler;
 use vulkano::memory::allocator::{AllocationCreateInfo, MemoryAllocator, MemoryTypeFilter};
 use vulkano::pipeline::Pipeline;
 
-use crate::MyVertex;
-use crate::drw::drawable::{DescriptorID, PipelineID};
+use crate::SnakeVertex;
+use crate::drw::drawable::DescriptorID;
 use crate::drw::texture::Texture;
 use crate::res::assets::TextureHandler;
 use crate::res::cache::{CacheProvider, DescriptorSetCache, PipelineCache};
 
-const SQUARE_VERTEX: [MyVertex; 4] = [
-    MyVertex {
+pub const SQUARE_VERTEX: [SnakeVertex; 4] = [
+    SnakeVertex {
         position: [-1.0, -1.0],
     },
-    MyVertex {
+    SnakeVertex {
         position: [1.0, -1.0],
     },
-    MyVertex {
+    SnakeVertex {
         position: [1.0, 1.0],
     },
-    MyVertex {
+    SnakeVertex {
         position: [-1.0, 1.0],
     },
 ];
@@ -94,20 +94,21 @@ impl Default for ShapeCreateInfo {
 }
 
 impl Shapes {
-    /// Creates vertices and descriptor set
-    /// # Returns
-    /// Vertex and optional descriptor set
-    pub fn get_vertex_and_descriptor(
+    /// Creates descriptor set
+    pub fn create_descriptor(
         &self,
-        pipeline_id: PipelineID,
         descriptor_id: DescriptorID,
         memory_allocator: Arc<dyn MemoryAllocator>,
         descriptor_allocator: Arc<dyn DescriptorSetAllocator>,
         descriptor_set_cache: Arc<DescriptorSetCache>,
         pipeline_cache: Arc<PipelineCache>,
         sampler: Option<Arc<Sampler>>,
-    ) -> (&'static [MyVertex], Option<Arc<DescriptorSet>>) {
-        let pipeline = pipeline_cache.get(&pipeline_id.id).unwrap();
+    ) {
+        debug!(shape = self.as_ref().to_lowercase());
+        let pipeline = pipeline_cache
+            .get(self.as_ref().to_lowercase().as_ref())
+            .expect("Pipeline not found");
+
         match self {
             Shapes::Square(sci) => {
                 let buffer = Buffer::from_data(
@@ -140,7 +141,7 @@ impl Shapes {
                 )
                 .unwrap();
 
-                (&SQUARE_VERTEX, Some(descriptor_set))
+                let _ = descriptor_set_cache.insert((descriptor_id.clone().id, descriptor_set));
             }
             Shapes::Circle => {
                 let buffer = Buffer::from_data(
@@ -166,9 +167,9 @@ impl Shapes {
                     warn!("Pipeline 'circle' has no bindings. Did you forget to compile shaders?");
                 }
 
-                if let Some(descriptor_set) = descriptor_set_cache.get(&descriptor_id.id) {
+                if descriptor_set_cache.contains(&descriptor_id.id) {
                     debug!("Descriptor set exists");
-                    return (&SQUARE_VERTEX, Some(descriptor_set));
+                    return;
                 }
 
                 debug!("Descriptor set created!");
@@ -180,7 +181,7 @@ impl Shapes {
                 )
                 .unwrap();
 
-                (&SQUARE_VERTEX, Some(descriptor_set))
+                let _ = descriptor_set_cache.insert((descriptor_id.clone().id, descriptor_set));
             }
             Shapes::Image(texture) => {
                 let layout = pipeline.layout().set_layouts().get(0).unwrap().clone();
@@ -189,9 +190,9 @@ impl Shapes {
                 }
                 let image_view = texture.view.clone();
 
-                if let Some(descriptor_set) = descriptor_set_cache.get(&descriptor_id.id) {
+                if descriptor_set_cache.contains(&descriptor_id.id) {
                     debug!("Descriptor set exists");
-                    return (&SQUARE_VERTEX, Some(descriptor_set));
+                    return;
                 }
 
                 let descriptor_set = DescriptorSet::new(
@@ -208,7 +209,7 @@ impl Shapes {
 
                 debug!("Descriptor set created!");
 
-                (&SQUARE_VERTEX, Some(descriptor_set))
+                let _ = descriptor_set_cache.insert((descriptor_id.clone().id, descriptor_set));
             }
         }
     }

@@ -9,7 +9,7 @@ use vulkano::{
 };
 use winit::window::Window;
 
-use crate::{MyVertex, geom::matrix::Transform};
+use crate::{SnakeVertex, geom::matrix::Transform};
 
 pub(crate) struct RenderContext {
     pub window: Arc<Window>,
@@ -22,4 +22,8 @@ pub(crate) struct RenderContext {
 }
 
 /// Used for drawable calculations
-pub(crate) struct MeshBuffers(pub Subbuffer<[MyVertex]>, pub Vec<Transform>, pub Vec<u32>);
+pub(crate) struct MeshBuffers(
+    pub Subbuffer<[SnakeVertex]>,
+    pub Vec<Transform>,
+    pub Vec<u32>,
+);
