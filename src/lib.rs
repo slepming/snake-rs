@@ -110,9 +110,6 @@ static GLOBAL: tracy_client::ProfiledAllocator<std::alloc::System> =
     tracy_client::ProfiledAllocator::new(std::alloc::System, 5);
 
 /// The main entry point into the engine
-/// # Generics
-/// `Redraw` -> Event generic which calls every frame
-/// `Start` -> Event generic which calls after window, pipelines, swapchain initialization
 pub struct EngineContext {
     instance: Arc<Instance>,
     /// One of the most important parts of the engine
@@ -229,84 +226,15 @@ impl EngineContext {
         ]);
 
         let class = ClassInfo::of::<T>();
-        let entity = self
-            .game
-            .world
-            .write()
-            .unwrap()
-            .world
-            .spawn((transform, class));
+        let entity = self.game.world.write().unwrap().spawn((transform, class));
 
         self.game.entity = Some(entity);
 
-        let world = self.game.world.clone();
-
-        self.scheduler.1.add(Box::new(move || {
-            let mut world_guard = world.write().unwrap();
-
-            world_guard.attach_render_descriptor::<T>(entity, object, shape);
-        }));
+        self.game
+            .world_buffer
+            .attach_render_descriptor::<T>(entity, object, shape);
 
         entity
-    }
-
-    /// Calculates Vertex buffer, matrices vector and offsets vector for draw in Vulkano
-    ///
-    /// # Returns
-    /// tuple with buffer for vertices, matrices, offsets vectors
-    pub(crate) fn calculate_drawables(
-        memory_allocator: Arc<dyn MemoryAllocator>,
-        game: &mut GameContext,
-        _rcx: &mut RenderContext,
-    ) -> (Option<MeshBuffers>, usize) {
-        let mut world_lock = game.world.write().unwrap();
-        let entities_count = world_lock.world.len() as usize;
-        if entities_count < 1 {
-            return (None, entities_count);
-        }
-        let _span = tracy_client::span!("Engine::calculate_drawables");
-
-        // Predicting the possible vector size
-        let mut vertices: Vec<SnakeVertex> = Vec::with_capacity(entities_count * 2);
-        let mut matrices: Vec<Transform> = Vec::with_capacity(entities_count);
-        let mut offsets: Vec<u32> = Vec::with_capacity(entities_count);
-
-        let drawable_size: usize = entities_count;
-
-        for transform in world_lock.world.query_mut::<&Transform>() {
-            let verts = &SQUARE_VERTEX;
-            let matrix = transform;
-            let offset = vertices.len() as u32;
-
-            offsets.push(offset);
-            vertices.extend_from_slice(verts);
-            matrices.push(matrix.clone());
-        }
-
-        //debug!(
-        //    vertices_size = vertices.len(),
-        //    world_len = world_lock.world.len()
-        //);
-
-        let vertex_buffer = Buffer::from_iter(
-            memory_allocator,
-            BufferCreateInfo {
-                usage: BufferUsage::VERTEX_BUFFER,
-                ..Default::default()
-            },
-            AllocationCreateInfo {
-                memory_type_filter: MemoryTypeFilter::PREFER_DEVICE
-                    | MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
-                ..Default::default()
-            },
-            vertices,
-        )
-        .unwrap();
-
-        (
-            Some(MeshBuffers(vertex_buffer, matrices, offsets)),
-            drawable_size,
-        )
     }
 }
 
@@ -576,20 +504,17 @@ impl ApplicationHandler for EngineContext {
             .insert(("square".to_string(), square_pipeline));
         self.pipelines.insert(("image".to_string(), image_pipeline));
 
+        self.game.world_buffer.execute_commands();
+
         self.scheduler.0.update();
 
-        // Короче создаем EntityContext,
-        // который будет хранить аллокаторы и
-        // CommandBuffer от hecs. Его будем
-        // передавать при итерации по миру, а
-        // потом исполнять. Мир будет без
-        // обертки в GameContext
+        let mut world = self.game.world.write().unwrap();
 
-        for object in self.game.world.query_mut::<&mut DynObject>() {
+        for object in world.query_mut::<&mut DynObject>() {
             object.start(&mut self.game.world_buffer);
         }
 
-        self.game.world_buffer.buffer.run_on(&mut self.game.world);
+        self.game.world_buffer.buffer.run_on(&mut world);
 
         self.rcx = Some(RenderContext {
             window,
@@ -623,7 +548,7 @@ impl ApplicationHandler for EngineContext {
                 let _span = tracy_client::span!("Engine::resize");
                 rcx.recreate_swapchain = true;
                 if let Some(entity) = self.game.entity {
-                    let world = &self.game.world;
+                    let world = self.game.world.read().unwrap();
                     let mut transform = world
                         .get::<&mut Transform>(entity)
                         .expect("Main object is removed");
@@ -640,7 +565,7 @@ impl ApplicationHandler for EngineContext {
                             debug!(
                                 pipelines_count = self.pipelines.len(),
                                 descriptor_sets_count = self.descriptors.len(),
-                                objects_count = self.game.world.len()
+                                objects_count = self.game.world.read().unwrap().len()
                             );
                             debug!("!!! DEBUG INFORMATION END !!!");
                         }
@@ -788,7 +713,7 @@ impl ApplicationHandler for EngineContext {
                     .set_viewport(0, [rcx.viewport.clone()].into_iter().collect())
                     .unwrap();
 
-                let (mesh_buffers, _children_size) = EngineContext::calculate_drawables(
+                let (mesh_buffers, _children_size) = calculate_drawables(
                     self.memory.memory_allocator.clone(),
                     &mut self.game,
                     rcx,
@@ -799,10 +724,10 @@ impl ApplicationHandler for EngineContext {
                         tracy_client::span!("Engine:: Preparing Objects for Rendering");
                     builder.bind_vertex_buffers(0, mesh.0.clone()).unwrap();
 
-                    let world = &mut self.game.world;
+                    let mut world = self.game.world.write().unwrap();
 
-                    for (id, (class, shape, entity)) in world
-                        .query_mut::<(hecs::Entity, (&ClassInfo, &Shapes, &mut DynObject))>()
+                    for (id, (class, shape, entity)) in
+                        world.query_mut::<(hecs::Entity, (&ClassInfo, &Shapes, &mut DynObject))>()
                     {
                         let id = id.id() as usize;
                         entity.update(&mut self.game.world_buffer); // TODO: DEADLOCK
@@ -853,8 +778,8 @@ impl ApplicationHandler for EngineContext {
                             builder.draw(vertex_count, 1, vertex_cursor, 0).unwrap();
                         }
                     }
+                    self.game.world_buffer.buffer.run_on(&mut world);
                 }
-                self.game.world_buffer.buffer.run_on(&mut self.game.world);
 
                 builder
                     // We leave the render pass. Note that if we had multiple subpasses we could
@@ -934,4 +859,63 @@ struct Constants(Transform, [f32; 2], u32);
 
 pub trait Render {
     fn color(&self) -> Rgba8;
+}
+
+/// Calculates Vertex buffer, matrices vector and offsets vector for draw in Vulkano
+///
+/// # Returns
+/// tuple with buffer for vertices, matrices, offsets vectors
+pub(crate) fn calculate_drawables(
+    memory_allocator: Arc<dyn MemoryAllocator>,
+    game: &mut GameContext,
+    _rcx: &mut RenderContext,
+) -> (Option<MeshBuffers>, usize) {
+    let mut world_lock = game.world.write().unwrap();
+    let entities_count = world_lock.len() as usize;
+    if entities_count < 1 {
+        return (None, entities_count);
+    }
+    let _span = tracy_client::span!("Engine::calculate_drawables");
+
+    // Predicting the possible vector size
+    let mut vertices: Vec<SnakeVertex> = Vec::with_capacity(entities_count * 2);
+    let mut matrices: Vec<Transform> = Vec::with_capacity(entities_count);
+    let mut offsets: Vec<u32> = Vec::with_capacity(entities_count);
+
+    let drawable_size: usize = entities_count;
+
+    for transform in world_lock.query_mut::<&Transform>() {
+        let verts = &SQUARE_VERTEX;
+        let matrix = transform;
+        let offset = vertices.len() as u32;
+
+        offsets.push(offset);
+        vertices.extend_from_slice(verts);
+        matrices.push(matrix.clone());
+    }
+
+    //debug!(
+    //    vertices_size = vertices.len(),
+    //    world_len = world_lock.world.len()
+    //);
+
+    let vertex_buffer = Buffer::from_iter(
+        memory_allocator,
+        BufferCreateInfo {
+            usage: BufferUsage::VERTEX_BUFFER,
+            ..Default::default()
+        },
+        AllocationCreateInfo {
+            memory_type_filter: MemoryTypeFilter::PREFER_DEVICE
+                | MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
+            ..Default::default()
+        },
+        vertices,
+    )
+    .unwrap();
+
+    (
+        Some(MeshBuffers(vertex_buffer, matrices, offsets)),
+        drawable_size,
+    )
 }

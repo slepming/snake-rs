@@ -5,7 +5,7 @@ use crate::{
     geom::{matrix::Transform, shapes::Shapes},
     res::cache::{DescriptorSetCache, PipelineCache},
 };
-use hecs::{CommandBuffer, ComponentRef};
+use hecs::CommandBuffer;
 pub use hecs::{Bundle, ComponentError, Entity, World};
 use std::{
     any::{TypeId, type_name},
@@ -51,10 +51,6 @@ impl EntityComponent {
         }
     }
 
-    pub fn get<'a, T: ComponentRef<'a>>(&'a mut self, entity: Entity) -> Result<T::Ref, ComponentError> {
-        self.world.read().unwrap().get::<T>(entity)
-    }
-
     pub fn add<G>(&mut self, drw: G, transformation: Transform, shape: Shapes)
     where
         G: GameObject + Render + Send + Sync + 'static,
@@ -86,6 +82,7 @@ impl EntityComponent {
         self.buffer.remove::<T>(entity);
     }
 
+    /// Update [`Entity`] through buffer
     pub(crate) fn attach_render_descriptor<G>(&mut self, entity: Entity, drw: G, shape: Shapes)
     where
         G: GameObject + Render + Send + Sync + 'static,
@@ -103,7 +100,16 @@ impl EntityComponent {
 
         let boxed_drw: DynObject = Box::new(drw);
 
-        let _ = self.world.insert(entity, (shape, boxed_drw));
+        self.buffer.insert(entity, (shape, boxed_drw));
+    }
+
+    /// Executes commands from buffer immediately.
+    ///
+    /// # Note
+    /// May cause unexpected errors
+    pub fn execute_commands(&mut self) {
+        let mut world = self.world.write().unwrap();
+        self.buffer.run_on(&mut world);
     }
 }
 
