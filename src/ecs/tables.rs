@@ -5,11 +5,11 @@ use crate::{
     geom::{matrix::Transform, shapes::Shapes},
     res::cache::{DescriptorSetCache, PipelineCache},
 };
-use hecs::ComponentRef;
+use hecs::{CommandBuffer, ComponentRef};
 pub use hecs::{Bundle, ComponentError, Entity, World};
 use std::{
     any::{TypeId, type_name},
-    sync::Arc,
+    sync::{Arc, RwLock},
 };
 use vulkano::{
     descriptor_set::allocator::DescriptorSetAllocator, image::sampler::Sampler,
@@ -22,7 +22,8 @@ pub trait DynamicallyObjectAlias: GameObject + Render + Send + Sync {}
 impl<T> DynamicallyObjectAlias for T where T: GameObject + Render + Send + Sync {}
 
 pub struct EntityComponent {
-    pub(crate) world: World,
+    pub(crate) buffer: CommandBuffer,
+    world: Arc<RwLock<World>>,
     memory_allocator: Arc<dyn MemoryAllocator>,
     descriptor_allocator: Arc<dyn DescriptorSetAllocator>,
     descriptor_cache: Arc<DescriptorSetCache>,
@@ -32,6 +33,7 @@ pub struct EntityComponent {
 
 impl EntityComponent {
     pub(crate) fn new(
+        world: Arc<RwLock<World>>,
         memory_allocator: Arc<dyn MemoryAllocator>,
         descriptor_allocator: Arc<dyn DescriptorSetAllocator>,
         descriptor_cache: Arc<DescriptorSetCache>,
@@ -39,7 +41,8 @@ impl EntityComponent {
         sampler: Arc<Sampler>,
     ) -> Self {
         Self {
-            world: World::new(),
+            world,
+            buffer: CommandBuffer::new(),
             memory_allocator,
             descriptor_allocator,
             descriptor_cache,
@@ -49,10 +52,10 @@ impl EntityComponent {
     }
 
     pub fn get<'a, T: ComponentRef<'a>>(&'a mut self, entity: Entity) -> Result<T::Ref, ComponentError> {
-        self.world.get::<T>(entity)
+        self.world.read().unwrap().get::<T>(entity)
     }
 
-    pub fn add<G>(&mut self, drw: G, transformation: Transform, shape: Shapes) -> Entity
+    pub fn add<G>(&mut self, drw: G, transformation: Transform, shape: Shapes)
     where
         G: GameObject + Render + Send + Sync + 'static,
     {
@@ -69,18 +72,18 @@ impl EntityComponent {
 
         let boxed_drw: DynObject = Box::new(drw);
 
-        self.world.spawn((transformation, class, shape, boxed_drw)) // Transform,
+        self.buffer.spawn((transformation, class, shape, boxed_drw)); // Transform,
         // DescriptorSet,
         // ClassInfo,
         // Shapes,
         // DynObject
     }
 
-    pub fn remove<T>(&mut self, entity: Entity) -> Result<T, ComponentError>
+    pub fn remove<T>(&mut self, entity: Entity)
     where
         T: Bundle + 'static,
     {
-        self.world.remove(entity)
+        self.buffer.remove::<T>(entity);
     }
 
     pub(crate) fn attach_render_descriptor<G>(&mut self, entity: Entity, drw: G, shape: Shapes)

@@ -1,6 +1,6 @@
 use std::sync::{Arc, RwLock};
 
-use hecs::Entity;
+use hecs::{Entity, World};
 use winit::dpi::PhysicalPosition;
 
 use crate::{
@@ -8,7 +8,7 @@ use crate::{
     res::assets::Storage,
 };
 
-pub type Ecs = Arc<RwLock<EntityComponent>>;
+pub type Ecs = EntityComponent;
 
 pub(crate) struct GameContext {
     #[allow(dead_code)]
@@ -19,7 +19,8 @@ pub(crate) struct GameContext {
     #[allow(dead_code)]
     pub fonts: TextFont,
     pub mouse_position: Option<PhysicalPosition<f64>>,
-    pub world: Ecs,
+    pub world: Arc<RwLock<World>>,
+    pub world_buffer: EntityComponent,
     /// Main entity that have size equals window size
     pub entity: Option<Entity>,
 }
@@ -27,7 +28,7 @@ pub(crate) struct GameContext {
 /// Contains general functions for the operations of the object
 pub trait GameObject {
     /// Executes every frame
-    fn update(&mut self, world: Ecs);
+    fn update(&mut self, world: &mut EntityComponent);
 
-    fn start(&mut self, world: Ecs);
+    fn start(&mut self, world: &mut EntityComponent);
 }

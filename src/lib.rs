@@ -1,7 +1,8 @@
 #![deny(warnings)]
 
 pub use color::Rgba8;
-use hecs::Entity;
+use hecs::World;
+pub use hecs::{CommandBuffer, Entity};
 use rayon::{ThreadPool, ThreadPoolBuilder};
 use std::{
     collections::HashMap,
@@ -179,14 +180,16 @@ impl EngineContext {
         let descriptorset_cache = Arc::new(DescriptorSetCache::default());
         let pipeline_cache = Arc::new(PipelineCache::default());
         let children = Arc::new(Children::default());
+        let world = Arc::new(RwLock::new(World::new()));
 
-        let world = Arc::new(RwLock::new(EntityComponent::new(
+        let world_buffer = EntityComponent::new(
+            world.clone(),
             memory.memory_allocator.clone(),
             memory.descriptor_allocator.clone(),
             descriptorset_cache.clone(),
             pipeline_cache.clone(),
             sampler.clone(),
-        )));
+        );
 
         Self {
             game: GameContext {
@@ -195,6 +198,7 @@ impl EngineContext {
                 frames: 0,
                 fonts,
                 mouse_position: None,
+                world_buffer,
                 world,
                 entity: None,
             },
@@ -574,14 +578,18 @@ impl ApplicationHandler for EngineContext {
 
         self.scheduler.0.update();
 
-        let mut world_lock = self.game.world.write().unwrap();
+        // Короче создаем EntityContext,
+        // который будет хранить аллокаторы и
+        // CommandBuffer от hecs. Его будем
+        // передавать при итерации по миру, а
+        // потом исполнять. Мир будет без
+        // обертки в GameContext
 
-        for obj in world_lock
-            .world
-            .query_mut::<&mut DynObject>()
-        { // TODO: DEADLOCK
-            obj.start(self.game.world.clone());
+        for object in self.game.world.query_mut::<&mut DynObject>() {
+            object.start(&mut self.game.world_buffer);
         }
+
+        self.game.world_buffer.buffer.run_on(&mut self.game.world);
 
         self.rcx = Some(RenderContext {
             window,
@@ -615,7 +623,7 @@ impl ApplicationHandler for EngineContext {
                 let _span = tracy_client::span!("Engine::resize");
                 rcx.recreate_swapchain = true;
                 if let Some(entity) = self.game.entity {
-                    let world = &self.game.world.write().unwrap().world;
+                    let world = &self.game.world;
                     let mut transform = world
                         .get::<&mut Transform>(entity)
                         .expect("Main object is removed");
@@ -632,7 +640,7 @@ impl ApplicationHandler for EngineContext {
                             debug!(
                                 pipelines_count = self.pipelines.len(),
                                 descriptor_sets_count = self.descriptors.len(),
-                                objects_count = self.game.world.read().unwrap().world.len()
+                                objects_count = self.game.world.len()
                             );
                             debug!("!!! DEBUG INFORMATION END !!!");
                         }
@@ -791,14 +799,13 @@ impl ApplicationHandler for EngineContext {
                         tracy_client::span!("Engine:: Preparing Objects for Rendering");
                     builder.bind_vertex_buffers(0, mesh.0.clone()).unwrap();
 
-                    let mut world_lock = self.game.world.write().unwrap();
+                    let world = &mut self.game.world;
 
-                    for (id, (class, shape, entity)) in world_lock
-                        .world
+                    for (id, (class, shape, entity)) in world
                         .query_mut::<(hecs::Entity, (&ClassInfo, &Shapes, &mut DynObject))>()
                     {
                         let id = id.id() as usize;
-                        entity.update(self.game.world.clone()); // TODO: DEADLOCK
+                        entity.update(&mut self.game.world_buffer); // TODO: DEADLOCK
 
                         let matrix = mesh.1[id];
                         let _span_draw = tracy_client::span!("Engine: Draw Item");
@@ -847,6 +854,7 @@ impl ApplicationHandler for EngineContext {
                         }
                     }
                 }
+                self.game.world_buffer.buffer.run_on(&mut self.game.world);
 
                 builder
                     // We leave the render pass. Note that if we had multiple subpasses we could
