@@ -14,7 +14,7 @@ pub struct TextFont {
 
 impl TextFont {
     /// Returns [`TextFont`] structure
-    pub fn new(family: String) -> Self {
+    pub fn new(family: &'static str) -> Self {
         let path_to_font = Path::new(&family);
         let font_in_bytes = Storage::load(&path_to_font).unwrap();
         let font = FontVec::try_from_vec(font_in_bytes.into_owned()).unwrap();
@@ -149,7 +149,7 @@ mod tests {
     fn get_glyph_buffer() {
         let sprite_text = SpriteTextCreateInfo::default().with_text(String::from("Hello, world"));
 
-        let font = TextFont::new(String::from("Fonts/freedom.otf"));
+        let font = TextFont::new("Fonts/freedom.otf");
 
         assert!(font.get_glyphs(sprite_text).len() > 0)
     }

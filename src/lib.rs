@@ -172,7 +172,7 @@ impl EngineContext {
             texture_pool: RwLock::new(HashMap::new()),
         });
 
-        let fonts = TextFont::new(String::from("Fonts/freedom.otf"));
+        let fonts = TextFont::new("Fonts/freedom.otf");
 
         let descriptorset_cache = Arc::new(DescriptorSetCache::default());
         let pipeline_cache = Arc::new(PipelineCache::default());
