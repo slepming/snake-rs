@@ -15,10 +15,13 @@ pub struct TextFont {
 impl TextFont {
     /// Returns [`TextFont`] structure
     pub fn new(family: &'static str) -> Self {
-        let path_to_font = Path::new(&family);
+        let path_to_font = Path::new(family);
+        
         let font_in_bytes = Storage::load(&path_to_font).unwrap();
         let font = FontVec::try_from_vec(font_in_bytes.into_owned()).unwrap();
+
         let mut fonts: Vec<FontVec> = Vec::with_capacity(1);
+
         fonts.push(font);
 
         info!("Font: {} imported", family);
@@ -27,10 +30,12 @@ impl TextFont {
     }
 
     /// Adds a font
-    pub fn add_font(&mut self, family: String) {
-        let path_to_font = Path::new(&family);
+    pub fn add_font(&mut self, family: &'static str) {
+        let path_to_font = Path::new(family);
+        
         let font_in_bytes = Storage::load(&path_to_font).unwrap();
         let font = FontVec::try_from_vec(font_in_bytes.into_owned()).unwrap();
+
         self.fonts.push(font);
     }
 
@@ -65,8 +70,7 @@ impl TextFont {
                 b
             })
         else {
-            println!("No outlined glyphs?");
-            panic!()
+            panic!("No outlined glyphs?")
         };
 
         // create a new rgba image using the combined px bound width and height
@@ -147,7 +151,7 @@ mod tests {
 
     #[test]
     fn get_glyph_buffer() {
-        let sprite_text = SpriteTextCreateInfo::default().with_text(String::from("Hello, world"));
+        let sprite_text = SpriteTextCreateInfo::default().with_text("Hello, world");
 
         let font = TextFont::new("Fonts/freedom.otf");
 

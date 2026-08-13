@@ -20,8 +20,8 @@ pub struct SpriteTextCreateInfo {
 }
 
 impl SpriteTextCreateInfo {
-    pub fn with_text(mut self, text: String) -> Self {
-        self.text = text;
+    pub fn with_text(mut self, text: &'static str) -> Self {
+        self.text = String::from(text);
         self
     }
 
