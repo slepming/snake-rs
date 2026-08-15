@@ -1,11 +1,9 @@
 #![deny(warnings)]
 
 pub use color::Rgba8;
-use hecs::World;
 pub use hecs::{CommandBuffer, Entity};
 use rayon::{ThreadPool, ThreadPoolBuilder};
 use std::{
-    collections::HashMap,
     ops::RangeInclusive,
     sync::{Arc, RwLock},
 };
@@ -54,8 +52,7 @@ use winit::platform::wayland::WindowAttributesExtWayland;
 
 use crate::{
     dbg::debug_utils::DebugUtils,
-    ecs::tables::{ClassInfo, DynObject, EntityComponent},
-    fnt::font::TextFont,
+    ecs::tables::{ClassInfo, DynObject},
     game::{GameContext, GameObject},
     geom::{
         matrix::Transform,
@@ -63,10 +60,7 @@ use crate::{
     },
     mem::engine_memory::EngineMemory,
     render::{MeshBuffers, RenderContext},
-    res::{
-        assets::Storage,
-        cache::{CacheProvider, DescriptorSetCache, PipelineCache},
-    },
+    res::cache::{CacheProvider, DescriptorSetCache, PipelineCache},
     shaders::{
         circle_shader::{circle_fs, circle_vs},
         image_shader::{image_fs, image_vs},
@@ -102,6 +96,8 @@ pub mod utils;
 
 pub type Vector = glam::Vec2;
 pub type GameObjectDrawable = Arc<RwLock<Box<dyn GameObject>>>;
+
+const THREAD_POOL_SIZE: usize = 6;
 
 #[global_allocator]
 #[cfg(debug_assertions)]
@@ -162,40 +158,17 @@ impl EngineContext {
         )
         .unwrap();
 
-        let assets = Arc::new(Storage {
-            queue: queues
-                .last()
-                .expect("TRANSFER or GRAPHICS queue not found")
-                .clone(),
-            memory_allocs: memory.clone(),
-            texture_pool: RwLock::new(HashMap::new()),
-        });
-
-        let fonts = TextFont::new("Fonts/freedom.otf");
-
         let descriptorset_cache = Arc::new(DescriptorSetCache::default());
         let pipeline_cache = Arc::new(PipelineCache::default());
-        let world = Arc::new(RwLock::new(World::new()));
-
-        let world_buffer = EntityComponent::new(
-            world.clone(),
-            memory.memory_allocator.clone(),
-            memory.descriptor_allocator.clone(),
-            descriptorset_cache.clone(),
-            pipeline_cache.clone(),
-            sampler.clone(),
-        );
 
         Self {
-            game: GameContext {
-                assets,
-                frames: 0,
-                fonts,
-                mouse_position: None,
-                world_buffer,
-                world,
-                entity: None,
-            },
+            game: GameContext::new(
+                memory.clone(),
+                queues.last().expect("queues size 0").clone(),
+                pipeline_cache.clone(),
+                descriptorset_cache.clone(),
+                sampler.clone(),
+            ),
             descriptors: descriptorset_cache.clone(),
             pipelines: pipeline_cache.clone(),
             memory,
@@ -205,7 +178,7 @@ impl EngineContext {
             sampler,
             rcx: None,
             debug,
-            thread_pool: ThreadPoolBuilder::new().num_threads(6).build().unwrap(),
+            thread_pool: ThreadPoolBuilder::new().num_threads(THREAD_POOL_SIZE).build().unwrap(),
             scheduler: create_scheduler(),
         }
     }
@@ -710,11 +683,8 @@ impl ApplicationHandler for EngineContext {
                     .set_viewport(0, [rcx.viewport.clone()].into_iter().collect())
                     .unwrap();
 
-                let (mesh_buffers, _children_size) = calculate_drawables(
-                    self.memory.memory_allocator.clone(),
-                    &mut self.game,
-                    rcx,
-                );
+                let (mesh_buffers, _children_size) =
+                    calculate_drawables(self.memory.memory_allocator.clone(), &mut self.game, rcx);
 
                 if let Some(mesh) = mesh_buffers {
                     let _span_draw =

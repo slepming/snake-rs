@@ -16,7 +16,7 @@ impl TextFont {
     /// Returns [`TextFont`] structure
     pub fn new(family: &'static str) -> Self {
         let path_to_font = Path::new(family);
-        
+
         let font_in_bytes = Storage::load(&path_to_font).unwrap();
         let font = FontVec::try_from_vec(font_in_bytes.into_owned()).unwrap();
 
@@ -32,7 +32,7 @@ impl TextFont {
     /// Adds a font
     pub fn add_font(&mut self, family: &'static str) {
         let path_to_font = Path::new(family);
-        
+
         let font_in_bytes = Storage::load(&path_to_font).unwrap();
         let font = FontVec::try_from_vec(font_in_bytes.into_owned()).unwrap();
 
