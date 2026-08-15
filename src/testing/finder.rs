@@ -2,14 +2,14 @@
 
 use winit::dpi::PhysicalPosition;
 
-use crate::{Vector, drw::children::DrawableData};
+use crate::Vector;
 
 pub trait IntoVector {
     fn into_vector(self) -> Vector;
 }
 
 pub trait Finder {
-    fn get_by_position(&self, position: PhysicalPosition<f64>) -> Vec<DrawableData>;
+    fn get_by_position(&self, position: PhysicalPosition<f64>);
 }
 
 #[allow(dead_code)]

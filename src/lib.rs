@@ -54,7 +54,6 @@ use winit::platform::wayland::WindowAttributesExtWayland;
 
 use crate::{
     dbg::debug_utils::DebugUtils,
-    drw::children::Children,
     ecs::tables::{ClassInfo, DynObject, EntityComponent},
     fnt::font::TextFont,
     game::{GameContext, GameObject},
@@ -176,7 +175,6 @@ impl EngineContext {
 
         let descriptorset_cache = Arc::new(DescriptorSetCache::default());
         let pipeline_cache = Arc::new(PipelineCache::default());
-        let children = Arc::new(Children::default());
         let world = Arc::new(RwLock::new(World::new()));
 
         let world_buffer = EntityComponent::new(
@@ -190,7 +188,6 @@ impl EngineContext {
 
         Self {
             game: GameContext {
-                children: children.clone(),
                 assets,
                 frames: 0,
                 fonts,

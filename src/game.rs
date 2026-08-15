@@ -4,15 +4,13 @@ use hecs::{Entity, World};
 use winit::dpi::PhysicalPosition;
 
 use crate::{
-    drw::children::Children, ecs::tables::EntityComponent, fnt::font::TextFont,
+    ecs::tables::EntityComponent, fnt::font::TextFont,
     res::assets::Storage,
 };
 
 pub type Ecs = EntityComponent;
 
 pub(crate) struct GameContext {
-    #[allow(dead_code)]
-    pub children: Arc<Children>,
     #[allow(dead_code)]
     pub assets: Arc<Storage>,
     pub frames: u64,
