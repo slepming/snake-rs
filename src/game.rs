@@ -4,18 +4,22 @@ use std::{
 };
 
 use hecs::{Entity, World};
+use snake_macros::game_object;
 use vulkano::{device::Queue, image::sampler::Sampler};
 use winit::dpi::PhysicalPosition;
 
 use crate::{
-    ecs::tables::EntityComponent,
+    ecs::tables::{ClassInfo, DynObject, EntityComponent},
     fnt::font::TextFont,
+    geom::{matrix::Transform, shapes::Shapes},
     mem::engine_memory::EngineMemory,
     res::{
         assets::Storage,
         cache::{DescriptorSetCache, PipelineCache},
     },
 };
+
+use color::Rgba8;
 
 pub type Ecs = EntityComponent;
 
@@ -77,4 +81,44 @@ pub trait GameObject {
     fn update(&mut self, world: &mut EntityComponent);
 
     fn start(&mut self, world: &mut EntityComponent);
+}
+
+pub enum CanvasCommand {
+    CreateObject {
+        object: DynObject,
+        transform: Transform,
+        shape: Shapes,
+        class: ClassInfo,
+    },
+}
+
+#[game_object]
+pub struct Canvas {
+    pub buffer: Vec<CanvasCommand>,
+}
+
+impl Canvas {
+    pub fn new(rgba: Rgba8) -> Self {
+        Self {
+            buffer: Vec::new(),
+            color: rgba,
+        }
+    }
+}
+
+impl GameObject for Canvas {
+    fn update(&mut self, _world: &mut EntityComponent) {}
+
+    fn start(&mut self, world: &mut EntityComponent) {
+        for command in self.buffer.drain(..) {
+            match command {
+                CanvasCommand::CreateObject {
+                    object,
+                    transform,
+                    shape,
+                    class,
+                } => world.add_with_class(object, transform, shape, class),
+            }
+        }
+    }
 }

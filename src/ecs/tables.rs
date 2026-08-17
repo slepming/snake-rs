@@ -75,6 +75,25 @@ impl EntityComponent {
         // DynObject
     }
 
+    pub fn add_with_class(
+        &mut self,
+        drw: DynObject,
+        transformation: Transform,
+        shape: Shapes,
+        class: ClassInfo,
+    ) {
+        shape.create_descriptor(
+            DescriptorID::from(&class),
+            self.memory_allocator.clone(),
+            self.descriptor_allocator.clone(),
+            self.descriptor_cache.clone(),
+            self.pipeline_cache.clone(),
+            Some(self.sampler.clone()),
+        );
+
+        self.buffer.spawn((transformation, class, shape, drw));
+    }
+
     pub fn remove<T>(&mut self, entity: Entity)
     where
         T: Bundle + 'static,
@@ -82,6 +101,7 @@ impl EntityComponent {
         self.buffer.remove::<T>(entity);
     }
 
+    #[allow(dead_code)]
     /// Update [`Entity`] through buffer
     pub(crate) fn attach_render_descriptor<G>(&mut self, entity: Entity, drw: G, shape: Shapes)
     where
@@ -123,6 +143,13 @@ impl ClassInfo {
         Self {
             type_id: TypeId::of::<T>(),
             class_name: type_name::<T>(),
+        }
+    }
+
+    pub fn of_class<T: 'static>(class: &'static str) -> Self {
+        Self {
+            type_id: TypeId::of::<T>(),
+            class_name: class,
         }
     }
 }

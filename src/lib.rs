@@ -53,7 +53,7 @@ use winit::platform::wayland::WindowAttributesExtWayland;
 use crate::{
     dbg::debug_utils::DebugUtils,
     ecs::tables::{ClassInfo, DynObject},
-    game::{GameContext, GameObject},
+    game::{Canvas, GameContext, GameObject},
     geom::{
         matrix::Transform,
         shapes::{SQUARE_VERTEX, Shapes},
@@ -161,14 +161,26 @@ impl EngineContext {
         let descriptorset_cache = Arc::new(DescriptorSetCache::default());
         let pipeline_cache = Arc::new(PipelineCache::default());
 
+        let game = GameContext::new(
+            memory.clone(),
+            queues.last().expect("queues size 0").clone(),
+            pipeline_cache.clone(),
+            descriptorset_cache.clone(),
+            sampler.clone(),
+        );
+
+        let canvas = Canvas::new(Rgba8 {
+            r: 0,
+            g: 0,
+            b: 0,
+            a: 255,
+        });
+        let class = ClassInfo::of::<Canvas>();
+
+        game.world.write().unwrap().spawn((class, canvas));
+
         Self {
-            game: GameContext::new(
-                memory.clone(),
-                queues.last().expect("queues size 0").clone(),
-                pipeline_cache.clone(),
-                descriptorset_cache.clone(),
-                sampler.clone(),
-            ),
+            game: game,
             descriptors: descriptorset_cache.clone(),
             pipelines: pipeline_cache.clone(),
             memory,
@@ -178,33 +190,45 @@ impl EngineContext {
             sampler,
             rcx: None,
             debug,
-            thread_pool: ThreadPoolBuilder::new().num_threads(THREAD_POOL_SIZE).build().unwrap(),
+            thread_pool: ThreadPoolBuilder::new()
+                .num_threads(THREAD_POOL_SIZE)
+                .build()
+                .unwrap(),
             scheduler: create_scheduler(),
         }
     }
 
-    pub fn add_object<T>(&mut self, object: T, shape: Shapes) -> Entity
+    pub fn add_object<T>(&mut self, object: T, shape: Shapes)
     where
         T: GameObject + Render + Send + Sync + 'static,
     {
-        let s = 300.0_f32;
+        let mut binding = self.game.world.write().unwrap();
+        let canvas_f = binding.query_mut::<&mut Canvas>();
+
+        let mut canvas_v: Vec<&mut Canvas> = canvas_f.into_iter().collect();
+
+        let canvas = canvas_v.iter_mut().next();
+
+        let class = ClassInfo::of::<T>();
+
+        let object_boxed = Box::new(object);
+
         let transform = Transform([
-            [s, 0.0, 0.0, 0.0],
-            [0.0, s, 0.0, 0.0],
+            [0.0, 0.0, 0.0, 0.0],
+            [0.0, 0.0, 0.0, 0.0],
             [0.0, 0.0, 1.0, 0.0],
             [0.0, 0.0, 0.0, 1.0],
         ]);
 
-        let class = ClassInfo::of::<T>();
-        let entity = self.game.world.write().unwrap().spawn((transform, class));
-
-        self.game.entity = Some(entity);
-
-        self.game
-            .world_buffer
-            .attach_render_descriptor::<T>(entity, object, shape);
-
-        entity
+        canvas
+            .unwrap()
+            .buffer
+            .push(game::CanvasCommand::CreateObject {
+                object: object_boxed,
+                transform,
+                shape,
+                class,
+            });
     }
 }
 
@@ -480,11 +504,17 @@ impl ApplicationHandler for EngineContext {
 
         let mut world = self.game.world.write().unwrap();
 
+        for object in world.query_mut::<&mut Canvas>() {
+            object.start(&mut self.game.world_buffer);
+        }
+
         for object in world.query_mut::<&mut DynObject>() {
             object.start(&mut self.game.world_buffer);
         }
 
         self.game.world_buffer.buffer.run_on(&mut world);
+
+        drop(world);
 
         self.rcx = Some(RenderContext {
             window,
@@ -535,7 +565,8 @@ impl ApplicationHandler for EngineContext {
                             debug!(
                                 pipelines_count = self.pipelines.len(),
                                 descriptor_sets_count = self.descriptors.len(),
-                                objects_count = self.game.world.read().unwrap().len()
+                                objects_count = self.game.world.read().unwrap().len(),
+                                frame_count = self.game.frames
                             );
                             debug!("!!! DEBUG INFORMATION END !!!");
                         }
@@ -696,8 +727,8 @@ impl ApplicationHandler for EngineContext {
                     for (id, (class, shape, entity)) in
                         world.query_mut::<(hecs::Entity, (&ClassInfo, &Shapes, &mut DynObject))>()
                     {
-                        let id = id.id() as usize;
-                        entity.update(&mut self.game.world_buffer); // TODO: DEADLOCK
+                        let id = id.id() as usize - 1;
+                        entity.update(&mut self.game.world_buffer);
 
                         let matrix = mesh.1[id];
                         let _span_draw = tracy_client::span!("Engine: Draw Item");
