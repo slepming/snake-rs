@@ -198,7 +198,7 @@ impl EngineContext {
         }
     }
 
-    pub fn add_object<T>(&mut self, object: T, shape: Shapes)
+    pub fn add_object<T>(&mut self, object: T, shape: Shapes, transform: Transform)
     where
         T: GameObject + Render + Send + Sync + 'static,
     {
@@ -212,13 +212,6 @@ impl EngineContext {
         let class = ClassInfo::of::<T>();
 
         let object_boxed = Box::new(object);
-
-        let transform = Transform([
-            [0.0, 0.0, 0.0, 0.0],
-            [0.0, 0.0, 0.0, 0.0],
-            [0.0, 0.0, 1.0, 0.0],
-            [0.0, 0.0, 0.0, 1.0],
-        ]);
 
         canvas
             .unwrap()
@@ -498,23 +491,26 @@ impl ApplicationHandler for EngineContext {
             .insert(("square".to_string(), square_pipeline));
         self.pipelines.insert(("image".to_string(), image_pipeline));
 
-        self.game.world_buffer.execute_commands();
-
         self.scheduler.0.update();
 
-        let mut world = self.game.world.write().unwrap();
+        let mut world_write = self.game.world.write().unwrap();
+        let world = &mut world_write;
+
+        let game_buffer = &mut self.game.world_buffer;
 
         for object in world.query_mut::<&mut Canvas>() {
-            object.start(&mut self.game.world_buffer);
+            object.start(game_buffer);
         }
+
+        game_buffer.execute_commands(world);
 
         for object in world.query_mut::<&mut DynObject>() {
-            object.start(&mut self.game.world_buffer);
+            object.start(game_buffer);
         }
 
-        self.game.world_buffer.buffer.run_on(&mut world);
+        game_buffer.execute_commands(world);
 
-        drop(world);
+        drop(world_write);
 
         self.rcx = Some(RenderContext {
             window,
@@ -547,15 +543,6 @@ impl ApplicationHandler for EngineContext {
             WindowEvent::Resized(_) => {
                 let _span = tracy_client::span!("Engine::resize");
                 rcx.recreate_swapchain = true;
-                if let Some(entity) = self.game.entity {
-                    let world = self.game.world.read().unwrap();
-                    let mut transform = world
-                        .get::<&mut Transform>(entity)
-                        .expect("Main object is removed");
-
-                    transform.0[0][0] = rcx.window.inner_size().width as f32;
-                    transform.0[1][1] = rcx.window.inner_size().width as f32;
-                }
             }
             WindowEvent::KeyboardInput { event, .. } => {
                 if event.state == ElementState::Pressed {

@@ -3,7 +3,7 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-use hecs::{Entity, World};
+use hecs::World;
 use snake_macros::game_object;
 use vulkano::{device::Queue, image::sampler::Sampler};
 use winit::dpi::PhysicalPosition;
@@ -34,8 +34,6 @@ pub(crate) struct GameContext {
     pub mouse_position: Option<PhysicalPosition<f64>>,
     pub world: Arc<RwLock<World>>,
     pub world_buffer: EntityComponent,
-    /// Main entity that have size equals window size
-    pub entity: Option<Entity>,
 }
 
 impl GameContext {
@@ -55,7 +53,6 @@ impl GameContext {
         });
 
         let world_buffer = EntityComponent::new(
-            world.clone(),
             memory.memory_allocator.clone(),
             memory.descriptor_allocator.clone(),
             descriptors.clone(),
@@ -70,7 +67,6 @@ impl GameContext {
             mouse_position: None,
             world: world,
             world_buffer: world_buffer,
-            entity: None,
         }
     }
 }

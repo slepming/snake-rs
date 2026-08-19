@@ -7,9 +7,10 @@ use crate::{
 };
 use hecs::CommandBuffer;
 pub use hecs::{Bundle, ComponentError, Entity, World};
+use tracing::debug;
 use std::{
     any::{TypeId, type_name},
-    sync::{Arc, RwLock},
+    sync::Arc,
 };
 use vulkano::{
     descriptor_set::allocator::DescriptorSetAllocator, image::sampler::Sampler,
@@ -23,7 +24,6 @@ impl<T> DynamicallyObjectAlias for T where T: GameObject + Render + Send + Sync 
 
 pub struct EntityComponent {
     pub(crate) buffer: CommandBuffer,
-    world: Arc<RwLock<World>>,
     memory_allocator: Arc<dyn MemoryAllocator>,
     descriptor_allocator: Arc<dyn DescriptorSetAllocator>,
     descriptor_cache: Arc<DescriptorSetCache>,
@@ -33,7 +33,6 @@ pub struct EntityComponent {
 
 impl EntityComponent {
     pub(crate) fn new(
-        world: Arc<RwLock<World>>,
         memory_allocator: Arc<dyn MemoryAllocator>,
         descriptor_allocator: Arc<dyn DescriptorSetAllocator>,
         descriptor_cache: Arc<DescriptorSetCache>,
@@ -41,7 +40,6 @@ impl EntityComponent {
         sampler: Arc<Sampler>,
     ) -> Self {
         Self {
-            world,
             buffer: CommandBuffer::new(),
             memory_allocator,
             descriptor_allocator,
@@ -57,18 +55,9 @@ impl EntityComponent {
     {
         let class = ClassInfo::of::<G>();
 
-        shape.create_descriptor(
-            DescriptorID::from(&class),
-            self.memory_allocator.clone(),
-            self.descriptor_allocator.clone(),
-            self.descriptor_cache.clone(),
-            self.pipeline_cache.clone(),
-            Some(self.sampler.clone()),
-        );
-
         let boxed_drw: DynObject = Box::new(drw);
 
-        self.buffer.spawn((transformation, class, shape, boxed_drw)); // Transform,
+        self.push(boxed_drw, transformation, shape, class);
         // DescriptorSet,
         // ClassInfo,
         // Shapes,
@@ -82,6 +71,11 @@ impl EntityComponent {
         shape: Shapes,
         class: ClassInfo,
     ) {
+        self.push(drw, transformation, shape, class);
+    }
+
+    fn push(&mut self, drw: DynObject, transformation: Transform, shape: Shapes, class: ClassInfo) {
+        debug!("{:?}", class);
         shape.create_descriptor(
             DescriptorID::from(&class),
             self.memory_allocator.clone(),
@@ -127,12 +121,12 @@ impl EntityComponent {
     ///
     /// # Note
     /// May cause unexpected errors
-    pub fn execute_commands(&mut self) {
-        let mut world = self.world.write().unwrap();
-        self.buffer.run_on(&mut world);
+    pub fn execute_commands(&mut self, world: &mut World) {
+        self.buffer.run_on(world);
     }
 }
 
+#[derive(Debug)]
 pub struct ClassInfo {
     pub type_id: TypeId,
     pub class_name: &'static str,
