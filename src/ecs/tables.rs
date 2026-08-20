@@ -7,11 +7,11 @@ use crate::{
 };
 use hecs::CommandBuffer;
 pub use hecs::{Bundle, ComponentError, Entity, World};
-use tracing::debug;
 use std::{
     any::{TypeId, type_name},
     sync::Arc,
 };
+use tracing::debug;
 use vulkano::{
     descriptor_set::allocator::DescriptorSetAllocator, image::sampler::Sampler,
     memory::allocator::MemoryAllocator,
@@ -49,11 +49,13 @@ impl EntityComponent {
         }
     }
 
-    pub fn add<G>(&mut self, drw: G, transformation: Transform, shape: Shapes)
+    pub fn add<G>(&mut self, drw: G, transformation: Transform)
     where
         G: GameObject + Render + Send + Sync + 'static,
     {
         let class = ClassInfo::of::<G>();
+
+        let shape = drw.shape();
 
         let boxed_drw: DynObject = Box::new(drw);
 
@@ -97,11 +99,13 @@ impl EntityComponent {
 
     #[allow(dead_code)]
     /// Update [`Entity`] through buffer
-    pub(crate) fn attach_render_descriptor<G>(&mut self, entity: Entity, drw: G, shape: Shapes)
+    pub(crate) fn attach_render_descriptor<G>(&mut self, entity: Entity, drw: G)
     where
         G: GameObject + Render + Send + Sync + 'static,
     {
         let class = ClassInfo::of::<G>();
+
+        let shape = drw.shape();
 
         shape.create_descriptor(
             DescriptorID::from(&class),

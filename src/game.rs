@@ -9,9 +9,10 @@ use vulkano::{device::Queue, image::sampler::Sampler};
 use winit::dpi::PhysicalPosition;
 
 use crate::{
+    Shapes,
     ecs::tables::{ClassInfo, DynObject, EntityComponent},
     fnt::font::TextFont,
-    geom::{matrix::Transform, shapes::Shapes},
+    geom::{matrix::Transform, shapes::ShapeCreateInfo},
     mem::engine_memory::EngineMemory,
     res::{
         assets::Storage,
@@ -88,6 +89,7 @@ pub enum CanvasCommand {
     },
 }
 
+/// The main structure, handle first object structure from user.
 #[game_object]
 pub struct Canvas {
     pub buffer: Vec<CanvasCommand>,
@@ -98,6 +100,7 @@ impl Canvas {
         Self {
             buffer: Vec::new(),
             color: rgba,
+            shape: Shapes::Square(ShapeCreateInfo::default()),
         }
     }
 }

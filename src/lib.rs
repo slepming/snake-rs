@@ -198,7 +198,7 @@ impl EngineContext {
         }
     }
 
-    pub fn add_object<T>(&mut self, object: T, shape: Shapes, transform: Transform)
+    pub fn add_object<T>(&mut self, object: T, transform: Transform)
     where
         T: GameObject + Render + Send + Sync + 'static,
     {
@@ -211,6 +211,7 @@ impl EngineContext {
 
         let class = ClassInfo::of::<T>();
 
+        let shape = object.shape();
         let object_boxed = Box::new(object);
 
         canvas
@@ -844,6 +845,7 @@ struct Constants(Transform, [f32; 2], u32);
 
 pub trait Render {
     fn color(&self) -> Rgba8;
+    fn shape(&self) -> Shapes;
 }
 
 /// Calculates Vertex buffer, matrices vector and offsets vector for draw in Vulkano

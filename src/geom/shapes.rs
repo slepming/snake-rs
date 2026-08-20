@@ -72,7 +72,7 @@ impl ShapeCreateInfo {
     /// Sets the radius of the object(if supported)
     /// Currently radius must be lower than 1.0
     pub fn with_radius(mut self, radius: f32) -> Self {
-        self.radius = radius;
+        self.radius = rapier2d::na::clamp(radius, 0.0, 1.0);
         self
     }
 
