@@ -118,7 +118,7 @@ pub struct EngineContext {
     #[allow(dead_code)]
     debug: DebugUtils,
     #[allow(dead_code)]
-    thread_pool: ThreadPool,
+    thread_pool: Arc<ThreadPool>,
     pipelines: Arc<PipelineCache>,
     descriptors: Arc<DescriptorSetCache>,
     pub scheduler: (Scheduler, Arc<SchedulerContext>),
@@ -161,12 +161,18 @@ impl EngineContext {
         let descriptorset_cache = Arc::new(DescriptorSetCache::default());
         let pipeline_cache = Arc::new(PipelineCache::default());
 
+        let thread_pool = Arc::new(ThreadPoolBuilder::new()
+                .num_threads(THREAD_POOL_SIZE)
+                .build()
+                .expect("Cannot create thread pool"));
+
         let game = GameContext::new(
             memory.clone(),
             queues.last().expect("queues size 0").clone(),
             pipeline_cache.clone(),
             descriptorset_cache.clone(),
             sampler.clone(),
+            thread_pool.clone()
         );
 
         let canvas = Canvas::new(Rgba8 {
@@ -190,10 +196,7 @@ impl EngineContext {
             sampler,
             rcx: None,
             debug,
-            thread_pool: ThreadPoolBuilder::new()
-                .num_threads(THREAD_POOL_SIZE)
-                .build()
-                .unwrap(),
+            thread_pool,
             scheduler: create_scheduler(),
         }
     }

@@ -4,6 +4,7 @@ use std::{
 };
 
 use hecs::World;
+use rayon::ThreadPool;
 use snake_macros::game_object;
 use vulkano::{device::Queue, image::sampler::Sampler};
 use winit::dpi::PhysicalPosition;
@@ -44,6 +45,7 @@ impl GameContext {
         pipelines: Arc<PipelineCache>,
         descriptors: Arc<DescriptorSetCache>,
         sampler: Arc<Sampler>,
+        thread_pool: Arc<ThreadPool>
     ) -> Self {
         let world = Arc::new(RwLock::new(World::new()));
 
@@ -59,6 +61,7 @@ impl GameContext {
             descriptors.clone(),
             pipelines.clone(),
             sampler.clone(),
+            thread_pool
         );
 
         Self {

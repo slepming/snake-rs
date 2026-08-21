@@ -17,13 +17,15 @@ pub(crate) struct EngineMemory {
 
 impl EngineMemory {
     pub fn new(device: Arc<Device>) -> Self {
-        // Block size 64 MB
-        let memory_type_count = device
+        let memory_types = device
             .physical_device()
             .memory_properties()
             .memory_types
-            .len();
-        let block_size = vec![1024 * 1024 * 64; memory_type_count];
+            .clone();
+
+        // Block size 64 MB
+        let memory_type_count = memory_types.len();
+        let block_size = vec![1024 * 1024 * 16; memory_type_count];
         let memory_allocator = Arc::new(StandardMemoryAllocator::new(
             device.clone(),
             GenericMemoryAllocatorCreateInfo {

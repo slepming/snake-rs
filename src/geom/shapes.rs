@@ -104,6 +104,7 @@ impl Shapes {
         pipeline_cache: Arc<PipelineCache>,
         sampler: Option<Arc<Sampler>>,
     ) {
+        let _span = tracy_client::span!("Shapes::create_descriptor");
         debug!(shape = self.as_ref().to_lowercase());
         let pipeline = pipeline_cache
             .get(self.as_ref().to_lowercase().as_ref())
