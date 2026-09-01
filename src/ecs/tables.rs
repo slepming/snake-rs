@@ -1,6 +1,7 @@
 use crate::{
-    Render,
+    RenderGameObject, RenderText,
     drw::drawable::DescriptorID,
+    fnt::font::TextFont,
     game::GameObject,
     geom::{matrix::Transform, shapes::Shapes},
     res::cache::{DescriptorSetCache, PipelineCache},
@@ -20,8 +21,8 @@ use vulkano::{
 
 pub type DynObject = Box<dyn DynamicallyObjectAlias>;
 
-pub trait DynamicallyObjectAlias: GameObject + Render + Send + Sync {}
-impl<T> DynamicallyObjectAlias for T where T: GameObject + Render + Send + Sync {}
+pub trait DynamicallyObjectAlias: GameObject + RenderGameObject + Send + Sync {}
+impl<T> DynamicallyObjectAlias for T where T: GameObject + RenderGameObject + Send + Sync {}
 
 pub struct EntityComponent {
     pub(crate) buffer: CommandBuffer,
@@ -31,6 +32,7 @@ pub struct EntityComponent {
     pipeline_cache: Arc<PipelineCache>,
     thread_pool: Arc<ThreadPool>,
     sampler: Arc<Sampler>,
+    fonts: Arc<TextFont>,
 }
 
 impl EntityComponent {
@@ -40,7 +42,8 @@ impl EntityComponent {
         descriptor_cache: Arc<DescriptorSetCache>,
         pipeline_cache: Arc<PipelineCache>,
         sampler: Arc<Sampler>,
-        thread_pool: Arc<ThreadPool>
+        thread_pool: Arc<ThreadPool>,
+        fonts: Arc<TextFont>,
     ) -> Self {
         Self {
             buffer: CommandBuffer::new(),
@@ -49,13 +52,14 @@ impl EntityComponent {
             descriptor_cache,
             pipeline_cache,
             sampler,
-            thread_pool
+            thread_pool,
+            fonts,
         }
     }
 
     pub fn add<G>(&mut self, drw: G, transformation: Transform)
     where
-        G: GameObject + Render + Send + Sync + 'static,
+        G: GameObject + RenderGameObject + Send + Sync + 'static,
     {
         let class = ClassInfo::of::<G>();
 
@@ -80,6 +84,13 @@ impl EntityComponent {
         self.push(drw, transformation, shape, class);
     }
 
+    pub fn add_text<G>(&mut self, _drw: G, _transformation: Transform)
+    where
+        G: GameObject + RenderText + Send + Sync + 'static,
+    {
+        //let glyphs = self.fonts.get_glyphs(drw.text());
+    }
+
     fn push(&mut self, drw: DynObject, transformation: Transform, shape: Shapes, class: ClassInfo) {
         debug!("{:?}", class);
 
@@ -93,14 +104,14 @@ impl EntityComponent {
 
         let shape_clone = shape.clone();
         // Likely someday it's will crash
-        self.thread_pool.spawn(move ||{
+        self.thread_pool.spawn(move || {
             shape_clone.create_descriptor(
                 descriptor_id,
                 memory_allocator,
                 descriptor_set_allocator,
                 descriptor_set_cache,
                 pipeline_cache,
-                sampler
+                sampler,
             );
         });
 
@@ -118,7 +129,7 @@ impl EntityComponent {
     /// Update [`Entity`] through buffer
     pub(crate) fn attach_render_descriptor<G>(&mut self, entity: Entity, drw: G)
     where
-        G: GameObject + Render + Send + Sync + 'static,
+        G: GameObject + RenderGameObject + Send + Sync + 'static,
     {
         let class = ClassInfo::of::<G>();
 

@@ -5,7 +5,7 @@ use std::{
 
 use hecs::World;
 use rayon::ThreadPool;
-use snake_macros::game_object;
+use snake_macros::static_game_object;
 use vulkano::{device::Queue, image::sampler::Sampler};
 use winit::dpi::PhysicalPosition;
 
@@ -32,7 +32,7 @@ pub(crate) struct GameContext {
     pub assets: Arc<Storage>,
     pub frames: u64,
     #[allow(dead_code)]
-    pub fonts: TextFont,
+    pub fonts: Arc<TextFont>,
     pub mouse_position: Option<PhysicalPosition<f64>>,
     pub world: Arc<RwLock<World>>,
     pub world_buffer: EntityComponent,
@@ -45,9 +45,10 @@ impl GameContext {
         pipelines: Arc<PipelineCache>,
         descriptors: Arc<DescriptorSetCache>,
         sampler: Arc<Sampler>,
-        thread_pool: Arc<ThreadPool>
+        thread_pool: Arc<ThreadPool>,
     ) -> Self {
         let world = Arc::new(RwLock::new(World::new()));
+        let fonts = Arc::new(TextFont::new(BASIC_FONT));
 
         let storage = Arc::new(Storage {
             queue: queue.clone(),
@@ -61,13 +62,14 @@ impl GameContext {
             descriptors.clone(),
             pipelines.clone(),
             sampler.clone(),
-            thread_pool
+            thread_pool,
+            fonts.clone(),
         );
 
         Self {
             assets: storage,
             frames: 0,
-            fonts: TextFont::new(BASIC_FONT),
+            fonts,
             mouse_position: None,
             world: world,
             world_buffer: world_buffer,
@@ -93,7 +95,7 @@ pub enum CanvasCommand {
 }
 
 /// The main structure, handle first object structure from user.
-#[game_object]
+#[static_game_object]
 pub struct Canvas {
     pub buffer: Vec<CanvasCommand>,
 }

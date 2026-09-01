@@ -73,7 +73,7 @@ use crate::{
     },
 };
 
-pub use snake_macros::game_object;
+pub use snake_macros::{static_game_object, text_object};
 
 //#[cfg(debug_assertions)]
 //use crate::testing::finder::Finder;
@@ -161,10 +161,12 @@ impl EngineContext {
         let descriptorset_cache = Arc::new(DescriptorSetCache::default());
         let pipeline_cache = Arc::new(PipelineCache::default());
 
-        let thread_pool = Arc::new(ThreadPoolBuilder::new()
+        let thread_pool = Arc::new(
+            ThreadPoolBuilder::new()
                 .num_threads(THREAD_POOL_SIZE)
                 .build()
-                .expect("Cannot create thread pool"));
+                .expect("Cannot create thread pool"),
+        );
 
         let game = GameContext::new(
             memory.clone(),
@@ -172,7 +174,7 @@ impl EngineContext {
             pipeline_cache.clone(),
             descriptorset_cache.clone(),
             sampler.clone(),
-            thread_pool.clone()
+            thread_pool.clone(),
         );
 
         let canvas = Canvas::new(Rgba8 {
@@ -203,10 +205,10 @@ impl EngineContext {
 
     pub fn add_object<T>(&mut self, object: T, transform: Transform)
     where
-        T: GameObject + Render + Send + Sync + 'static,
+        T: GameObject + RenderGameObject + Send + Sync + 'static,
     {
-        let mut binding = self.game.world.write().unwrap();
-        let canvas_f = binding.query_mut::<&mut Canvas>();
+        let mut world = self.game.world.write().unwrap();
+        let canvas_f = world.query_mut::<&mut Canvas>();
 
         let mut canvas_v: Vec<&mut Canvas> = canvas_f.into_iter().collect();
 
@@ -846,9 +848,15 @@ pub struct SnakeVertex {
 #[repr(C)]
 struct Constants(Transform, [f32; 2], u32);
 
-pub trait Render {
+pub trait RenderGameObject {
     fn color(&self) -> Rgba8;
     fn shape(&self) -> Shapes;
+}
+
+pub trait RenderText {
+    fn color(&self) -> Rgba8;
+    fn text(&self) -> &'static str;
+    fn font_size(&self) -> usize;
 }
 
 /// Calculates Vertex buffer, matrices vector and offsets vector for draw in Vulkano
