@@ -4,14 +4,14 @@ use crate::{
     fnt::font::TextFont,
     game::GameObject,
     geom::{matrix::Transform, shapes::Shapes},
-    res::cache::{DescriptorSetCache, PipelineCache},
+    res::cache::{DescriptorSetCache, PipelineCache}, text::sprite_text::SpriteTextCreateInfo,
 };
 use hecs::CommandBuffer;
 pub use hecs::{Bundle, ComponentError, Entity, World};
+use image::ImageBuffer;
 use rayon::ThreadPool;
 use std::{
-    any::{TypeId, type_name},
-    sync::Arc,
+    any::{TypeId, type_name}, io::Cursor, sync::Arc
 };
 use tracing::debug;
 use vulkano::{
@@ -84,11 +84,20 @@ impl EntityComponent {
         self.push(drw, transformation, shape, class);
     }
 
-    pub fn add_text<G>(&mut self, _drw: G, _transformation: Transform)
+    pub fn add_text<G>(&mut self, drw: G, _transformation: Transform)
     where
         G: GameObject + RenderText + Send + Sync + 'static,
     {
-        //let glyphs = self.fonts.get_glyphs(drw.text());
+        let sprite_text_info = SpriteTextCreateInfo::default().with_text(drw.text());
+        let glyphs = self.fonts.get_glyphs(sprite_text_info, drw.color());
+
+        let image_buffer = glyphs.into_owned();
+
+        let mut png = Vec::new();
+
+        let mut cursor = Cursor::new(&mut png);
+
+        image_buffer.write_to(&mut cursor, image::ImageFormat::Png).expect("Failed to write png");
     }
 
     fn push(&mut self, drw: DynObject, transformation: Transform, shape: Shapes, class: ClassInfo) {

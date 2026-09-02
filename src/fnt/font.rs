@@ -1,6 +1,7 @@
 use std::{borrow::Cow, path::Path};
 
 use ab_glyph::{Font, FontVec, Glyph, Point, PxScale, ScaleFont, point};
+use color::Rgba8;
 use image::{DynamicImage, ImageBuffer, Rgba};
 use tracing::info;
 
@@ -43,6 +44,7 @@ impl TextFont {
     pub fn get_glyphs<'a>(
         &self,
         text: SpriteTextCreateInfo,
+        color: Rgba8,
     ) -> Cow<'a, ImageBuffer<Rgba<u8>, Vec<u8>>> {
         let scale = PxScale::from(text.scale * 1.5);
 
@@ -93,9 +95,9 @@ impl TextFont {
                 let px = image.get_pixel_mut(img_left + x, img_top + y);
                 // Turn the coverage into an alpha value (blended with any previous)
                 *px = Rgba([
-                    text.color.r,
-                    text.color.g,
-                    text.color.b,
+                    color.r,
+                    color.g,
+                    color.b,
                     px.0[3].saturating_add((v * 255.0) as u8),
                 ]);
             });
@@ -155,6 +157,18 @@ mod tests {
 
         let font = TextFont::new("Fonts/freedom.otf");
 
-        assert!(font.get_glyphs(sprite_text).len() > 0)
+        assert!(
+            font.get_glyphs(
+                sprite_text,
+                Rgba8 {
+                    r: 255,
+                    g: 255,
+                    b: 255,
+                    a: 255
+                }
+            )
+            .len()
+                > 0
+        )
     }
 }

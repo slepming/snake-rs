@@ -7,6 +7,7 @@ pub struct SpriteTextCreateInfo {
     pub text: String,
     /// Character size
     pub size: Vector,
+    pub scale: f32,
     /// Font index(temp)
     pub font: usize,
     /// Positional coordinates
@@ -33,6 +34,11 @@ impl SpriteTextCreateInfo {
         self.size = size;
         self
     }
+
+    pub fn with_scale(mut self, s: f32) -> Self {
+        self.scale = s;
+        self
+    }
 }
 
 impl Default for SpriteTextCreateInfo {
@@ -41,6 +47,7 @@ impl Default for SpriteTextCreateInfo {
             text: Default::default(),
             size: Vector::new(15.0, 7.5),
             font: 0,
+            scale: 15.0,
             position: Default::default(),
         }
     }
