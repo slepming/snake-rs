@@ -5,7 +5,7 @@ use color::Rgba8;
 use image::{DynamicImage, ImageBuffer, Rgba};
 use tracing::info;
 
-use crate::{res::assets::Storage, text::sprite_text::SpriteTextCreateInfo};
+use crate::{res::assets::TextureStorage, text::sprite_text::SpriteTextCreateInfo};
 
 /// Stores the necessary parameters for fonts
 pub struct TextFont {
@@ -18,7 +18,7 @@ impl TextFont {
     pub fn new(family: &'static str) -> Self {
         let path_to_font = Path::new(family);
 
-        let font_in_bytes = Storage::load(&path_to_font).unwrap();
+        let font_in_bytes = TextureStorage::load(&path_to_font).unwrap();
         let font = FontVec::try_from_vec(font_in_bytes.into_owned()).unwrap();
 
         let mut fonts: Vec<FontVec> = Vec::with_capacity(1);
@@ -34,7 +34,7 @@ impl TextFont {
     pub fn add_font(&mut self, family: &'static str) {
         let path_to_font = Path::new(family);
 
-        let font_in_bytes = Storage::load(&path_to_font).unwrap();
+        let font_in_bytes = TextureStorage::load(&path_to_font).unwrap();
         let font = FontVec::try_from_vec(font_in_bytes.into_owned()).unwrap();
 
         self.fonts.push(font);

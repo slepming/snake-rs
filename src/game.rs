@@ -16,7 +16,7 @@ use crate::{
     geom::{matrix::Transform, shapes::ShapeCreateInfo},
     mem::engine_memory::EngineMemory,
     res::{
-        assets::Storage,
+        assets::TextureStorage,
         cache::{DescriptorSetCache, PipelineCache},
     },
 };
@@ -29,7 +29,7 @@ const BASIC_FONT: &'static str = "Fonts/freedom.otf";
 
 pub(crate) struct GameContext {
     #[allow(dead_code)]
-    pub assets: Arc<Storage>,
+    pub storage: Arc<TextureStorage>,
     pub frames: u64,
     #[allow(dead_code)]
     pub fonts: Arc<TextFont>,
@@ -50,7 +50,7 @@ impl GameContext {
         let world = Arc::new(RwLock::new(World::new()));
         let fonts = Arc::new(TextFont::new(BASIC_FONT));
 
-        let storage = Arc::new(Storage {
+        let storage = Arc::new(TextureStorage {
             queue: queue.clone(),
             memory_allocs: memory.clone(),
             texture_pool: RwLock::new(HashMap::new()),
@@ -64,10 +64,11 @@ impl GameContext {
             sampler.clone(),
             thread_pool,
             fonts.clone(),
+            storage.clone(),
         );
 
         Self {
-            assets: storage,
+            storage,
             frames: 0,
             fonts,
             mouse_position: None,
@@ -89,8 +90,9 @@ pub enum CanvasCommand {
     CreateObject {
         object: DynObject,
         transform: Transform,
-        shape: Shapes,
+        shape: Option<Shapes>,
         class: ClassInfo,
+        colour: Option<Rgba8>,
     },
 }
 
@@ -121,7 +123,8 @@ impl GameObject for Canvas {
                     transform,
                     shape,
                     class,
-                } => world.add_with_class(object, transform, shape, class),
+                    colour,
+                } => world.add_with_class(object, transform, shape, class, colour),
             }
         }
     }

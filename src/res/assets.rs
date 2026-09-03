@@ -29,7 +29,9 @@ use crate::{drw::texture::Texture, geom::dimension::Dimension, mem::engine_memor
 pub(crate) struct Asset; // TODO: Binary file large
 
 /// Texture storage
-pub struct Storage {
+///
+/// Thread safety
+pub struct TextureStorage {
     pub(crate) queue: Arc<Queue>,
     pub(crate) memory_allocs: Arc<EngineMemory>,
     pub(crate) texture_pool: RwLock<HashMap<String, Arc<TextureHandler>>>,
@@ -40,7 +42,7 @@ pub struct TextureHandler {
     pub(crate) view: Arc<ImageView>,
 }
 
-impl Storage {
+impl TextureStorage {
     /// Returns Arc<[`TextureHandler`]> from bytes
     pub fn load_texture_from_bytes(&self, bytes: &[u8]) -> Arc<TextureHandler> {
         let texture: Texture = { Texture::from_slice(bytes).unwrap() };

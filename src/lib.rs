@@ -203,9 +203,11 @@ impl EngineContext {
         }
     }
 
+    /// Adds first object to engine. It's object always is space. Space has no colour, shape
+    /// and position
     pub fn add_object<T>(&mut self, object: T, transform: Transform)
     where
-        T: GameObject + RenderGameObject + Send + Sync + 'static,
+        T: GameObject + Send + Sync + 'static,
     {
         let mut world = self.game.world.write().unwrap();
         let canvas_f = world.query_mut::<&mut Canvas>();
@@ -216,7 +218,6 @@ impl EngineContext {
 
         let class = ClassInfo::of::<T>();
 
-        let shape = object.shape();
         let object_boxed = Box::new(object);
 
         canvas
@@ -225,8 +226,9 @@ impl EngineContext {
             .push(game::CanvasCommand::CreateObject {
                 object: object_boxed,
                 transform,
-                shape,
+                shape: None,
                 class,
+                colour: None,
             });
     }
 }
@@ -717,15 +719,16 @@ impl ApplicationHandler for EngineContext {
 
                     let mut world = self.game.world.write().unwrap();
 
-                    for (id, (class, shape, entity)) in
-                        world.query_mut::<(hecs::Entity, (&ClassInfo, &Shapes, &mut DynObject))>()
+                    for (id, (class, shape, entity, color)) in world
+                        .query_mut::<(hecs::Entity, (&ClassInfo, &Shapes, &mut DynObject, &Rgba8))>(
+                        )
                     {
                         let id = id.id() as usize - 1;
                         entity.update(&mut self.game.world_buffer);
 
                         let matrix = mesh.1[id];
                         let _span_draw = tracy_client::span!("Engine: Draw Item");
-                        let colour = entity.color();
+                        let colour = color;
                         let constants = Constants(
                             matrix,
                             rcx.window.inner_size().into(),

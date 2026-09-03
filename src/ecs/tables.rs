@@ -4,14 +4,20 @@ use crate::{
     fnt::font::TextFont,
     game::GameObject,
     geom::{matrix::Transform, shapes::Shapes},
-    res::cache::{DescriptorSetCache, PipelineCache}, text::sprite_text::SpriteTextCreateInfo,
+    res::{
+        assets::TextureStorage,
+        cache::{DescriptorSetCache, PipelineCache},
+    },
+    text::sprite_text::SpriteTextCreateInfo,
 };
+use color::Rgba8;
 use hecs::CommandBuffer;
 pub use hecs::{Bundle, ComponentError, Entity, World};
-use image::ImageBuffer;
 use rayon::ThreadPool;
 use std::{
-    any::{TypeId, type_name}, io::Cursor, sync::Arc
+    any::{TypeId, type_name},
+    io::Cursor,
+    sync::Arc,
 };
 use tracing::debug;
 use vulkano::{
@@ -21,8 +27,8 @@ use vulkano::{
 
 pub type DynObject = Box<dyn DynamicallyObjectAlias>;
 
-pub trait DynamicallyObjectAlias: GameObject + RenderGameObject + Send + Sync {}
-impl<T> DynamicallyObjectAlias for T where T: GameObject + RenderGameObject + Send + Sync {}
+pub trait DynamicallyObjectAlias: GameObject + Send + Sync {}
+impl<T> DynamicallyObjectAlias for T where T: GameObject + Send + Sync {}
 
 pub struct EntityComponent {
     pub(crate) buffer: CommandBuffer,
@@ -33,6 +39,7 @@ pub struct EntityComponent {
     thread_pool: Arc<ThreadPool>,
     sampler: Arc<Sampler>,
     fonts: Arc<TextFont>,
+    storage: Arc<TextureStorage>,
 }
 
 impl EntityComponent {
@@ -44,6 +51,7 @@ impl EntityComponent {
         sampler: Arc<Sampler>,
         thread_pool: Arc<ThreadPool>,
         fonts: Arc<TextFont>,
+        storage: Arc<TextureStorage>,
     ) -> Self {
         Self {
             buffer: CommandBuffer::new(),
@@ -54,6 +62,7 @@ impl EntityComponent {
             sampler,
             thread_pool,
             fonts,
+            storage,
         }
     }
 
@@ -61,13 +70,16 @@ impl EntityComponent {
     where
         G: GameObject + RenderGameObject + Send + Sync + 'static,
     {
+        // TODO Here we can use thread pool for parallel push in world
         let class = ClassInfo::of::<G>();
 
         let shape = drw.shape();
 
+        let color = drw.color();
+
         let boxed_drw: DynObject = Box::new(drw);
 
-        self.push(boxed_drw, transformation, shape, class);
+        self.push(boxed_drw, transformation, Some(shape), class, Some(color));
         // DescriptorSet,
         // ClassInfo,
         // Shapes,
@@ -78,13 +90,14 @@ impl EntityComponent {
         &mut self,
         drw: DynObject,
         transformation: Transform,
-        shape: Shapes,
+        shape: Option<Shapes>,
         class: ClassInfo,
+        colour: Option<Rgba8>,
     ) {
-        self.push(drw, transformation, shape, class);
+        self.push(drw, transformation, shape, class, colour);
     }
 
-    pub fn add_text<G>(&mut self, drw: G, _transformation: Transform)
+    pub fn add_text<G>(&mut self, drw: G, transformation: Transform, text_color: Rgba8)
     where
         G: GameObject + RenderText + Send + Sync + 'static,
     {
@@ -97,10 +110,31 @@ impl EntityComponent {
 
         let mut cursor = Cursor::new(&mut png);
 
-        image_buffer.write_to(&mut cursor, image::ImageFormat::Png).expect("Failed to write png");
+        image_buffer
+            .write_to(&mut cursor, image::ImageFormat::Png)
+            .expect("Failed to write png");
+
+        let s = Shapes::Image(self.storage.load_texture_from_bytes(&png));
+
+        let boxed_drw: DynObject = Box::new(drw);
+
+        self.push(
+            boxed_drw,
+            transformation,
+            Some(s),
+            ClassInfo::of::<G>(),
+            Some(text_color),
+        );
     }
 
-    fn push(&mut self, drw: DynObject, transformation: Transform, shape: Shapes, class: ClassInfo) {
+    fn push(
+        &mut self,
+        drw: DynObject,
+        transformation: Transform,
+        shape: Option<Shapes>,
+        class: ClassInfo,
+        color: Option<Rgba8>,
+    ) {
         debug!("{:?}", class);
 
         let memory_allocator = self.memory_allocator.clone();
@@ -111,20 +145,24 @@ impl EntityComponent {
 
         let descriptor_id = DescriptorID::from(&class);
 
-        let shape_clone = shape.clone();
-        // Likely someday it's will crash
-        self.thread_pool.spawn(move || {
-            shape_clone.create_descriptor(
-                descriptor_id,
-                memory_allocator,
-                descriptor_set_allocator,
-                descriptor_set_cache,
-                pipeline_cache,
-                sampler,
-            );
-        });
+        if let Some(shp) = shape {
+            let shape_clone = shp.clone();
+            // TODO Likely someday it's will crash
+            self.thread_pool.spawn(move || {
+                shape_clone.create_descriptor(
+                    descriptor_id,
+                    memory_allocator,
+                    descriptor_set_allocator,
+                    descriptor_set_cache,
+                    pipeline_cache,
+                    sampler,
+                );
+            });
+            self.buffer.spawn((transformation, class, shp, drw, color));
+            return;
+        }
 
-        self.buffer.spawn((transformation, class, shape, drw));
+        self.buffer.spawn((transformation, class, drw, color));
     }
 
     pub fn remove<T>(&mut self, entity: Entity)
