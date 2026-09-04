@@ -92,7 +92,7 @@ pub enum CanvasCommand {
         transform: Transform,
         shape: Option<Shapes>,
         class: ClassInfo,
-        colour: Option<Rgba8>,
+        colour: Rgba8,
     },
 }
 

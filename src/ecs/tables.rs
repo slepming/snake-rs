@@ -79,7 +79,7 @@ impl EntityComponent {
 
         let boxed_drw: DynObject = Box::new(drw);
 
-        self.push(boxed_drw, transformation, Some(shape), class, Some(color));
+        self.push(boxed_drw, transformation, Some(shape), class, color);
         // DescriptorSet,
         // ClassInfo,
         // Shapes,
@@ -92,7 +92,7 @@ impl EntityComponent {
         transformation: Transform,
         shape: Option<Shapes>,
         class: ClassInfo,
-        colour: Option<Rgba8>,
+        colour: Rgba8,
     ) {
         self.push(drw, transformation, shape, class, colour);
     }
@@ -123,7 +123,7 @@ impl EntityComponent {
             transformation,
             Some(s),
             ClassInfo::of::<G>(),
-            Some(text_color),
+            text_color,
         );
     }
 
@@ -133,7 +133,7 @@ impl EntityComponent {
         transformation: Transform,
         shape: Option<Shapes>,
         class: ClassInfo,
-        color: Option<Rgba8>,
+        color: Rgba8,
     ) {
         debug!("{:?}", class);
 
@@ -146,6 +146,7 @@ impl EntityComponent {
         let descriptor_id = DescriptorID::from(&class);
 
         if let Some(shp) = shape {
+            debug!("Object contains shape");
             let shape_clone = shp.clone();
             // TODO Likely someday it's will crash
             self.thread_pool.spawn(move || {
@@ -158,11 +159,12 @@ impl EntityComponent {
                     sampler,
                 );
             });
-            self.buffer.spawn((transformation, class, shp, drw, color));
-            return;
-        }
 
-        self.buffer.spawn((transformation, class, drw, color));
+            self.buffer.spawn((class, transformation, shp, drw, color));
+        } else {
+            debug!("Object not contains shape");
+            self.buffer.spawn((class, transformation, drw, color));
+        }
     }
 
     pub fn remove<T>(&mut self, entity: Entity)

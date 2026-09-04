@@ -228,7 +228,12 @@ impl EngineContext {
                 transform,
                 shape: None,
                 class,
-                colour: None,
+                colour: Rgba8 {
+                    r: 0,
+                    g: 0,
+                    b: 0,
+                    a: 0,
+                },
             });
     }
 }
@@ -704,8 +709,6 @@ impl ApplicationHandler for EngineContext {
                     )
                     .unwrap()
                     // We are now inside the first subpass of the render pass.
-                    //
-                    // TODO: Document state setting and how it affects subsequent draw commands.
                     .set_viewport(0, [rcx.viewport.clone()].into_iter().collect())
                     .unwrap();
 
@@ -723,11 +726,11 @@ impl ApplicationHandler for EngineContext {
                         .query_mut::<(hecs::Entity, (&ClassInfo, &Shapes, &mut DynObject, &Rgba8))>(
                         )
                     {
+                        let _span_draw = tracy_client::span!("Engine: Draw Item");
                         let id = id.id() as usize - 1;
                         entity.update(&mut self.game.world_buffer);
 
                         let matrix = mesh.1[id];
-                        let _span_draw = tracy_client::span!("Engine: Draw Item");
                         let colour = color;
                         let constants = Constants(
                             matrix,
