@@ -714,7 +714,7 @@ impl ApplicationHandler for EngineContext {
                 if let Some(mesh) = mesh_buffers {
                     let _span_draw =
                         tracy_client::span!("Engine:: Preparing Objects for Rendering");
-                    builder.bind_vertex_buffers(0, mesh.0.clone()).unwrap();
+                    builder.bind_vertex_buffers(0, mesh.0).unwrap();
 
                     let mut world = self.game.world.write().unwrap();
 
