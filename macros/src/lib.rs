@@ -4,8 +4,6 @@ use proc_macro2::Span;
 use quote::quote;
 use syn::{Error, Fields, Ident, ItemStruct, parse_macro_input, parse_quote};
 
-// TODO: REMOVE COLOR
-
 /// Creates fields and implementation automatically
 #[proc_macro_attribute]
 pub fn static_game_object(_attr: TokenStream, item: TokenStream) -> TokenStream {
@@ -22,9 +20,6 @@ pub fn static_game_object(_attr: TokenStream, item: TokenStream) -> TokenStream 
     };
 
     if let Fields::Named(ref mut fields) = item.fields {
-        fields
-            .named
-            .push(parse_quote!(pub color: #crate_ident::Rgba8));
         fields
             .named
             .push(parse_quote!(pub shape: #crate_ident::geom::shapes::Shapes));
@@ -46,10 +41,6 @@ pub fn static_game_object(_attr: TokenStream, item: TokenStream) -> TokenStream 
         #item
 
         impl #crate_ident::RenderGameObject for #class {
-            fn color(&self) -> #crate_ident::Rgba8 {
-               self.color.clone()
-            }
-
             fn shape(&self) -> #crate_ident::geom::shapes::Shapes {
                self.shape.clone()
             }
@@ -77,9 +68,6 @@ pub fn text_object(_attr: TokenStream, item: TokenStream) -> TokenStream {
     if let Fields::Named(ref mut fields) = item.fields {
         fields
             .named
-            .push(parse_quote!(pub color: #crate_ident::Rgba8));
-        fields
-            .named
             .push(parse_quote!(pub info: #crate_ident::text::sprite_text::SpriteTextCreateInfo));
     } else {
         return Error::new_spanned(
@@ -99,9 +87,6 @@ pub fn text_object(_attr: TokenStream, item: TokenStream) -> TokenStream {
         #item
 
         impl #crate_ident::RenderText for #class {
-            fn color(&self) -> #crate_ident::Rgba8 {
-               self.color.clone()
-            }
             fn info(&self) -> #crate_ident::text::sprite_text::SpriteTextCreateInfo {
                 self.info.clone()
             }

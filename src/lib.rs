@@ -178,12 +178,7 @@ impl EngineContext {
             thread_pool.clone(),
         );
 
-        let canvas = Canvas::new(Rgba8 {
-            r: 0,
-            g: 0,
-            b: 0,
-            a: 255,
-        });
+        let canvas = Canvas::new();
         let class = ClassInfo::of::<Canvas>();
 
         game.world.write().unwrap().spawn((class, canvas));
@@ -856,12 +851,10 @@ pub struct SnakeVertex {
 struct Constants(Transform, [f32; 2], u32);
 
 pub trait RenderGameObject {
-    fn color(&self) -> Rgba8;
     fn shape(&self) -> Shapes;
 }
 
 pub trait RenderText {
-    fn color(&self) -> Rgba8;
     fn info(&self) -> SpriteTextCreateInfo;
 }
 

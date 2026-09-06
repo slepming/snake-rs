@@ -103,10 +103,9 @@ pub struct Canvas {
 }
 
 impl Canvas {
-    pub fn new(rgba: Rgba8) -> Self {
+    pub fn new() -> Self {
         Self {
             buffer: Vec::new(),
-            color: rgba,
             shape: Shapes::Square(ShapeCreateInfo::default()),
         }
     }

@@ -65,7 +65,7 @@ impl EntityComponent {
         }
     }
 
-    pub fn add<G>(&mut self, drw: G, transformation: Transform)
+    pub fn add<G>(&mut self, drw: G, transformation: Transform, color: Rgba8)
     where
         G: GameObject + RenderGameObject + Send + Sync + 'static,
     {
@@ -73,8 +73,6 @@ impl EntityComponent {
         let class = ClassInfo::of::<G>();
 
         let shape = drw.shape();
-
-        let color = drw.color();
 
         let boxed_drw: DynObject = Box::new(drw);
 
@@ -101,7 +99,7 @@ impl EntityComponent {
         G: GameObject + RenderText + Send + Sync + 'static,
     {
         let sprite_text_info = drw.info();
-        let glyphs = self.fonts.get_glyphs(sprite_text_info, drw.color());
+        let glyphs = self.fonts.get_glyphs(sprite_text_info, text_color);
 
         let image_buffer = glyphs.into_owned();
 
