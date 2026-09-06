@@ -99,6 +99,7 @@ impl EntityComponent {
         G: GameObject + RenderText + Send + Sync + 'static,
     {
         let sprite_text_info = drw.info();
+        let class_name: String = format!("{}::{}", type_name::<G>(), &sprite_text_info.text);
         let glyphs = self.fonts.get_glyphs(sprite_text_info, text_color);
 
         let image_buffer = glyphs.into_owned();
@@ -119,7 +120,7 @@ impl EntityComponent {
             boxed_drw,
             transformation,
             Some(s),
-            ClassInfo::of::<G>(),
+            ClassInfo::of_class::<G>(class_name),
             text_color,
         );
     }
@@ -207,7 +208,7 @@ impl EntityComponent {
 #[derive(Debug)]
 pub struct ClassInfo {
     pub type_id: TypeId,
-    pub class_name: &'static str,
+    pub class_name: String,
 }
 
 impl ClassInfo {
@@ -215,7 +216,7 @@ impl ClassInfo {
     pub fn of<T: 'static>() -> Self {
         Self {
             type_id: TypeId::of::<T>(),
-            class_name: type_name::<T>(),
+            class_name: type_name::<T>().to_owned(),
         }
     }
 
@@ -245,37 +246,16 @@ impl ClassInfo {
     ///     fn start(&mut self, world: &mut EntityComponent) {
     ///         // Create an object with unique data
     ///         let drw = SecondDrawable {
-    ///             color: Rgba8 {
-    ///                 r: 255,
-    ///                 g: 255,
-    ///                 b: 255,
-    ///                 a: 255,
-    ///             },
     ///             shape: Shapes::Square(ShapeCreateInfo::default().with_radius(f32::MAX)),
     ///         };
-    ///         let transform = Transform([
-    ///             [50.0, 0.0, 0.0, 0.0],
-    ///             [0.0, 50.0, 0.0, 0.0],
-    ///             [0.0, 0.0, 1.0, 0.0],
-    ///             [600.0, 600.0, 0.0, 1.0],
-    ///         ]);
-    ///
+    ///         let transform = ...
+    ///         
     ///         // Create a second object with unique data
     ///         let drw2 = SecondDrawable {
-    ///             color: Rgba8 {
-    ///                 r: 255,
-    ///                 g: 0,
-    ///                 b: 0,
-    ///                 a: 255,
-    ///             },
     ///             shape: Shapes::Square(ShapeCreateInfo::default().with_radius(0.3)),
     ///         };
-    ///         let transform2 = Transform([
-    ///             [50.0, 0.0, 0.0, 0.0],
-    ///             [0.0, 50.0, 0.0, 0.0],
-    ///             [0.0, 0.0, 1.0, 0.0],
-    ///             [900.0, 900.0, 0.0, 1.0],
-    ///         ]);
+    ///
+    ///         let transform2 = ...
     ///
     ///         // Since the classes drw and drw2 are the same. Data between drw2 and drw are the
     ///         // same and last object, which will be added(with same classes), will create data for
@@ -293,7 +273,7 @@ impl ClassInfo {
     ///     }
     /// }
     /// ```
-    pub fn of_class<T: 'static>(class: &'static str) -> Self {
+    pub fn of_class<T: 'static>(class: String) -> Self {
         Self {
             type_id: TypeId::of::<T>(),
             class_name: class,

@@ -8,6 +8,26 @@ use crate::mv::transform::HasTransform;
 #[derive(BufferContents, Clone, Copy, Debug)]
 pub struct Transform(pub [[f32; 4]; 4]);
 
+impl Transform {
+    /// Returns transform matrix with x, y positions and x, y sizes
+    pub fn new(x: f32, y: f32, xs: f32, ys: f32) -> Self {
+        Self([
+            [xs, 0.0, 0.0, 0.0],
+            [0.0, ys, 0.0, 0.0],
+            [0.0, 0.0, 1.0, 0.0],
+            [x, y, 0.0, 1.0],
+        ])
+    }
+}
+
+impl Default for Transform {
+    fn default() -> Self {
+        let default = Self(Default::default());
+        println!("{:?}", default);
+        default
+    }
+}
+
 impl PartialEq for Transform {
     fn eq(&self, other: &Self) -> bool {
         for i in 0..4 {

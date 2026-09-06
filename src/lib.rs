@@ -755,7 +755,7 @@ impl ApplicationHandler for EngineContext {
 
                         builder.bind_pipeline_graphics(pipeline.clone()).unwrap();
 
-                        if let Some(desc) = self.descriptors.get(class.class_name) {
+                        if let Some(desc) = self.descriptors.get(&class.class_name) {
                             let _span_draw = tracy_client::span!("Engine: Getting descriptors");
                             builder
                                 .bind_descriptor_sets(
