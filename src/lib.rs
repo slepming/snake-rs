@@ -66,6 +66,7 @@ use crate::{
         image_shader::{image_fs, image_vs},
         square_shader::{square_fs, square_vs},
     },
+    text::sprite_text::SpriteTextCreateInfo,
     threading::scheduler::{Scheduler, SchedulerContext, create_scheduler},
     utils::{
         vulkan::{create_pipeline, get_vulkan_instance, select_render_device},
@@ -861,8 +862,7 @@ pub trait RenderGameObject {
 
 pub trait RenderText {
     fn color(&self) -> Rgba8;
-    fn text(&self) -> &'static str;
-    fn font_size(&self) -> usize;
+    fn info(&self) -> SpriteTextCreateInfo;
 }
 
 /// Calculates Vertex buffer, matrices vector and offsets vector for draw in Vulkano

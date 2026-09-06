@@ -8,7 +8,6 @@ use crate::{
         assets::TextureStorage,
         cache::{DescriptorSetCache, PipelineCache},
     },
-    text::sprite_text::SpriteTextCreateInfo,
 };
 use color::Rgba8;
 use hecs::CommandBuffer;
@@ -101,7 +100,7 @@ impl EntityComponent {
     where
         G: GameObject + RenderText + Send + Sync + 'static,
     {
-        let sprite_text_info = SpriteTextCreateInfo::default().with_text(drw.text());
+        let sprite_text_info = drw.info();
         let glyphs = self.fonts.get_glyphs(sprite_text_info, drw.color());
 
         let image_buffer = glyphs.into_owned();

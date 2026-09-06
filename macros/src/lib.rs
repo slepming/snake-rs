@@ -4,6 +4,8 @@ use proc_macro2::Span;
 use quote::quote;
 use syn::{Error, Fields, Ident, ItemStruct, parse_macro_input, parse_quote};
 
+// TODO: REMOVE COLOR
+
 /// Creates fields and implementation automatically
 #[proc_macro_attribute]
 pub fn static_game_object(_attr: TokenStream, item: TokenStream) -> TokenStream {
@@ -76,8 +78,9 @@ pub fn text_object(_attr: TokenStream, item: TokenStream) -> TokenStream {
         fields
             .named
             .push(parse_quote!(pub color: #crate_ident::Rgba8));
-        fields.named.push(parse_quote!(pub size: usize));
-        fields.named.push(parse_quote!(text: String));
+        fields
+            .named
+            .push(parse_quote!(pub info: #crate_ident::text::sprite_text::SpriteTextCreateInfo));
     } else {
         return Error::new_spanned(
             &item,
@@ -95,17 +98,12 @@ pub fn text_object(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let expanded = quote! {
         #item
 
-        impl #crate_ident::Render for #class {
+        impl #crate_ident::RenderText for #class {
             fn color(&self) -> #crate_ident::Rgba8 {
                self.color.clone()
             }
-
-            fn font_size(&self) -> usize {
-                self.size
-            }
-
-            fn text(&self) -> &'static str {
-                &self.text
+            fn info(&self) -> #crate_ident::text::sprite_text::SpriteTextCreateInfo {
+                self.info.clone()
             }
         }
     };
