@@ -1,17 +1,13 @@
-use color::Rgba8;
-
 use crate::Vector;
 
 /// Text options
+#[derive(Clone)]
 pub struct SpriteTextCreateInfo {
     /// Text which will be draw on the screen
     pub text: String,
-    ///
-    pub scale: f32,
     /// Character size
     pub size: Vector,
-    /// Text color
-    pub color: Rgba8,
+    pub scale: f32,
     /// Font index(temp)
     pub font: usize,
     /// Positional coordinates
@@ -19,23 +15,13 @@ pub struct SpriteTextCreateInfo {
 }
 
 impl SpriteTextCreateInfo {
-    pub fn with_text(mut self, text: String) -> Self {
-        self.text = text;
+    pub fn with_text(mut self, text: &'static str) -> Self {
+        self.text = String::from(text);
         self
     }
 
     pub fn with_position(mut self, position: Vector) -> Self {
         self.position = position;
-        self
-    }
-
-    pub fn with_color(mut self, color: Rgba8) -> Self {
-        self.color = color;
-        self
-    }
-
-    pub fn with_scale(mut self, scale: f32) -> Self {
-        self.scale = scale;
         self
     }
 
@@ -48,21 +34,20 @@ impl SpriteTextCreateInfo {
         self.size = size;
         self
     }
+
+    pub fn with_scale(mut self, s: f32) -> Self {
+        self.scale = s;
+        self
+    }
 }
 
 impl Default for SpriteTextCreateInfo {
     fn default() -> Self {
         Self {
             text: Default::default(),
-            scale: 20.0,
             size: Vector::new(15.0, 7.5),
-            color: Rgba8 {
-                r: 255,
-                g: 255,
-                b: 255,
-                a: 255,
-            },
             font: 0,
+            scale: 15.0,
             position: Default::default(),
         }
     }

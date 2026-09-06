@@ -29,7 +29,9 @@ use crate::{drw::texture::Texture, geom::dimension::Dimension, mem::engine_memor
 pub(crate) struct Asset; // TODO: Binary file large
 
 /// Texture storage
-pub struct Storage {
+///
+/// Thread safety
+pub struct TextureStorage {
     pub(crate) queue: Arc<Queue>,
     pub(crate) memory_allocs: Arc<EngineMemory>,
     pub(crate) texture_pool: RwLock<HashMap<String, Arc<TextureHandler>>>,
@@ -40,7 +42,7 @@ pub struct TextureHandler {
     pub(crate) view: Arc<ImageView>,
 }
 
-impl Storage {
+impl TextureStorage {
     /// Returns Arc<[`TextureHandler`]> from bytes
     pub fn load_texture_from_bytes(&self, bytes: &[u8]) -> Arc<TextureHandler> {
         let texture: Texture = { Texture::from_slice(bytes).unwrap() };
@@ -65,7 +67,7 @@ impl Storage {
     /// If you use this function right before [`load_and_get_texture`]
     ///  you're texture will be load from [`load_and_get_texture`] function synchronously.
     /// It's happening because OS scheduler gives the ability to start job for another thread too long.
-    pub fn load_texture(self: Arc<Self>, file_name: &'static Path, internal: bool) {
+    pub fn load_and_save_texture(self: Arc<Self>, file_name: &'static Path, internal: bool) {
         let file = file_name.file_name().unwrap().to_string_lossy().to_string();
         let file_name = file_name.to_str().unwrap();
         thread::spawn(move || {
@@ -97,7 +99,11 @@ impl Storage {
     }
 
     /// Returns Arc<[`TextureHandler`]> from file system
-    pub fn load_and_get_texture(&self, file_name: &Path, internal: bool) -> Arc<TextureHandler> {
+    pub fn load_texture_handler(
+        &self,
+        file_name: &'static Path,
+        internal: bool,
+    ) -> Arc<TextureHandler> {
         let _span = tracy_client::span!("Engine::load_texture");
         let file = file_name.file_name().unwrap().to_string_lossy().to_string();
 

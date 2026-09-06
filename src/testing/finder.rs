@@ -1,72 +1,41 @@
 //! Find and get objects
 
-use std::sync::{Arc, Mutex};
-
-use tracing::debug;
 use winit::dpi::PhysicalPosition;
 
-use crate::{
-    Vector,
-    drw::{
-        children::Children,
-        drawable::{Drawable, DrawableComponent},
-    },
-    mv::transform::Positioned,
-};
+use crate::Vector;
 
 pub trait IntoVector {
     fn into_vector(self) -> Vector;
 }
 
 pub trait Finder {
-    fn get_by_position(&self, position: PhysicalPosition<f64>) -> Vec<Arc<Mutex<Drawable>>>;
+    fn get_by_position(&self, position: PhysicalPosition<f64>);
 }
 
-impl Finder for Children {
-    /// Calculates all drawable position and compares with the specified range
-    ///
-    /// # Returns
-    /// [`Drawable`] Vector
-    ///
-    /// # Arguments
-    /// `position` - Position at which the object is located.
-    fn get_by_position(&self, position: PhysicalPosition<f64>) -> Vec<Arc<Mutex<Drawable>>> {
-        let vector_position = position.into_vector();
-        self.filter_each(|d| into_range(d, vector_position))
-    }
-}
-
+#[allow(dead_code)]
 /// Calculate drawable is into position range
-fn into_range(drawable: &Drawable, position: Vector) -> bool {
-    let drawable_size = drawable.size();
-    let drawable_position = drawable.position();
-    let drawable_max = drawable_position + drawable_size;
+fn into_range() -> bool {
+    //let drawable = drw.read().unwrap();
+    //let size = drawable.size();
+    //let pos = drawable.position();
 
-    let inside_x = position.x >= drawable_position.x && position.x <= drawable_max.x;
-    let inside_y = position.y >= drawable_position.y && position.y <= drawable_max.y;
+    //let half_size = size / 2.0;
+    //let min_bound = pos - half_size;
+    //let max_bound = pos + half_size;
 
-    let ge_check = position.cmpge(drawable_position);
-    let le_check = position.cmple(drawable_max);
-    let inside = ge_check.all() && le_check.all();
+    //let inside_x = position.x >= min_bound.x && position.x <= max_bound.x;
+    //let inside_y = position.y >= min_bound.y && position.y <= max_bound.y;
+    //let inside = inside_x && inside_y;
 
-    debug!("--- checking object ---");
-    debug!("cursor: {:?}", position);
-    debug!(
-        "object position (min): {:?}, object size: {:?}",
-        drawable_position, drawable_size
-    );
-    debug!("object max bounds: {:?}", drawable_max);
-    debug!(
-        "axis x check ({:.1} <= {:.1} <= {:.1}): {}",
-        drawable_position.x, position.x, drawable_max.x, inside_x
-    );
-    debug!(
-        "axis y check ({:.1} <= {:.1} <= {:.1}): {}",
-        drawable_position.y, position.y, drawable_max.y, inside_y
-    );
-    debug!("final result -> inside: {}", inside);
+    //debug!(
+    //    "AABB Check | Cursor: [x: {:.1}, y: {:.1}] | Bounds: X[{:.1}..{:.1}] Y[{:.1}..{:.1}] | Result: {}",
+    //    position.x, position.y, min_bound.x, max_bound.x, min_bound.y, max_bound.y, inside
+    //);
 
-    inside
+    //drop(drawable);
+
+    //inside
+    false
 }
 
 impl IntoVector for PhysicalPosition<f64> {

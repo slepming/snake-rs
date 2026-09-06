@@ -1,10 +1,11 @@
 use std::{borrow::Cow, path::Path};
 
 use ab_glyph::{Font, FontVec, Glyph, Point, PxScale, ScaleFont, point};
+use color::Rgba8;
 use image::{DynamicImage, ImageBuffer, Rgba};
 use tracing::info;
 
-use crate::{res::assets::Storage, text::sprite_text::SpriteTextCreateInfo};
+use crate::{res::assets::TextureStorage, text::sprite_text::SpriteTextCreateInfo};
 
 /// Stores the necessary parameters for fonts
 pub struct TextFont {
@@ -14,23 +15,28 @@ pub struct TextFont {
 
 impl TextFont {
     /// Returns [`TextFont`] structure
-    pub fn new(family: String) -> Self {
-        let path_to_font = Path::new(&family);
-        let font_in_bytes = Storage::load(&path_to_font).unwrap();
+    pub fn new(family: &'static str) -> Self {
+        let path_to_font = Path::new(family);
+
+        let font_in_bytes = TextureStorage::load(&path_to_font).unwrap();
         let font = FontVec::try_from_vec(font_in_bytes.into_owned()).unwrap();
+
         let mut fonts: Vec<FontVec> = Vec::with_capacity(1);
+
         fonts.push(font);
 
-        info!("New font with family: {} imported", family);
+        info!("Font: {} imported", family);
 
         Self { fonts }
     }
 
     /// Adds a font
-    pub fn add_font(&mut self, family: String) {
-        let path_to_font = Path::new(&family);
-        let font_in_bytes = Storage::load(&path_to_font).unwrap();
+    pub fn add_font(&mut self, family: &'static str) {
+        let path_to_font = Path::new(family);
+
+        let font_in_bytes = TextureStorage::load(&path_to_font).unwrap();
         let font = FontVec::try_from_vec(font_in_bytes.into_owned()).unwrap();
+
         self.fonts.push(font);
     }
 
@@ -38,6 +44,7 @@ impl TextFont {
     pub fn get_glyphs<'a>(
         &self,
         text: SpriteTextCreateInfo,
+        color: Rgba8,
     ) -> Cow<'a, ImageBuffer<Rgba<u8>, Vec<u8>>> {
         let scale = PxScale::from(text.scale * 1.5);
 
@@ -65,8 +72,7 @@ impl TextFont {
                 b
             })
         else {
-            println!("No outlined glyphs?");
-            panic!()
+            panic!("No outlined glyphs?")
         };
 
         // create a new rgba image using the combined px bound width and height
@@ -89,9 +95,9 @@ impl TextFont {
                 let px = image.get_pixel_mut(img_left + x, img_top + y);
                 // Turn the coverage into an alpha value (blended with any previous)
                 *px = Rgba([
-                    text.color.r,
-                    text.color.g,
-                    text.color.b,
+                    color.r,
+                    color.g,
+                    color.b,
                     px.0[3].saturating_add((v * 255.0) as u8),
                 ]);
             });
@@ -147,10 +153,22 @@ mod tests {
 
     #[test]
     fn get_glyph_buffer() {
-        let sprite_text = SpriteTextCreateInfo::default().with_text(String::from("Hello, world"));
+        let sprite_text = SpriteTextCreateInfo::default().with_text("Hello, world");
 
-        let font = TextFont::new(String::from("Fonts/freedom.otf"));
+        let font = TextFont::new("Fonts/freedom.otf");
 
-        assert!(font.get_glyphs(sprite_text).len() > 0)
+        assert!(
+            font.get_glyphs(
+                sprite_text,
+                Rgba8 {
+                    r: 255,
+                    g: 255,
+                    b: 255,
+                    a: 255
+                }
+            )
+            .len()
+                > 0
+        )
     }
 }
